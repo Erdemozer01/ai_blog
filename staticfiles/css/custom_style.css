@@ -1,0 +1,16 @@
+.academic-text-format {
+    font-family: 'Times New Roman', Times, serif; /* Klasik akademik font */
+    font-size: 14pt; /* 12 punto */
+    line-height: 1.5; /* 1.5 satır aralığı */
+    text-align: justify; /* İki yana yasla */
+    color: inherit; /* Mevcut temanın (açık/koyu) yazı rengini miras al */
+}
+
+.academic-text-format h1,
+.academic-text-format h2,
+.academic-text-format h3,
+.academic-text-format h4 {
+    text-align: left;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+}

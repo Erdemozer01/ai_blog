@@ -1,0 +1,35 @@
+{% load plotly_dash static %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <title>{{ meta_title|default:"AI Blog - Anasayfa" }}</title>
+
+    <meta name="description"
+          content="{{ meta_description|default:'Çeşitli konularda üretilmiş akademik makaleleri ve analizleri keşfedin.' }}">
+    <meta name="keywords" content="{{ meta_keywords|default:'makale, blog, django, dash, akademik' }}">
+
+    {% block stylesheet %}{% endblock %}
+
+    {% plotly_header %}
+
+</head>
+<body>
+
+<main>
+    {% block content %}
+
+    {% endblock %}
+</main>
+
+{% include 'includes/footer.html' %}
+
+{% include 'includes/arrow.html' %}
+
+{% plotly_footer %}
+
+</body>
+</html>

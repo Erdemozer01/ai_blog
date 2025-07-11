@@ -1,0 +1,7 @@
+# templates/robots.txt
+User-agent: *
+Disallow: /admin/
+Disallow: /accounts/
+Disallow: /generate-article/
+
+Sitemap: {{ domain }}/sitemap.xml

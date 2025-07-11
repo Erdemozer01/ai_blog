@@ -1,0 +1,35 @@
+<a href="#" id="scrollTopBtn" class="btn btn-primary rounded-circle shadow" title="Yukarı Çık">
+    <i class="fas fa-arrow-up"></i>
+</a>
+
+<style>
+    #scrollTopBtn {
+        display: none; /* Başlangıçta gizli */
+        position: fixed; /* Sayfa kaysa bile sabit kalır */
+        bottom: 20px;
+        right: 30px;
+        z-index: 99; /* Diğer elemanların üstünde kalır */
+        border: none;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        line-height: 1.5;
+    }
+</style>
+
+<script>
+    // Gerekli elemanları seç
+    var scrollTopBtn = document.getElementById("scrollTopBtn");
+
+    // Kullanıcı sayfayı kaydırdığında çalışacak fonksiyon
+    window.onscroll = function () {
+        // Eğer sayfanın tepesinden 100 pikselden fazla aşağı inilmişse
+        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+            scrollTopBtn.style.display = "block"; // Oku göster
+        } else {
+            scrollTopBtn.style.display = "none"; // Oku gizle
+        }
+    };
+
+    // Oka tıklandığında sayfanın en üstüne git (Bu zaten <a> etiketi ile çalışır)
+</script>
