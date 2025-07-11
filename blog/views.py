@@ -2,7 +2,7 @@ import re
 import ast
 from urllib.parse import quote_plus
 
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -11,8 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, F, Count
 from django.db.models.functions import TruncDay
 
-import pandas as pd
-import plotly.express as px
+
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
@@ -135,22 +134,53 @@ def article_detail_view(request, article_id):
         ])
     ])
 
+    edit_button = None
+
+    if request.user.is_superuser:
+
+        edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+
+        edit_button = html.A(
+            [html.I(className="fas fa-pencil-alt me-2 text-warning float-end")],
+            href=edit_url,
+
+            className="mb-4",
+            title="Düzenle"
+        )
+
 
     full_layout = html.Div([
         dcc.Store(id='article-data-store', data=article_data_for_dash),
-        dcc.Store(id='feedback-button-store'),  # Tıklama sayılarını saklamak için yeni Store
+        dcc.Store(id='feedback-button-store'),
         html.Div(id='like-toast-container', style={"position": "fixed", "bottom": 20, "right": 20, "zIndex": 1050}),
         main_navbar,
         dbc.Container([
             dbc.Row([
                 dbc.Col([
                     html.Header([
-                        html.H1(article.title or "Başlık Belirtilmemiş", className="display-5 mb-3"),
-                        html.P(
-                            f"Tarih: {article.created_at.strftime('%d %B %Y')} | Kategori: {article.category.name if article.category else 'Yok'} | Okunma: {article.view_count}",
-                            className="text-muted small border-bottom pb-3 mb-4")
+                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-3 mt-4", style={"text-align": "justify"}),
+                        dbc.Row(
+                            [
+                                # Sol Sütun: Tarih/Kategori bilgisi
+                                dbc.Col(
+                                    html.P(
+                                        f"Tarih: {article.created_at.strftime('%d %B %Y')} | Kategori: {article.category.name if article.category else 'Yok'} | Okunma: {article.view_count}",
+                                        className="text-muted small mb-0"  # Alt boşluğu kaldırdık
+                                    ),
+                                    width="auto"  # İçeriği kadar yer kapla
+                                ),
+                                # Sağ Sütun: Düzenleme butonu
+                                dbc.Col(
+                                    edit_button if edit_button else ""
+                                ),
+                            ],
+                            justify="between",  # İki sütunu satırın iki ucuna yaslar
+                            align="center",  # Dikey olarak ortalar
+                            className="border-bottom pb-3 mb-4"  # Alt çizgiyi satıra uyguluyoruz
+                        )
+
                     ]),
-                    html.Hr(className="my-4"),
+
                     html.Div([
                         html.H4("Abstract (English)"),
                         html.P(html.Em(article.english_abstract or "İngilizce özet mevcut değil.")),
@@ -171,15 +201,18 @@ def article_detail_view(request, article_id):
                     html.H4("Kaynakça (References)"),
                     html.Ol(formatted_bibliography_items),
                     html.Hr(className="my-5"),
-                    dbc.Row([
-                        dbc.Col(feedback_buttons, md=6, className="mb-3"),
-                        dbc.Col(share_buttons, md=6, className="text-md-end mb-3"),
-                    ]),
-                    html.Div(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary mt-5"),
-                             className="text-center")
+
                 ], md=10, lg=8, className="mx-auto")
             ])
-        ], className="my-4")
+        ], className="my-4 shadow-lg"),
+
+        dbc.Container([
+            dbc.Row([
+                dbc.Col(feedback_buttons, md=4, className="mb-3"),
+                dbc.Col(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary text-center mt-4"), md=4, className="text-center mb-3"),
+                dbc.Col(share_buttons, md=4, className="text-md-end mb-3"),
+            ]),
+        ])
     ])
 
     article_detail_app.layout = full_layout

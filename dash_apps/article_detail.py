@@ -52,7 +52,6 @@ def create_graph_from_json(chart_data):
 
 
 # === ANA İÇERİK OLUŞTURMA CALLBACK'İ ===
-
 @app.callback(
     Output('dynamic-article-content', 'children'),
     Input('article-data-store', 'data')
