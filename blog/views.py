@@ -208,11 +208,14 @@ def article_detail_view(request, article_id):
 
         dbc.Container([
             dbc.Row([
-                dbc.Col(feedback_buttons, md=4, className="mb-3"),
-                dbc.Col(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary text-center mt-4"), md=4, className="text-center mb-3"),
-                dbc.Col(share_buttons, md=4, className="text-md-end mb-3"),
+                dbc.Col(feedback_buttons, md=6, className="mb-3"),
+                dbc.Col(share_buttons, md=6, className="text-md-end mb-3"),
             ]),
+            html.Div(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary mt-5"),
+                     className="text-center")
         ])
+
+
     ])
 
     article_detail_app.layout = full_layout
