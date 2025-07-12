@@ -3,7 +3,6 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html, dcc, ctx
 import plotly.express as px
 import re
-import pandas as pd
 
 from blog.models import GeneratedArticle
 
@@ -25,53 +24,31 @@ def create_table_from_json(table_data):
         return dbc.Alert("Tablo verisi hatalı formatta.", color="danger")
 
 
-def create_graph_from_json(visual_info):
-    """
-    AI'dan gelen tek bir görsel verisini alır ve bunu bir Dash bileşenine
-    (Grafik veya Tablo) dönüştürür. Hatalara karşı dayanıklıdır.
-    """
-    # Gelen verinin bir sözlük olduğunu ve gerekli anahtarları içerdiğini kontrol et
-    if not isinstance(visual_info, dict) or 'type' not in visual_info or 'data' not in visual_info:
-        return dbc.Alert("Grafik verisi hatalı veya eksik formatta.", color="danger")
-
-    chart_type = visual_info.get("type", "bar")
-    chart_data = visual_info.get("data", [])
-    chart_title = visual_info.get("title", "Başlıksız Grafik")
-
-    # Veri listesinin boş olmadığını ve doğru formatta (sözlük listesi) olduğunu kontrol et
-    if not chart_data or not isinstance(chart_data, list) or not all(isinstance(i, dict) for i in chart_data):
-        return dbc.Alert("Grafik için geçerli veri bulunamadı.", color="warning")
-
+def create_graph_from_json(chart_data):
     try:
-        # Veriyi Pandas DataFrame'e çevir
-        df = pd.DataFrame(chart_data)
-
-        # DataFrame'in en az iki sütunu olduğundan emin ol
-        if len(df.columns) < 2:
-            return dbc.Alert("Grafik verisi en az iki sütun içermelidir.", color="warning")
-
+        chart_type = chart_data.get('chart_type', 'bar').lower()
         fig = None
-        # DataFrame'deki ilk iki sütunu x ve y ekseni olarak kullan
-        x_col, y_col = df.columns[0], df.columns[1]
-
-        if chart_type == "bar":
-            fig = px.bar(df, x=x_col, y=y_col, title=chart_title)
-        elif chart_type == "line":
-            fig = px.line(df, x=x_col, y=y_col, title=chart_title)
-        elif chart_type == "pie":
-            fig = px.pie(df, names=x_col, values=y_col, title=chart_title)
+        if chart_type == 'bar':
+            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+        elif chart_type == 'line':
+            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+        # Buraya 'pie', 'scatter' gibi başka grafik türleri eklenebilir.
 
         if fig:
-            # Temaya uyum sağlaması için arkaplanı şeffaf yapalım
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            return dcc.Graph(figure=fig, className="my-4 shadow-sm")
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=40, b=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            return html.Div([
+                html.H5(chart_data.get('title', 'Grafik'), className="mt-4 mb-3 text-center"),
+                dcc.Graph(figure=fig, className="shadow-sm border rounded")
+            ], className="my-5")
         else:
-            # Eğer desteklenmeyen bir grafik türü ise, veriyi şık bir tablo olarak göster
-            return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, className="mt-4")
+            return dbc.Alert(f"Desteklenmeyen grafik türü: {chart_type}", color="warning")
+    except (KeyError, TypeError):
+        return dbc.Alert("Grafik verisi hatalı formatta.", color="danger")
 
-    except Exception as e:
-        # Herhangi bir başka hata olursa (örn: Plotly, Pandas hatası)
-        return dbc.Alert(f"Grafik oluşturulurken bir hata oluştu: {e}", color="danger")
 
 # === ANA İÇERİK OLUŞTURMA CALLBACK'İ ===
 @app.callback(
