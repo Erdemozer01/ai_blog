@@ -3,7 +3,7 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html, dcc, ctx
 import plotly.express as px
 import re
-
+import pandas as pd
 from blog.models import GeneratedArticle
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
