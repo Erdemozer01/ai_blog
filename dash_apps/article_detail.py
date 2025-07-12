@@ -3,7 +3,7 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html, dcc, ctx
 import plotly.express as px
 import re
-import pandas as pd
+
 from blog.models import GeneratedArticle
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -24,76 +24,31 @@ def create_table_from_json(table_data):
         return dbc.Alert("Tablo verisi hatalı formatta.", color="danger")
 
 
-def create_graph_from_json(visual_info):
-    """
-    AI'dan gelen görsel verisini alır. Eksik veri durumunda sütunları
-    otomatik olarak tamamlar ve hatalara karşı en dayanıklı şekilde
-    bir Grafik veya Tabloya dönüştürür.
-    """
-    # 1. Temel format kontrolleri
-    if not isinstance(visual_info, dict) or 'type' not in visual_info or 'data' not in visual_info:
-        return dbc.Alert("Görsel veri hatalı veya eksik formatta.", color="danger")
-
-    item_type = visual_info.get("type", "bar").lower()
-    item_data = visual_info.get("data", [])
-    item_title = visual_info.get("title", "Başlıksız Görsel")
-
-    if not item_data:
-        return dbc.Alert("Grafik için 'data' alanı boş.", color="warning")
-
-    # 2. Veriyi işlemeye ve hataları yakalamaya çalış
+def create_graph_from_json(chart_data):
     try:
-        df = None
-        # Gelen verinin formatını kontrol et
-        if isinstance(item_data, list) and all(isinstance(i, dict) for i in item_data):
-            # Standart format: [{'Yıl': 2022, 'Değer': 10}, ...]
-            df = pd.DataFrame(item_data)
+        chart_type = chart_data.get('chart_type', 'bar').lower()
+        fig = None
+        if chart_type == 'bar':
+            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+        elif chart_type == 'line':
+            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+        # Buraya 'pie', 'scatter' gibi başka grafik türleri eklenebilir.
 
-        elif isinstance(item_data, dict):
-            # Alternatif format: {'Yıl': [2022, 2023], 'Değer': [10, 20, 30]}
-
-            # === YENİ VERİ TAMAMLAMA MANTIĞI ===
-            # Önce en uzun listenin boyutunu bul
-            max_len = 0
-            for key in item_data:
-                if isinstance(item_data[key], list):
-                    if len(item_data[key]) > max_len:
-                        max_len = len(item_data[key])
-
-            # Şimdi tüm listeleri en uzun boyuta None ile tamamla
-            for key in item_data:
-                if isinstance(item_data[key], list):
-                    current_len = len(item_data[key])
-                    if current_len < max_len:
-                        item_data[key].extend([None] * (max_len - current_len))
-            # === MANTIK BİTTİ ===
-
-            df = pd.DataFrame(item_data)
-
+        if fig:
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=40, b=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            return html.Div([
+                html.H5(chart_data.get('title', 'Grafik'), className="mt-4 mb-3 text-center"),
+                dcc.Graph(figure=fig, className="shadow-sm border rounded")
+            ], className="my-5")
         else:
-            raise TypeError("Desteklenmeyen 'data' formatı.")
+            return dbc.Alert(f"Desteklenmeyen grafik türü: {chart_type}", color="warning")
+    except (KeyError, TypeError):
+        return dbc.Alert("Grafik verisi hatalı formatta.", color="danger")
 
-        # ... (Grafik veya Tablo oluşturma mantığı aynı kalıyor)
-        if item_type in ['bar', 'line', 'pie'] and len(df.columns) >= 2:
-            x_col, y_col = df.columns[0], df.columns[1]
-            fig = None
-            if item_type == 'bar':
-                fig = px.bar(df, x=x_col, y=y_col, title=item_title)
-            elif item_type == 'line':
-                fig = px.line(df, x=x_col, y=y_col, title=item_title)
-            elif item_type == 'pie':
-                fig = px.pie(df, names=x_col, values=y_col, title=item_title)
-
-            if fig:
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                                  font=dict(color="inherit"))
-                return dcc.Graph(figure=fig, className="my-4 shadow-sm border rounded")
-
-        # Grafik çizilemiyorsa veya istenen tür 'table' ise, tablo olarak göster
-        return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, responsive=True, className="mt-4")
-
-    except Exception as e:
-        return dbc.Alert(f"Görsel oluşturulurken bir hata oluştu: {e}", color="danger")
 
 # === ANA İÇERİK OLUŞTURMA CALLBACK'İ ===
 @app.callback(
