@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.text import slugify
+from autoslug.fields import AutoSlugField
 
 
 class APIKey(models.Model):
@@ -34,6 +36,8 @@ class GeneratedArticle(models.Model):
     turkish_abstract = models.TextField(blank=True, null=True, verbose_name="Türkçe Özet")
     full_content = models.TextField(blank=True, null=True, verbose_name="Üretilen Tam İçerik")
     bibliography = models.TextField(blank=True, null=True, verbose_name="Üretilen Kaynakça")
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True)
+
 
     structured_data = models.JSONField(blank=True, null=True, verbose_name="Grafik/Tablo Verileri")
 
@@ -44,6 +48,18 @@ class GeneratedArticle(models.Model):
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")
     dislikes = models.PositiveIntegerField(default=0, verbose_name="Faydasız Oy Sayısı")
+
+    def save(self, *args, **kwargs):
+        # Eğer slug boşsa veya başlık değiştiyse, slug'ı başlıktan yeniden oluştur
+        if not self.slug or self.title != self._get_original_title():
+            self.slug = slugify(self.title, allow_unicode=True)
+        super().save(*args, **kwargs)
+
+    def _get_original_title(self):
+        # Bu, modelin veritabanındaki mevcut halini alarak başlığın değişip değişmediğini kontrol eder
+        if self.pk:
+            return GeneratedArticle.objects.get(pk=self.pk).title
+        return ""
 
     def __str__(self): return self.title or f"'{self.user_request[:20]}...' için istek"
 

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django_bootstrap5',
     'dash_apps',
     'channels',
+    'autoslug'
 ]
 
 SITE_ID = 1

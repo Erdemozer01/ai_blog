@@ -8,7 +8,7 @@ urlpatterns = [
 
     path('generate-article/', views.generate_article_view, name='generate_article'),
 
-    path('article/<int:article_id>/', views.article_detail_view, name='article_detail'),
+    path('article/<int:article_id>/<slug:slug>/', views.article_detail_view, name='article_detail'),
 
     path('contact/', views.contact_view, name='contact'),
 

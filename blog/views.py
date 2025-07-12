@@ -86,10 +86,13 @@ def anasayfa_view(request):
     return render(request, 'blog/anasayfa.html')
 
 
-def article_detail_view(request, article_id):
+def article_detail_view(request, article_id, slug):
 
     main_navbar = create_main_navbar(request)
     article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    if article.slug != slug:
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
     GeneratedArticle.objects.filter(pk=article.id).update(view_count=F('view_count') + 1)
     article.refresh_from_db()
@@ -110,7 +113,9 @@ def article_detail_view(request, article_id):
                                     references_list]
 
     page_url = request.build_absolute_uri()
+
     encoded_title = quote_plus(article.title or "AI Blog Makalesi")
+
     share_buttons = html.Div([
         html.H5("Paylaş:", className="mb-3"),
         dbc.ButtonGroup([
@@ -122,6 +127,7 @@ def article_detail_view(request, article_id):
                        target="_blank", color="primary", size="sm")
         ])
     ])
+
     feedback_buttons = html.Div([
         html.H5("Bu içerik faydalı oldu mu?", className="mb-3"),
         dbc.ButtonGroup([
@@ -161,7 +167,6 @@ def article_detail_view(request, article_id):
                         html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5", style={"text-align": "justify"}),
                         dbc.Row(
                             [
-                                # Sol Sütun: Tarih/Kategori bilgisi
                                 dbc.Col(
                                     html.P(
                                         f"Tarih: {article.created_at.strftime('%d %B %Y')} | Kategori: {article.category.name if article.category else 'Yok'} | Okunma: {article.view_count}",
@@ -174,9 +179,9 @@ def article_detail_view(request, article_id):
                                     edit_button if edit_button else ""
                                 ),
                             ],
-                            justify="between",  # İki sütunu satırın iki ucuna yaslar
-                            align="center",  # Dikey olarak ortalar
-                            className="border-bottom pb-3 mb-4"  # Alt çizgiyi satıra uyguluyoruz
+                            justify="between",
+                            align="center",
+                            className="border-bottom pb-3 mb-4"
                         )
 
                     ]),

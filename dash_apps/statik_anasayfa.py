@@ -20,7 +20,7 @@ def create_post_cards(article_queryset):
 
     cards = []
     for article in article_queryset:
-        detail_url = f"/article/{article.id}/"
+        detail_url = f"/article/{article.id}/{article.slug}/"
         card = dbc.Card(
             dbc.CardBody([
 
@@ -51,11 +51,14 @@ def create_post_cards(article_queryset):
 def get_sidebar():
 
     all_categories = Category.objects.all()
+
     category_options = [{'label': cat.name, 'value': str(cat.id)} for cat in all_categories]
+
     search_card = dbc.Card([
         dbc.CardHeader("Arama"),
         dbc.CardBody(dbc.Input(id='search-input', placeholder="Makalelerde ara...", type="search"))
     ], className="mb-4")
+
     sort_card = dbc.Card([
         dbc.CardHeader("Sırala"),
         dbc.CardBody(dcc.Dropdown(
