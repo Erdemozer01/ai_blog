@@ -9,10 +9,9 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-import os
 import locale
+import os
 from pathlib import Path
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -191,9 +190,6 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 try:
-    # Tarih ve zaman formatlarını Türkçe yapmak için.
-    # Bu, farklı işletim sistemleriyle uyumluluk için 'tr_TR.UTF-8' veya 'tr_TR' dener.
-    # Windows için 'turkish' veya 'tr' de gerekebilir.
     locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
 except locale.Error:
     try:
