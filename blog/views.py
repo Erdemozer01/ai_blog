@@ -115,7 +115,7 @@ def article_detail_view(request, article_id, slug):
             "@id": request.build_absolute_uri(article.get_absolute_url())  # get_absolute_url modelde tanımlanmalı
         },
         "headline": article.title,
-        "image": request.build_absolute_uri(article.featured_image.url) if article.featured_image else logo_url,
+        "image": logo_url,
         "datePublished": article.created_at.isoformat(),
         "dateModified": article.created_at.isoformat(),  # Şimdilik aynı
         "author": {
