@@ -105,7 +105,7 @@ def article_detail_view(request, article_id, slug):
         average_rating = round((article.likes / total_votes) * 4 + 1, 2)
 
     # Site logosu için geçici bir URL, burayı kendi logonuzla değiştirebilirsiniz
-    logo_url = request.build_absolute_uri('/static/images/logo.png')
+    logo_url = request.build_absolute_uri('/staticfiles/images/logo.png')
 
     structured_data = {
         "@context": "https://schema.org",

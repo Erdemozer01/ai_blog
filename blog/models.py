@@ -51,7 +51,7 @@ class GeneratedArticle(models.Model):
     dislikes = models.PositiveIntegerField(default=0, verbose_name="Faydasız Oy Sayısı")
 
     def get_absolute_url(self):
-        return reverse('article_detail', kwargs={'article_id': self.id, 'slug': self.slug})
+        return reverse('blog:article_detail', kwargs={'article_id': self.id, 'slug': self.slug})
 
     def save(self, *args, **kwargs):
         # Eğer slug boşsa veya başlık değiştiyse, slug'ı başlıktan yeniden oluştur
