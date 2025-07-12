@@ -1,3 +1,4 @@
+import json
 import re
 import ast
 from urllib.parse import quote_plus
@@ -96,6 +97,49 @@ def article_detail_view(request, article_id, slug):
 
     GeneratedArticle.objects.filter(pk=article.id).update(view_count=F('view_count') + 1)
     article.refresh_from_db()
+
+    total_votes = article.likes + article.dislikes
+    average_rating = 0
+    if total_votes > 0:
+        # Puanı 5 üzerinden basit bir orantıyla hesaplayalım
+        average_rating = round((article.likes / total_votes) * 4 + 1, 2)
+
+    # Site logosu için geçici bir URL, burayı kendi logonuzla değiştirebilirsiniz
+    logo_url = request.build_absolute_uri('/static/images/logo.png')
+
+    structured_data = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": request.build_absolute_uri(article.get_absolute_url())  # get_absolute_url modelde tanımlanmalı
+        },
+        "headline": article.title,
+        "image": request.build_absolute_uri(article.featured_image.url) if article.featured_image else logo_url,
+        "datePublished": article.created_at.isoformat(),
+        "dateModified": article.created_at.isoformat(),  # Şimdilik aynı
+        "author": {
+            "@type": "Person",
+            "name": article.owner.get_full_name() or article.owner.username
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "AI Blog",
+            "logo": {
+                "@type": "ImageObject",
+                "url": logo_url
+            }
+        },
+        "description": article.turkish_abstract or article.english_abstract,
+        "articleBody": article.full_content,
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": str(average_rating),
+            "reviewCount": str(total_votes)
+        } if total_votes > 0 else None
+    }
+    # None olan değerleri sözlükten temizle
+    structured_data = {k: v for k, v in structured_data.items() if v is not None}
 
 
     article_data_for_dash = {
@@ -228,7 +272,8 @@ def article_detail_view(request, article_id, slug):
         'article': article,
         'meta_title': article.title,
         'meta_description': article.turkish_abstract or "",
-        'meta_keywords': article.keywords or ""
+        'meta_keywords': article.keywords or "",
+        'structured_data_json': json.dumps(structured_data, indent=4)
     })
 
 

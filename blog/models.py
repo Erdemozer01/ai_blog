@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
 from autoslug.fields import AutoSlugField
+from django.urls import reverse
 
 
 class APIKey(models.Model):
@@ -48,6 +49,9 @@ class GeneratedArticle(models.Model):
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")
     dislikes = models.PositiveIntegerField(default=0, verbose_name="Faydasız Oy Sayısı")
+
+    def get_absolute_url(self):
+        return reverse('article_detail', kwargs={'article_id': self.id, 'slug': self.slug})
 
     def save(self, *args, **kwargs):
         # Eğer slug boşsa veya başlık değiştiyse, slug'ı başlıktan yeniden oluştur

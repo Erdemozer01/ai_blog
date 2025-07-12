@@ -18,6 +18,12 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/staticfiles/images/favicon-16x16.png">
     <link rel="manifest" href="/staticfiles/images/site.webmanifest">
 
+    {% if structured_data_json %}
+        <script type="application/ld+json">
+        {{ structured_data_json|safe }}
+    </script>
+    {% endif %}
+
     {% block stylesheet %}{% endblock %}
 
     {% plotly_header %}
