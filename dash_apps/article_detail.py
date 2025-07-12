@@ -25,29 +25,57 @@ def create_table_from_json(table_data):
 
 
 def create_graph_from_json(chart_data):
+    """
+    AI'dan gelen tek bir görsel verisini (chart_data) alır ve bunu bir Dash bileşenine
+    (Grafik veya Tablo) dönüştürür. Hatalara karşı dayanıklıdır.
+    """
+    # 1. Gelen verinin formatını kontrol et
+    if not isinstance(chart_data, dict) or 'type' not in chart_data or 'data' not in chart_data:
+        return dbc.Alert("Grafik verisi hatalı veya eksik formatta.", color="danger", className="my-4")
+
+    chart_type = chart_data.get("type", "bar").lower()
+    data = chart_data.get("data", [])
+    chart_title = chart_data.get("title", "Başlıksız Grafik")
+
+    if not data or not isinstance(data, list) or not all(isinstance(i, dict) for i in data):
+        return dbc.Alert("Grafik için geçerli veri bulunamadı.", color="warning", className="my-4")
+
+    # 2. Veriyi işlemeye çalış
     try:
-        chart_type = chart_data.get('chart_type', 'bar').lower()
+        df = pd.DataFrame(data)
+
+        if len(df.columns) < 2:
+            return dbc.Alert("Grafik verisi en az iki sütun içermelidir.", color="warning", className="my-4")
+
+        # Sütun isimlerini dinamik olarak al
+        x_col, y_col = df.columns[0], df.columns[1]
+
         fig = None
         if chart_type == 'bar':
-            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+            fig = px.bar(df, x=x_col, y=y_col, title=chart_title, labels={x_col: x_col.title(), y_col: y_col.title()})
         elif chart_type == 'line':
-            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
-        # Buraya 'pie', 'scatter' gibi başka grafik türleri eklenebilir.
+            fig = px.line(df, x=x_col, y=y_col, title=chart_title, labels={x_col: x_col.title(), y_col: y_col.title()})
+        elif chart_type == 'pie':
+            fig = px.pie(df, names=x_col, values=y_col, title=chart_title)
 
+        # 3. Sonucu oluştur
         if fig:
+            # Temaya uyum sağlaması için arkaplanı şeffaf yap
             fig.update_layout(
-                margin=dict(l=20, r=20, t=40, b=20),
+                margin=dict(l=40, r=20, t=50, b=40),
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="inherit")  # Yazı rengini ana temadan al
             )
-            return html.Div([
-                html.H5(chart_data.get('title', 'Grafik'), className="mt-4 mb-3 text-center"),
-                dcc.Graph(figure=fig, className="shadow-sm border rounded")
-            ], className="my-5")
+            return dcc.Graph(figure=fig, className="my-4 shadow-sm border rounded")
         else:
-            return dbc.Alert(f"Desteklenmeyen grafik türü: {chart_type}", color="warning")
-    except (KeyError, TypeError):
-        return dbc.Alert("Grafik verisi hatalı formatta.", color="danger")
+            # Desteklenmeyen bir türse, veriyi şık bir tablo olarak göster
+            return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, responsive=True,
+                                            className="mt-4")
+
+    except Exception as e:
+        # Herhangi bir başka beklenmedik hata olursa
+        return dbc.Alert(f"Grafik oluşturulurken bir hata oluştu: {e}", color="danger", className="my-4")
 
 
 # === ANA İÇERİK OLUŞTURMA CALLBACK'İ ===
