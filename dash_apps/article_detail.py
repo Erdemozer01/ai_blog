@@ -29,9 +29,9 @@ def create_graph_from_json(chart_data):
         chart_type = chart_data.get('chart_type', 'bar').lower()
         fig = None
         if chart_type == 'bar':
-            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''}, color="x")
         elif chart_type == 'line':
-            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''})
+            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''}, color="x")
         # Buraya 'pie', 'scatter' gibi başka grafik türleri eklenebilir.
 
         if fig:
