@@ -1,8 +1,8 @@
 # templates/robots.txt
+
 User-agent: *
 Disallow: /admin/
 Disallow: /accounts/
 Disallow: /generate-article/
 
 Sitemap: {{ domain }}/sitemap.xml
-google-site-verification=z9gTV3Jr4mlODVTgdkBVbC9vPV5U76BwFFPYGibp6Xs
