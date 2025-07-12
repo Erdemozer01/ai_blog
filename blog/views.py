@@ -182,10 +182,10 @@ def article_detail_view(request, article_id):
                     ]),
 
                     html.Div([
-                        html.H4("Abstract (English)"),
+                        html.H4("Abstract"),
                         html.P(html.Em(article.english_abstract or "İngilizce özet mevcut değil.")),
                         html.Hr(className="my-3"),
-                        html.H4("Özet (Türkçe)"),
+                        html.H4("Özet"),
                         html.P(html.Em(article.turkish_abstract or "Türkçe özet mevcut değil."))
                     ], className="p-4 bg-light rounded mb-4"),
                     html.Div([
@@ -198,7 +198,7 @@ def article_detail_view(request, article_id):
 
 
                     html.Hr(className="my-5"),
-                    html.H4("Kaynakça (References)"),
+                    html.H4("Kaynakça"),
                     html.Ol(formatted_bibliography_items),
                     html.Hr(className="my-5"),
 
