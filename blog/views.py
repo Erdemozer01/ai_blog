@@ -349,6 +349,3 @@ def robots_txt_view(request):
     domain = request.get_host()
     return render(request, 'robots.txt', {'domain': domain}, content_type="text/plain")
 
-def google_html_view(request):
-    domain = request.get_host()
-    return render(request, 'google6648bc38b8876b72.html', {'domain': domain}, content_type="text/plain")

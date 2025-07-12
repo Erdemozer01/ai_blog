@@ -14,8 +14,6 @@ urlpatterns = [
 
     path('robots.txt', views.robots_txt_view, name='robots_txt'),
 
-    path('google6648bc38b8876b72.html', views.google_html_view, name='google_html_view'),
-
     path('resume/', views.resume_view, name='resume'),
 
     path('logout/', views.custom_logout_view, name='logout'),
