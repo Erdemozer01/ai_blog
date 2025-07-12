@@ -149,7 +149,6 @@ def article_detail_view(request, article_id, slug):
         edit_button = html.A(
             [html.I(className="fas fa-pencil-alt me-2 text-warning float-end")],
             href=edit_url,
-
             className="mb-4",
             title="Düzenle"
         )
@@ -170,11 +169,11 @@ def article_detail_view(request, article_id, slug):
                                 dbc.Col(
                                     html.P(
                                         f"Tarih: {article.created_at.strftime('%d %B %Y')} | Kategori: {article.category.name if article.category else 'Yok'} | Okunma: {article.view_count}",
-                                        className="text-muted small mb-0"  # Alt boşluğu kaldırdık
+                                        className="text-muted small mb-0"
                                     ),
-                                    width="auto"  # İçeriği kadar yer kapla
+                                    width="auto"
                                 ),
-                                # Sağ Sütun: Düzenleme butonu
+
                                 dbc.Col(
                                     edit_button if edit_button else ""
                                 ),
