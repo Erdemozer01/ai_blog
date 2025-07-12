@@ -158,7 +158,7 @@ def article_detail_view(request, article_id):
             dbc.Row([
                 dbc.Col([
                     html.Header([
-                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-3 mt-4", style={"text-align": "justify"}),
+                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5", style={"text-align": "justify"}),
                         dbc.Row(
                             [
                                 # Sol Sütun: Tarih/Kategori bilgisi
