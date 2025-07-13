@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load plotly_dash static %}
+
+{% block stylesheet %}
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div data-refresh-on-navigation="false">
+        {% plotly_direct name="AdminDashboard" %}
+    </div>
+{% endblock %}

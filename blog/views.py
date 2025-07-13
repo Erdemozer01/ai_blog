@@ -1,32 +1,25 @@
 import json
 import re
-import ast
 from urllib.parse import quote_plus
 
-from django.shortcuts import render, redirect, get_object_or_404, reverse
+import dash_bootstrap_components as dbc
+from dash import html, dcc
+from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.core.paginator import Paginator
-from django.db.models import Q, F, Count
-from django.db.models.functions import TruncDay
+from django.db.models import F
+from django.shortcuts import render, redirect, get_object_or_404, reverse
 
-
-from dash import html, dcc
-import dash_bootstrap_components as dbc
-
+from dash_apps.article_detail import app as article_detail_app
+from dash_apps.contact import app as contact_app
+from dash_apps.generate import app as generate_app
+from dash_apps.resume import app as resume_app, create_resume_layout
+from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 # Modeller
-from .models import GeneratedArticle, Category, Profile, ContactMessage, APIKey
+from .models import GeneratedArticle, Profile
+
 
 # Dash Uygulamaları ve Parçaları
-
-from dash_apps.generate import app as generate_app
-from dash_apps.contact import app as contact_app
-from dash_apps.resume import app as resume_app, create_resume_layout
-from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout # DEĞİŞİKLİK
-from dash_apps.article_detail import app as article_detail_app
-
 
 # === YARDIMCI FONKSİYON: SİTE GENELİ NAVBAR ===
 def create_main_navbar(request):
@@ -72,6 +65,9 @@ def create_main_navbar(request):
     )
     return navbar
 
+
+def admin_dashboard_view(request):
+    return render(request, "admin_dashboard.html")
 
 def anasayfa_view(request):
 
@@ -348,4 +344,3 @@ def custom_logout_view(request):
 def robots_txt_view(request):
     domain = request.get_host()
     return render(request, 'robots.txt', {'domain': domain}, content_type="text/plain")
-

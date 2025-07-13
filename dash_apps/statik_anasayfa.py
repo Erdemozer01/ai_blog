@@ -1,90 +1,215 @@
-# dash_apps/statik_anasayfa.py
+# dash_apps/statik_anasayfa.py - Enhanced version
 
 import dash_bootstrap_components as dbc
-from django_plotly_dash import DjangoDash
 from dash import html, dcc, Input, Output, State
-from django.db.models import Q
+from django.core.cache import cache
 from django.core.paginator import Paginator
-from blog.models import GeneratedArticle, Category
+from django.db.models import Count, Sum
+from django.db.models import Q
+from django_plotly_dash import DjangoDash
 
+from blog.models import GeneratedArticle, Category
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 
 app = DjangoDash('Anasayfa', external_stylesheets=external_stylesheets)
 
-
 def create_post_cards(article_queryset):
-
+    """Enhanced post cards with better styling and info"""
+    
     if not article_queryset:
-        return [dbc.Alert("Filtre kriterlerinize uygun makale bulunamadı.", color="info", className="mt-4")]
+        return [
+            dbc.Card([
+                dbc.CardBody([
+                    html.Div([
+                        html.I(className="fas fa-search fa-3x text-muted mb-3"),
+                        html.H4("Makale Bulunamadı", className="text-muted"),
+                        html.P("Filtre kriterlerinize uygun makale bulunamadı. Lütfen arama terimlerinizi değiştirin.")
+                    ], className="text-center py-5")
+                ])
+            ], className="mb-4")
+        ]
 
     cards = []
     for article in article_queryset:
         detail_url = f"/article/{article.id}/{article.slug}/"
-        card = dbc.Card(
+
+        # Calculate reading time (approximate)
+        word_count = len(article.full_content.split()) if article.full_content else 0
+        reading_time = max(1, word_count // 200)  # Assuming 200 words per minute
+
+        card = dbc.Card([
             dbc.CardBody([
+                html.Div([
+                    dbc.Badge(
+                        article.category.name if article.category else "Kategorisiz",
+                        color="primary",
+                        pill=True,
+                        className="mb-2"
+                    ),
+                    html.Div([
+                        html.I(className="fas fa-clock me-1"),
+                        f"{reading_time} dk okuma"
+                    ], className="text-muted small float-end")
+                ], className="clearfix"),
 
-                dbc.Badge(
-                    article.category.name if article.category else "Kategorisiz",
-                    color="primary",
-                    pill=True,
-                    className="mb-2"
+                html.H4(
+                    html.A(
+                        article.title,
+                        href=detail_url,
+                        className="text-decoration-none text-dark"
+                    ),
+                    className="mb-3"
                 ),
-
-                html.H2(html.A(article.title, href=detail_url, className="text-decoration-none")),
+                
                 html.P(
-                    [
-                        f"{article.created_at.strftime('%d %B %Y')} tarihinde oluşturuldu.",
-                        html.Span(f" • {article.view_count} okunma", className="ms-2")
-                    ],
+                    article.turkish_abstract[:200] + "..." if article.turkish_abstract and len(
+                        article.turkish_abstract) > 200
+                    else article.turkish_abstract or "Özet mevcut değil.",
                     className="text-muted"
                 ),
-                html.P(article.turkish_abstract or "Özet mevcut değil."),
-                dbc.Button("Devamını Oku →", color="primary", outline=True, href=detail_url, external_link=True),
-            ]),
-            className="mb-4 shadow-sm"
-        )
+
+                html.Div([
+                    html.Small([
+                        html.I(className="fas fa-calendar-alt me-1"),
+                        article.created_at.strftime('%d %B %Y')
+                    ], className="text-muted me-3"),
+                    html.Small([
+                        html.I(className="fas fa-eye me-1"),
+                        f"{article.view_count} okunma"
+                    ], className="text-muted me-3"),
+                    html.Small([
+                        html.I(className="fas fa-thumbs-up me-1"),
+                        f"{article.likes} beğeni"
+                    ], className="text-muted")
+                ], className="mb-3"),
+
+                dbc.Button(
+                    [html.I(className="fas fa-arrow-right me-2"), "Devamını Oku"],
+                    color="primary",
+                    outline=True,
+                    size="sm",
+                    href=detail_url,
+                    external_link=True
+                )
+            ])
+        ], className="mb-4 shadow-sm hover-shadow")
+        
         cards.append(card)
+
     return cards
 
-
 def get_sidebar():
+    """Enhanced sidebar with better filters"""
 
-    all_categories = Category.objects.all()
+    # Get categories with article counts
+    categories = Category.objects.annotate(
+        article_count=Count('generatedarticle')
+    ).filter(article_count__gt=0)
 
-    category_options = [{'label': cat.name, 'value': str(cat.id)} for cat in all_categories]
+    category_options = [
+        {'label': f"{cat.name} ({cat.article_count})", 'value': str(cat.id)}
+        for cat in categories
+    ]
 
+    # Advanced search card
     search_card = dbc.Card([
-        dbc.CardHeader("Arama"),
-        dbc.CardBody(dbc.Input(id='search-input', placeholder="Makalelerde ara...", type="search"))
+        dbc.CardHeader([
+            html.I(className="fas fa-search me-2"),
+            "Gelişmiş Arama"
+        ]),
+        dbc.CardBody([
+            dbc.Input(
+                id='search-input',
+                placeholder="Başlık, içerik veya özette ara...",
+                type="search",
+                debounce=True,
+                className="mb-3"
+            ),
+            dbc.FormText("En az 3 karakter girin", className="text-muted")
+        ])
     ], className="mb-4")
 
+    # Sort options
     sort_card = dbc.Card([
-        dbc.CardHeader("Sırala"),
-        dbc.CardBody(dcc.Dropdown(
-            id='sort-by-dropdown',
-            options=[
-                {'label': 'En Yeni', 'value': 'newest'},
-                {'label': 'En Çok Okunan', 'value': 'views'},
-                {'label': 'En Faydalı', 'value': 'likes'},
-                {'label': 'En Eski', 'value': 'oldest'},
-            ],
-            value='newest',
-            clearable=False,
-        ))
+        dbc.CardHeader([
+            html.I(className="fas fa-sort me-2"),
+            "Sıralama"
+        ]),
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='sort-by-dropdown',
+                options=[
+                    {'label': '📅 En Yeni', 'value': 'newest'},
+                    {'label': '👁️ En Çok Okunan', 'value': 'views'},
+                    {'label': '👍 En Faydalı', 'value': 'likes'},
+                    {'label': '📅 En Eski', 'value': 'oldest'},
+                ],
+                value='newest',
+                clearable=False,
+                className="custom-dropdown"
+            )
+        ])
     ], className="mb-4")
+
+    # Category filter
     category_card = dbc.Card([
-        dbc.CardHeader("Kategoriler"),
-        dbc.CardBody(dcc.Dropdown(
-            id='category-dropdown',
-            options=category_options,
-            placeholder="Tüm Kategoriler",
-            clearable=True
-        ))
+        dbc.CardHeader([
+            html.I(className="fas fa-list me-2"),
+            "Kategoriler"
+        ]),
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='category-dropdown',
+                options=category_options,
+                placeholder="Tüm Kategoriler",
+                clearable=True,
+                className="custom-dropdown"
+            )
+        ])
     ], className="mb-4")
-    return html.Div([search_card, sort_card, category_card])
+
+    # Stats card
+    stats = cache.get('homepage_stats')
+    if stats is None:
+        stats = {
+            'total_articles': GeneratedArticle.objects.filter(status='tamamlandi').count(),
+            'total_views': GeneratedArticle.objects.filter(status='tamamlandi').aggregate(
+                total=Sum('view_count')
+            )['total'] or 0,
+            'categories_count': Category.objects.filter(
+                generatedarticle__status='tamamlandi'
+            ).distinct().count()
+        }
+        cache.set('homepage_stats', stats, 300)
+
+    stats_card = dbc.Card([
+        dbc.CardHeader([
+            html.I(className="fas fa-chart-bar me-2"),
+            "İstatistikler"
+        ]),
+        dbc.CardBody([
+            html.Div([
+                html.H5(stats['total_articles'], className="text-primary mb-1"),
+                html.Small("Toplam Makale", className="text-muted")
+            ], className="text-center mb-2"),
+            html.Hr(),
+            html.Div([
+                html.H5(f"{stats['total_views']:,}", className="text-success mb-1"),
+                html.Small("Toplam Okunma", className="text-muted")
+            ], className="text-center mb-2"),
+            html.Hr(),
+            html.Div([
+                html.H5(stats['categories_count'], className="text-info mb-1"),
+                html.Small("Aktif Kategori", className="text-muted")
+            ], className="text-center")
+        ])
+    ], className="mb-4")
+
+    return html.Div([search_card, sort_card, category_card, stats_card])
 
 
+# ... (rest of the functions with similar enhancements)
 def create_anasayfa_content_layout():
     """Anasayfanın Dash ile kontrol edilen içeriğini (sidebar, postlar) döndürür."""
     return html.Div([
@@ -135,7 +260,10 @@ def master_filter_and_paginate(search_term, category_id, sort_by, active_page, s
         queryset = queryset.filter(category_id=category_id)
 
     if search_term and len(search_term.strip()) > 2:
-        queryset = queryset.filter(Q(title__icontains=search_term) | Q(turkish_abstract__icontains=search_term))
+        search_query = Q(title__icontains=search_term) | \
+                       Q(turkish_abstract__icontains=search_term) | \
+                       Q(full_content__icontains=search_term)  # Bu satırı ekleyin
+        queryset = queryset.filter(search_query)
 
     sort_order = '-created_at'
     if sort_by == 'views':
