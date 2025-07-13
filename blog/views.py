@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import F
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 
+from dash_apps.admin_dash import app as admin_dash_app
 from dash_apps.article_detail import app as article_detail_app
 from dash_apps.contact import app as contact_app
 from dash_apps.generate import app as generate_app
@@ -69,6 +70,7 @@ def create_main_navbar(request):
 
 
 def admin_dashboard_view(request):
+    admin_dash_app
     return render(request, "admin_dashboard.html")
 
 def anasayfa_view(request):
