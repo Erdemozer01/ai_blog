@@ -346,5 +346,6 @@ def custom_logout_view(request):
 
 
 def robots_txt_view(request):
-    domain = request.get_host()
-    return render(request, 'robots.txt', {'domain': domain}, content_type="text/plain")
+    base_url = f"{request.scheme}://{request.get_host()}"
+
+    return render(request, 'robots.txt', {'base_url': base_url}, content_type="text/plain")

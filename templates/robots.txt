@@ -5,4 +5,4 @@ Disallow: /admin/
 Disallow: /accounts/
 Disallow: /generate-article/
 
-Sitemap: {{ domain }}/sitemap.xml
+Sitemap: {{ base_url }}/sitemap.xml
