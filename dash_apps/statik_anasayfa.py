@@ -123,7 +123,6 @@ def get_sidebar():
                 id='search-input',
                 placeholder="Başlık, içerik veya özette ara...",
                 type="search",
-                debounce=True,
                 className="mb-3"
             ),
             dbc.FormText("En az 3 karakter girin", className="text-muted")
