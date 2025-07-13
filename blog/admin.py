@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.db.models import Count
 from django.utils.html import format_html
 
 from .models import (GeneratedArticle, APIKey, Category, ContactMessage,
@@ -50,19 +49,9 @@ class APIKeyAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'article_count', 'created_at')
+    list_display = ('name', 'created_at')
     search_fields = ('name',)
     readonly_fields = ('created_at',)
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            article_count=Count('id')
-        )
-
-    def article_count(self, obj):
-        return obj.articles.count()
-
-    article_count.short_description = 'Makale Sayısı'
 
 
 @admin.register(ContactMessage)
