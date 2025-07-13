@@ -1,1 +1,1 @@
-from . import admin_dashboard
+from . import admin_dash
