@@ -33,7 +33,9 @@ def create_main_navbar(request):
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
         dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href="/generate-article/", external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Özgeçmiş", href="/resume/", external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem("Özgeçmiş", href="/resume/", external_link=True)),
+        dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href="/admin-dashboard/", external_link=True)),
+
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
         dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href="/logout/", external_link=True))
 
