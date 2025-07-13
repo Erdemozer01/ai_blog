@@ -61,7 +61,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            article_count=Count('generatedarticle')
+            article_count=Count('id')
         )
 
 @admin.register(ContactMessage)
