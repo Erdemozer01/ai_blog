@@ -645,7 +645,7 @@ def toggle_offcanvas(n_clicks, is_open):
 
 # Ana içerik display callback'i - navigation ile
 @app.callback(
-    Output("content-container", "children", allow_duplicate=True),
+    Output("content-container", "children"),
     [
         Input("nav-dashboard", "n_clicks"),
         Input("nav-articles", "n_clicks"),
