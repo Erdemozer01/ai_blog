@@ -1,6 +1,6 @@
 .academic-text-format {
     font-family: 'Times New Roman', Times, serif; /* Klasik akademik font */
-    font-size: 14pt; /* 12 punto */
+    font-size: 14pt; /* 14 punto */
     line-height: 1.5; /* 1.5 satır aralığı */
     text-align: justify; /* İki yana yasla */
     color: inherit; /* Mevcut temanın (açık/koyu) yazı rengini miras al */
@@ -10,7 +10,21 @@
 .academic-text-format h2,
 .academic-text-format h3,
 .academic-text-format h4 {
-    text-align: left;
+    text-align: left; /* Başlıklar sola yaslı kalsın */
     margin-top: 1.5em;
     margin-bottom: 1em;
+    font-family: sans-serif; /* Başlıklar için daha modern bir font (isteğe bağlı) */
+}
+
+/* Atıf linklerinin daha belirgin olması için (isteğe bağlı) */
+.citation-link {
+    font-weight: bold;
+    color: #0d6efd; /* Bootstrap primary color */
+    text-decoration: none;
+    vertical-align: super;
+    font-size: 0.8em;
+}
+
+.citation-link:hover {
+    text-decoration: underline;
 }

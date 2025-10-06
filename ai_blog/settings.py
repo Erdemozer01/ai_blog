@@ -12,15 +12,32 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import locale
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+dotenv_path = BASE_DIR / '.env'
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path=dotenv_path)
+
+try:
+    locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_TIME, 'tr_TR')
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_TIME, 'turkish')
+        except locale.Error:
+            print("Uyarı: Türkçe locale ayarlanamadı. Tarihler İngilizce görünebilir.")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-n&j!z_av+g^j(e53371^9c*b^l)1z0a9=l&d#yxo#ifvq=o&)c'
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -44,6 +61,7 @@ INSTALLED_APPS = [
     'django_bootstrap5',
     'dash_apps',
     'channels',
+    'channels_redis',
     'autoslug'
 ]
 
@@ -86,6 +104,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'ai_blog.wsgi.application'
+ASGI_APPLICATION = "ai_blog.asgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -189,13 +208,16 @@ STATICFILES_FINDERS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-try:
-    locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
-except locale.Error:
-    try:
-        locale.setlocale(locale.LC_TIME, 'tr_TR')
-    except locale.Error:
-        try:
-            locale.setlocale(locale.LC_TIME, 'turkish')
-        except locale.Error:
-            print("Uyarı: Türkçe locale ayarlanamadı. Tarihler İngilizce görünebilir.")
+CELERY_BROKER_URL = os.environ.get('REDIS_URL')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
+
+# settings.py dosyasında bu satırlar olmamalı:
+CELERY_BROKER_USE_SSL = {'ssl_cert_reqs': True}
+CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': True}
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Europe/Istanbul'
+
+NOTO_FONT_PATH = os.path.join(BASE_DIR, "static/fonts/NotoSans-Regular.ttf")

@@ -7,6 +7,8 @@ app_name = 'blog'
 urlpatterns = [
     path('', views.anasayfa_view, name='anasayfa'),
 
+    path('article/<int:article_id>/download-pdf/', views.download_article_as_pdf, name='download_article_pdf'),
+
     path('article/<int:article_id>/<slug:slug>/', views.article_detail_view, name='article_detail'),
     path('resume/', views.resume_view, name='resume'),
     path('generate-article/', views.generate_article_view, name='generate_article'),

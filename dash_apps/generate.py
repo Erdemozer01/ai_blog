@@ -2,7 +2,7 @@ import re, json
 
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
-from dash import Input, Output, State, no_update
+from dash import Input, Output, State, no_update, html
 from datetime import date
 
 import google.generativeai as genai
@@ -29,7 +29,6 @@ def run_gemini_sync(user_request_text):
     model = genai.GenerativeModel(model_name="gemini-2.5-pro", generation_config=generation_config)
     current_year = date.today().year
 
-    # === EN GELİŞMİŞ PROMPT ===
     prompt = f"""
     Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak.
 
@@ -46,8 +45,9 @@ def run_gemini_sync(user_request_text):
     6.  Tam İçerik: Markdown formatında, en az 1500 kelime uzunluğunda. Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden 3-4 ara başlık ve bir sonuç bölümü ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
     7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, 10-15 kaynakça maddesi.
     8.  Yapısal Veri (JSON): Makale içindeki placeholder'larla eşleşen, anahtar-değer yapısında GEÇERLİ bir JSON nesnesi oluştur. Anahtarlar metindeki placeholder'daki sayılar olmalı (örn: "1", "2"). Sadece JSON nesnesini ver, başına veya sonuna "```json" gibi kod blokları ekleme.
-        - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "columns": ["Sütun 1", "Sütun 2"], "data": [["Değer 1A", "Değer 1B"]]}}}}`
-        - Bir çubuk grafik için: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "Grafik Başlığı", "data": {{"x": ["Kategori A"], "y": [10]}}}}}}`
+        - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') kendin seç.
+        - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "description": "Bu tablo neyi gösteriyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: Dünya Bankası, 2024)", "columns": ["Sütun 1"], "data": [["Değer 1A"]]}}}}`
+        - Bir grafik için: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "Grafik Başlığı", "description": "Bu grafik neyi analiz ediyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: TUIK, 2025)", "data": {{"x": ["Kategori A"], "y": [10]}}}}}}`
         - Eğer uygun veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
 
     Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, aralarında belirtilen ayraçla birlikte ver.
@@ -81,12 +81,26 @@ def run_gemini_sync(user_request_text):
         "structured_data": structured_data_json or {}
     }
 
-    # Temizleme işlemleri aynı kalacak
-    ai_data['title'] = ai_data.get('title', '').replace('**', '').strip()
-    ai_data['english_abstract'] = re.sub(r'^\s*(\*\*abstract:\*\*|abstract:)\s*', '',
-                                         ai_data.get('english_abstract', ''), flags=re.IGNORECASE).strip()
-    ai_data['turkish_abstract'] = re.sub(r'^\s*(\*\*özet:\*\*|özet:)\s*', '', ai_data.get('turkish_abstract', ''),
-                                         flags=re.IGNORECASE).strip()
+    title_raw = ai_data.get('title', '')
+    title_clean = re.sub(r'^\s*\d+\.\s*başlık:\s*', '', title_raw, flags=re.IGNORECASE)
+    ai_data['title'] = title_clean.replace('**', '').strip()
+
+    abstract_raw = ai_data.get('english_abstract', '')
+    abstract_clean = re.sub(r'^\s*(\d+\.\s*)?((ingilizce\s*)?özet|abstract)(\s*\(abstract\))?:\s*', '', abstract_raw,
+                            flags=re.IGNORECASE)
+    ai_data['english_abstract'] = abstract_clean.strip()
+
+    tr_abstract_raw = ai_data.get('turkish_abstract', '')
+    tr_abstract_clean = re.sub(r'^\s*(\d+\.\s*)?(türkçe\s*)?özet:\s*', '', tr_abstract_raw, flags=re.IGNORECASE)
+    ai_data['turkish_abstract'] = tr_abstract_clean.strip()
+
+    content_raw = ai_data.get('content', '')
+    content_clean = re.sub(r'^\s*giriş:\s*', '', content_raw, flags=re.IGNORECASE)
+    ai_data['content'] = content_clean.strip()
+
+    biblio_raw = ai_data.get('bibliography', '')
+    biblio_clean = re.sub(r'^\s*(\d+\.\s*)?kaynakça:\s*', '', biblio_raw, flags=re.IGNORECASE)
+    ai_data['bibliography'] = biblio_clean.strip()
 
     return ai_data
 
@@ -118,8 +132,7 @@ def handle_form_submission(n_clicks, request_text, user_data):
         category_name = ai_data.get("category_name", "Genel").strip().title()
         category_obj, _ = Category.objects.get_or_create(name=category_name)
 
-        # === VERİTABANINA KAYDETME (GÜNCELLENDİ) ===
-        GeneratedArticle.objects.create(
+        new_article = GeneratedArticle.objects.create(
             owner=user,
             user_request=request_text,
             title=ai_data.get("title"),
@@ -129,20 +142,23 @@ def handle_form_submission(n_clicks, request_text, user_data):
             turkish_abstract=ai_data.get("turkish_abstract"),
             full_content=ai_data.get("content"),
             bibliography=ai_data.get("bibliography"),
-            structured_data=ai_data.get("structured_data"), # YENİ ALAN
+            structured_data=ai_data.get("structured_data"),
             status='tamamlandi'
         )
 
-        success_message = dbc.Alert("Makale metni ve yapısal veriler başarıyla üretildi!", color="success")
-        return success_message, "/"
+        success_message = dbc.Alert([
+            "Makale başarıyla üretildi! ",
+            html.A("Görüntülemek için tıklayın.", href=new_article.get_absolute_url(), className="alert-link")
+        ], color="success")
+
+        return success_message, no_update
 
     except User.DoesNotExist:
         return dbc.Alert("Geçersiz kullanıcı kimliği.", color="danger"), no_update
     except Exception as e:
         import traceback
-        traceback.print_exc() # Hatanın detayını terminalde görmek için
+        traceback.print_exc()
         return dbc.Alert(f"Beklenmedik bir hata oluştu: {e}", color="danger"), no_update
-
 
 
 @app.callback(
@@ -151,10 +167,6 @@ def handle_form_submission(n_clicks, request_text, user_data):
     [State("navbar-collapse", "is_open")],
 )
 def toggle_navbar_collapse(n_clicks, is_open):
-    """
-    Kullanıcı hamburger menü butonuna bastığında, menünün
-    açık/kapalı durumunu tersine çevirir.
-    """
     if n_clicks:
         return not is_open
     return is_open

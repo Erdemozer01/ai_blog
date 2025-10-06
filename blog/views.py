@@ -9,6 +9,11 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
 from django.shortcuts import render, redirect, get_object_or_404, reverse
+from django.utils.text import slugify
+from weasyprint import HTML, CSS # YENİ
+
+from django.conf import settings # YENİ
+
 
 from dash_apps.admin_dash import app as admin_dash_app
 from dash_apps.article_detail import app as article_detail_app
@@ -19,8 +24,11 @@ from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_conte
 # Modeller
 from .models import GeneratedArticle, Profile
 
-
-# Dash Uygulamaları ve Parçaları
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+import plotly.express as px
+import base64
+import markdown
 
 # === YARDIMCI FONKSİYON: SİTE GENELİ NAVBAR ===
 def create_main_navbar(request):
@@ -69,166 +77,181 @@ def create_main_navbar(request):
     return navbar
 
 
+# ... (Diğer view fonksiyonları aynı kalacak)
 def admin_dashboard_view(request):
     admin_dash_app
     return render(request, "admin_dashboard.html")
 
+
 def anasayfa_view(request):
-
     main_navbar = create_main_navbar(request)
-
     dash_content = create_anasayfa_content_layout()
-
-    anasayfa_app.layout = html.Div([
-        main_navbar,
-        dash_content
-    ])
-
+    anasayfa_app.layout = html.Div([main_navbar, dash_content])
     return render(request, 'blog/anasayfa.html')
 
 
+# --- BU FONKSİYON BAŞTAN SONA GÜNCELLENDİ ---
 def article_detail_view(request, article_id, slug):
-
-    main_navbar = create_main_navbar(request)
-    article = get_object_or_404(GeneratedArticle, id=article_id)
+    main_navbar = create_main_navbar(request)  # Bu fonksiyonun dosyanızda tanımlı olduğunu varsayıyorum
+    article = get_object_or_404(
+        GeneratedArticle.objects.select_related('owner__profile', 'category'),
+        id=article_id
+    )
 
     if article.slug != slug:
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
+    # === Başlıkları Ayıklama ve Sidebar Oluşturma ===
+    md_extensions = ['extra', 'toc', 'attr_list']
+    md = markdown.Markdown(extensions=md_extensions)
+    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)', re.MULTILINE)
+    headings = []
+    content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_\d+_\|\|_)', article.full_content or "")
+    for part in content_parts:
+        if not part.startswith('_||_'):
+            found_headings = heading_pattern.findall(part)
+            for heading in found_headings:
+                level = len(heading[0])
+                title = heading[1].strip()
+                headings.append({
+                    "title": title.replace("**", "").title(),
+                    "slug": slugify(title, allow_unicode=True),
+                    "level": level
+                })
+
+    toc_links = []
+    if headings:
+        toc_links.append(html.H5("İçindekiler", className="mb-4"))
+        nav_items = []
+        for h in headings:
+            className = "ms-3" if h['level'] == 3 else ""
+            nav_items.append(
+                dbc.NavItem(
+                    dbc.NavLink(
+                        [html.I(className="fas fa-chevron-right me-2 text-small"), h['title']],
+                        href=f"#{h['slug']}", external_link=True, className=f"py-1 {className}",
+                        style={"font-size": "0.8rem"}
+                    )
+                )
+            )
+        toc_links.append(dbc.Nav(nav_items, vertical=True, pills=True))
+    toc_sidebar = html.Div(
+        toc_links,
+        className="sticky-top p-5 shadow-lg mb-4",
+        style={"top": "11.5%"},
+    )
+
     GeneratedArticle.objects.filter(pk=article.id).update(view_count=F('view_count') + 1)
     article.refresh_from_db()
 
-    total_votes = article.likes + article.dislikes
-    average_rating = 0
-    if total_votes > 0:
-        # Puanı 5 üzerinden basit bir orantıyla hesaplayalım
-        average_rating = round((article.likes / total_votes) * 4 + 1, 2)
-
-    # Site logosu için geçici bir URL, burayı kendi logonuzla değiştirebilirsiniz
-    logo_url = request.build_absolute_uri('/staticfiles/images/logo.png')
-
-    structured_data = {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": request.build_absolute_uri(article.get_absolute_url())  # get_absolute_url modelde tanımlanmalı
-        },
-        "headline": article.title,
-        "image": logo_url,
-        "datePublished": article.created_at.isoformat(),
-        "dateModified": article.created_at.isoformat(),  # Şimdilik aynı
-        "author": {
-            "@type": "Person",
-            "name": article.owner.get_full_name() or article.owner.username
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "AI Blog",
-            "logo": {
-                "@type": "ImageObject",
-                "url": logo_url
-            }
-        },
-        "description": article.turkish_abstract or article.english_abstract,
-        "articleBody": article.full_content,
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": str(average_rating),
-            "reviewCount": str(total_votes)
-        } if total_votes > 0 else None
-    }
-    # None olan değerleri sözlükten temizle
-    structured_data = {k: v for k, v in structured_data.items() if v is not None}
-
+    author_name = "Yazar Bilinmiyor"
+    if hasattr(article.owner, 'profile') and article.owner.profile.first_name and article.owner.profile.last_name:
+        author_name = f"{article.owner.profile.first_name} {article.owner.profile.last_name}"
+    else:
+        author_name = article.owner.get_full_name() or article.owner.username
+    author_email = article.owner.email
 
     article_data_for_dash = {
         'article_id': article.id,
         'full_content': article.full_content or "",
-        'structured_data': article.structured_data or {}
+        'structured_data': article.structured_data or {},
+        'headings': headings
     }
 
-    keywords_list = [keyword.strip() for keyword in (article.keywords or "").split(',') if keyword.strip()]
-
+    # --- KAYNAKÇA NUMARALANDIRMA KODU GERİ EKLENDİ ---
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
     formatted_bibliography_items = [html.Li(re.sub(r'^\d+\.\s*', '', ref), style=apa_style, className="mb-2") for ref in
                                     references_list]
 
-    page_url = request.build_absolute_uri()
+    total_votes = article.likes + article.dislikes
+    average_rating = 0
+    if total_votes > 0:
+        average_rating = round((article.likes / total_votes) * 4 + 1, 2)
+    logo_url = request.build_absolute_uri('/staticfiles/images/logo.png')
+    structured_data = {
+        "@context": "https://schema.org", "@type": "Article",
+        "mainEntityOfPage": {"@type": "WebPage", "@id": request.build_absolute_uri(article.get_absolute_url())},
+        "headline": article.title, "image": logo_url, "datePublished": article.created_at.isoformat(),
+        "dateModified": article.created_at.isoformat(),
+        "author": {"@type": "Person", "name": author_name, "email": author_email},
+        "publisher": {"@type": "Organization", "name": "AI Blog", "logo": {"@type": "ImageObject", "url": logo_url}},
+        "description": article.turkish_abstract or article.english_abstract, "articleBody": article.full_content,
+        "aggregateRating": {"@type": "AggregateRating", "ratingValue": str(average_rating),
+                            "reviewCount": str(total_votes)} if total_votes > 0 else None
+    }
+    structured_data = {k: v for k, v in structured_data.items() if v is not None}
 
+    keywords_list = [keyword.strip() for keyword in (article.keywords or "").split(',') if keyword.strip()]
+
+    page_url = request.build_absolute_uri()
     encoded_title = quote_plus(article.title or "AI Blog Makalesi")
 
-    share_buttons = html.Div([
-        html.H5("Paylaş:", className="mb-3"),
-        dbc.ButtonGroup([
-            dbc.Button([html.I(className="fab fa-twitter me-1"), " Twitter"],
-                       href=f"https://twitter.com/intent/tweet?url={page_url}&text={encoded_title}", target="_blank",
-                       color="info", outline=True, size="sm"),
-            dbc.Button([html.I(className="fab fa-linkedin-in me-1"), " LinkedIn"],
-                       href=f"https://www.linkedin.com/shareArticle?mini=true&url={page_url}&title={encoded_title}",
-                       target="_blank", color="primary", size="sm")
-        ])
-    ])
+    share_buttons = html.Div(
+        [html.H5("İşlemler:", className="mb-3"),
+         dbc.ButtonGroup(
+             [dbc.Button([html.I(className="fas fa-file-pdf me-1"), " PDF İndir"],
+                         href=reverse('blog:download_article_pdf', args=[article.id]), external_link=True,
+                         color="danger", outline=True, size="sm", className="me-2"),
+              dbc.Button([html.I(className="fab fa-twitter me-1"), " Twitter"],
+                         href=f"https://twitter.com/intent/tweet?url={page_url}&text={encoded_title}", target="_blank",
+                         color="info", outline=True, size="sm"),
+              dbc.Button([html.I(className="fab fa-linkedin-in me-1"), " LinkedIn"],
+                         href=f"https://www.linkedin.com/shareArticle?mini=true&url={page_url}&title={encoded_title}",
+                         target="_blank", color="primary", size="sm")])])
 
-    feedback_buttons = html.Div([
-        html.H5("Bu içerik faydalı oldu mu?", className="mb-3"),
-        dbc.ButtonGroup([
-            dbc.Button([html.I(className="fas fa-thumbs-up me-2"), "Faydalı ",
-                        html.Span(f"({article.likes})", id="like-count")],
-                       id="like-button", color="success", outline=True, size="sm", n_clicks=0),  # n_clicks=0 eklendi
-            dbc.Button([html.I(className="fas fa-thumbs-down me-2"), "Faydasız ",
-                        html.Span(f"({article.dislikes})", id="dislike-count")],
-                       id="dislike-button", color="danger", outline=True, size="sm", n_clicks=0)  # n_clicks=0 eklendi
-        ])
-    ])
+    feedback_buttons = html.Div(
+        [html.H5("Bu içerik faydalı oldu mu?", className="mb-3"),
+         dbc.ButtonGroup(
+             [dbc.Button([html.I(className="fas fa-thumbs-up me-2"), "Faydalı ",
+                          html.Span(f"({article.likes})", id="like-count")], id="like-button", color="success",
+                         outline=True, size="sm", n_clicks=0),
+              dbc.Button([html.I(className="fas fa-thumbs-down me-2"), "Faydasız ",
+                          html.Span(f"({article.dislikes})", id="dislike-count")], id="dislike-button", color="danger",
+                         outline=True, size="sm", n_clicks=0)])]
+    )
 
     edit_button = None
-
     if request.user.is_superuser:
-
         edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
-
-        edit_button = html.A(
-            [html.I(className="fas fa-pencil-alt me-2 text-warning float-end")],
-            href=edit_url,
-            className="mb-4",
-            title="Düzenle"
-        )
-
+        edit_button = html.A([html.I(className="fas fa-pencil-alt me-2 text-warning float-end")], href=edit_url,
+                             className="mb-4", title="Düzenle")
 
     full_layout = html.Div([
         dcc.Store(id='article-data-store', data=article_data_for_dash),
         dcc.Store(id='feedback-button-store'),
         html.Div(id='like-toast-container', style={"position": "fixed", "bottom": 20, "right": 20, "zIndex": 1050}),
+        html.Div(id='clientside-dummy-output'),
         main_navbar,
         dbc.Container([
             dbc.Row([
+                dbc.Col(toc_sidebar, lg=2, className="d-none d-lg-block"),
                 dbc.Col([
                     html.Header([
-                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5", style={"text-align": "justify"}),
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    html.P(
-                                        f"Tarih: {article.created_at.strftime('%d %B %Y')} | Kategori: {article.category.name if article.category else 'Yok'} | Okunma: {article.view_count}",
-                                        className="text-muted small mb-0"
-                                    ),
-                                    width="auto"
-                                ),
-
-                                dbc.Col(
-                                    edit_button if edit_button else ""
-                                ),
-                            ],
-                            justify="between",
-                            align="center",
-                            className="border-bottom pb-3 mb-4"
-                        )
-
+                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5",
+                                style={"text-align": "justify"}),
+                        dbc.Row([
+                            dbc.Col(
+                                html.P([
+                                    html.Span([html.I(className="fas fa-user-edit me-1"), f" {author_name}"]),
+                                    html.Span(" | ", className="mx-2"),
+                                    html.A([html.I(className="fas fa-envelope me-1"), f" {author_email}"],
+                                           href=f"mailto:{author_email}", className="text-muted text-decoration-none"),
+                                    html.Span(" | ", className="mx-2"),
+                                    html.Span([html.I(className="fas fa-calendar-alt me-1"),
+                                               f" {article.created_at.strftime('%d %B %Y')}"]),
+                                    html.Span(" | ", className="mx-2"),
+                                    html.Span([html.I(className="fas fa-folder-open me-1"),
+                                               f" Kategori: {article.category.name if article.category else 'Yok'}"]),
+                                    html.Span(" | ", className="mx-2"),
+                                    html.Span([html.I(className="fas fa-eye me-1"), f" {article.view_count} Okunma"]),
+                                ], className="text-muted small mb-0"),
+                                width="auto"
+                            ),
+                            dbc.Col(edit_button if edit_button else ""),
+                        ], justify="between", align="center", className="border-bottom pb-3 mb-4")
                     ]),
-
                     html.Div([
                         html.H4("Abstract"),
                         html.P(html.Em(article.english_abstract or "İngilizce özet mevcut değil.")),
@@ -240,20 +263,17 @@ def article_detail_view(request, article_id, slug):
                         html.H5("Anahtar Kelimeler:", className="d-inline-block me-2"),
                         *[dbc.Badge(keyword, color="secondary", className="me-2 p-2") for keyword in keywords_list]
                     ], className="mb-4"),
-
-
                     html.Div(id='dynamic-article-content'),
 
-
+                    # --- GÜNCELLENEN BÖLÜM: Kaynakça tekrar numaralı liste oldu ---
                     html.Hr(className="my-5"),
                     html.H4("Kaynakça"),
                     html.Ol(formatted_bibliography_items),
-                    html.Hr(className="my-5"),
+                    # --- GÜNCELLEME BİTTİ ---
 
-                ], md=10, lg=8, className="mx-auto")
+                ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
             ])
-        ], className="my-4 shadow-lg"),
-
+        ], fluid=True, className="px-md-5"),
         dbc.Container([
             dbc.Row([
                 dbc.Col(feedback_buttons, md=6, className="mb-3"),
@@ -262,8 +282,6 @@ def article_detail_view(request, article_id, slug):
             html.Div(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary mt-5"),
                      className="text-center")
         ])
-
-
     ])
 
     article_detail_app.layout = full_layout
@@ -277,6 +295,99 @@ def article_detail_view(request, article_id, slug):
     })
 
 
+def download_article_as_pdf(request, article_id):
+    """
+    WeasyPrint kullanarak, kaynakçası NUMARALANDIRILMIŞ, yüksek kalitede,
+    Türkçe karakter ve grafik destekli tam bir PDF oluşturan nihai fonksiyon.
+    """
+    article = get_object_or_404(
+        GeneratedArticle.objects.select_related('owner__profile'),
+        id=article_id
+    )
+
+    author_name = "Yazar Bilinmiyor"
+    if hasattr(article.owner, 'profile') and article.owner.profile.first_name and article.owner.profile.last_name:
+        author_name = f"{article.owner.profile.first_name} {article.owner.profile.last_name}"
+    else:
+        author_name = article.owner.get_full_name() or article.owner.username
+    author_email = article.owner.email
+
+    full_content = article.full_content or ""
+    structured_data = article.structured_data or {}
+
+    content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_(\d+)_\|\|_)', full_content)
+
+    final_html_parts = []
+    for part in content_parts:
+        placeholder_match = re.match(r'_\|\|_STRUCTURED_DATA_(\d+)_\|\|_', part)
+
+        if placeholder_match:
+            placeholder_num = placeholder_match.group(1)
+            data_item = structured_data.get(placeholder_num)
+            if data_item:
+                item_type = data_item.get('type')
+                if item_type == 'table':
+                    columns = data_item.get('columns', [])
+                    data = data_item.get('data', [])
+                    thead = "".join(f"<th>{col}</th>" for col in columns)
+                    tbody = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in data)
+                    table_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Tablo")}</p><table class="pdf-table"><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table><p class="description">{data_item.get("description", "")}</p></div>'
+                    final_html_parts.append(table_html)
+                elif item_type == 'chart':
+                    try:
+                        chart_type = data_item.get('chart_type', 'bar').lower()
+                        fig = None
+                        chart_data = data_item.get('data', {})
+
+                        if chart_type == 'bar':
+                            fig = px.bar(chart_data, x='x', y='y', template="plotly_white")
+                        elif chart_type == 'line':
+                            fig = px.line(chart_data, x='x', y='y', markers=True, template="plotly_white")
+                        elif chart_type == 'pie':
+                            fig = px.pie(chart_data, names='x', values='y', template="plotly_white")
+                        elif chart_type == 'scatter':
+                            fig = px.scatter(chart_data, x='x', y='y', template="plotly_white")
+
+                        if fig:
+                            img_bytes = fig.to_image(format="svg", engine="kaleido")
+                            encoded_img = base64.b64encode(img_bytes).decode('utf-8')
+                            img_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Grafik")}</p><img src="data:image/svg+xml;base64,{encoded_img}"><p class="description">{data_item.get("description", "")}</p></div>'
+                            final_html_parts.append(img_html)
+                    except Exception as e:
+                        print(f"Grafik resme çevrilirken hata: {e}")
+                        final_html_parts.append(f"<p><i>[Grafik oluşturulamadı: {e}]</i></p>")
+        elif part.strip():
+            final_html_parts.append(markdown.markdown(part, extensions=['extra']))
+
+    final_html_content = "".join(final_html_parts)
+
+    # --- KAYNAKÇA BÖLÜMÜ GÜNCELLENDİ (NUMARALI LİSTE İÇİN) ---
+    if article.bibliography:
+        # Kaynakçayı satırlara böl
+        references_list = [ref.strip() for ref in article.bibliography.splitlines() if ref.strip()]
+        # Her satırı <li> etiketi içine al (başındaki numaraları silerek)
+        list_items_html = "".join([f"<li>{re.sub(r'^\d+\.\s*', '', ref)}</li>" for ref in references_list])
+        # Numaralı liste (<ol>) olarak birleştir
+        bibliography_html = f"<h3>Kaynakça</h3><ol>{list_items_html}</ol>"
+        final_html_content += bibliography_html
+    # --- GÜNCELLEME BİTTİ ---
+
+    font_config_css = CSS(
+        string='@font-face { font-family: "Noto Sans"; src: url("/static/fonts/NotoSans-Regular.ttf"); }')
+
+    html_string = render_to_string('blog/article_pdf.html', {
+        'article': article,
+        'author_name': author_name,
+        'author_email': author_email,
+        'final_html_content': final_html_content,
+    })
+
+    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+    pdf = html.write_pdf(stylesheets=[font_config_css])
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{article.slug}.pdf"'
+    return response
 @login_required
 def resume_view(request):
     main_navbar = create_main_navbar(request)
@@ -292,7 +403,23 @@ def generate_article_view(request):
     if not request.user.is_superuser:
         messages.error(request, "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
         return redirect('anasayfa')
+
+    # YENİ: Profil Ad/Soyad kontrolü
+    try:
+        # Django'nun OneToOneField'ı sayesinde request.user.profile ile doğrudan erişebiliriz
+        profile = request.user.profile
+        if not profile.first_name or not profile.last_name:
+            # Eğer ad veya soyad boşsa, bir "DoesNotExist" hatası fırlatmış gibi davranalım
+            raise Profile.DoesNotExist
+    except Profile.DoesNotExist:
+        # Profil yoksa veya ad/soyad boşsa, uyarı ver ve admin paneline yönlendir
+        messages.warning(request, "Makale oluşturmadan önce lütfen profilinizdeki Ad ve Soyad alanlarını doldurun.")
+        # Kullanıcının kendi profilini admin panelinde düzenlemesi için yönlendirme
+        # Not: Bu linkin çalışması için kullanıcının admin paneline erişim izni olmalı.
+        return redirect(reverse('admin:auth_user_change', args=[request.user.id]))
+
     main_navbar = create_main_navbar(request)
+    # ... (fonksiyonun geri kalanı aynı) ...
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Location(id='url', refresh=True),
@@ -342,7 +469,7 @@ def contact_view(request):
 
 def custom_logout_view(request):
     logout(request)
-    return redirect('anasayfa')
+    return redirect('blog:anasayfa')
 
 
 def robots_txt_view(request):
