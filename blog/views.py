@@ -1,62 +1,54 @@
 import json
-import re
+from io import BytesIO
+from pathlib import Path
 from urllib.parse import quote_plus
-
-import dash_bootstrap_components as dbc
-from dash import html, dcc
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import F
-from django.shortcuts import render, redirect, get_object_or_404, reverse
-from django.utils.text import slugify
-from weasyprint import HTML, CSS # YENİ
-
-from django.conf import settings # YENİ
-
-
-from dash_apps.admin_dash import app as admin_dash_app
-from dash_apps.article_detail import app as article_detail_app
-from dash_apps.contact import app as contact_app
-from dash_apps.generate import app as generate_app
-from dash_apps.resume import app as resume_app, create_resume_layout
-from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
-# Modeller
-from .models import GeneratedArticle, Profile
-
 from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
+from django.utils.text import slugify
+from django.db.models import F
+
+from weasyprint import HTML, CSS
+import markdown
+import re
 import plotly.express as px
 import base64
-import markdown
+import dash_bootstrap_components as dbc
+from dash import html, dcc
 
-# === YARDIMCI FONKSİYON: SİTE GENELİ NAVBAR ===
+from .models import GeneratedArticle, Profile
+from dash_apps.generate import app as generate_app
+from dash_apps.article_detail import app as article_detail_app
+from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
+from dash_apps.resume import app as resume_app, create_resume_layout
+from dash_apps.contact import app as contact_app
+from dash_apps.admin_dash import app as admin_dash_app
+
+
 def create_main_navbar(request):
     """Tüm sayfalarda tutarlı, dinamik ve mobil uyumlu bir Navbar oluşturur."""
     nav_items_right = []
-
     if request.user.is_authenticated:
         dropdown_items = []
         if request.user.is_superuser:
             dropdown_items.append(dbc.DropdownMenuItem("Yönetici Paneli", href="/admin/", external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-
         dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href="/generate-article/", external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Özgeçmiş", href="/resume/", external_link=True)),
-        dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href="/admin-dashboard/", external_link=True)),
-
+        dropdown_items.append(dbc.DropdownMenuItem("Özgeçmiş", href="/resume/", external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href="/admin-dashboard/", external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
         dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href="/logout/", external_link=True))
-
         user_menu = dbc.DropdownMenu(
             label=f"{request.user.username}",
             children=dropdown_items,
             nav=True, in_navbar=True, align_end="end", className="ms-lg-2"
         )
         nav_items_right.append(user_menu)
-
     nav_items_right.append(dbc.NavItem(dbc.NavLink("İletişim", href="/contact/", external_link=True)))
-
     navbar = dbc.Navbar(
         dbc.Container([
             html.A(
@@ -77,7 +69,6 @@ def create_main_navbar(request):
     return navbar
 
 
-# ... (Diğer view fonksiyonları aynı kalacak)
 def admin_dashboard_view(request):
     admin_dash_app
     return render(request, "admin_dashboard.html")
@@ -90,9 +81,8 @@ def anasayfa_view(request):
     return render(request, 'blog/anasayfa.html')
 
 
-# --- BU FONKSİYON BAŞTAN SONA GÜNCELLENDİ ---
 def article_detail_view(request, article_id, slug):
-    main_navbar = create_main_navbar(request)  # Bu fonksiyonun dosyanızda tanımlı olduğunu varsayıyorum
+    main_navbar = create_main_navbar(request)
     article = get_object_or_404(
         GeneratedArticle.objects.select_related('owner__profile', 'category'),
         id=article_id
@@ -101,9 +91,6 @@ def article_detail_view(request, article_id, slug):
     if article.slug != slug:
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    # === Başlıkları Ayıklama ve Sidebar Oluşturma ===
-    md_extensions = ['extra', 'toc', 'attr_list']
-    md = markdown.Markdown(extensions=md_extensions)
     heading_pattern = re.compile(r'^(#{2,3})\s+(.*)', re.MULTILINE)
     headings = []
     content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_\d+_\|\|_)', article.full_content or "")
@@ -151,14 +138,19 @@ def article_detail_view(request, article_id, slug):
         author_name = article.owner.get_full_name() or article.owner.username
     author_email = article.owner.email
 
+    modified_full_content = article.full_content or ""
+    for h in headings:
+        pattern_to_replace = re.compile(r'(#{' + str(h['level']) + r'}\s+' + re.escape(h['title'].strip()) + r')\s*$',
+                                        re.MULTILINE)
+        replacement = r'\1 ' + f'{{#{h["slug"]}}}'
+        modified_full_content = pattern_to_replace.sub(replacement, modified_full_content)
+
     article_data_for_dash = {
         'article_id': article.id,
-        'full_content': article.full_content or "",
+        'full_content': modified_full_content,
         'structured_data': article.structured_data or {},
-        'headings': headings
     }
 
-    # --- KAYNAKÇA NUMARALANDIRMA KODU GERİ EKLENDİ ---
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
@@ -188,18 +180,26 @@ def article_detail_view(request, article_id, slug):
     page_url = request.build_absolute_uri()
     encoded_title = quote_plus(article.title or "AI Blog Makalesi")
 
-    share_buttons = html.Div(
-        [html.H5("İşlemler:", className="mb-3"),
-         dbc.ButtonGroup(
-             [dbc.Button([html.I(className="fas fa-file-pdf me-1"), " PDF İndir"],
-                         href=reverse('blog:download_article_pdf', args=[article.id]), external_link=True,
-                         color="danger", outline=True, size="sm", className="me-2"),
-              dbc.Button([html.I(className="fab fa-twitter me-1"), " Twitter"],
-                         href=f"https://twitter.com/intent/tweet?url={page_url}&text={encoded_title}", target="_blank",
-                         color="info", outline=True, size="sm"),
-              dbc.Button([html.I(className="fab fa-linkedin-in me-1"), " LinkedIn"],
-                         href=f"https://www.linkedin.com/shareArticle?mini=true&url={page_url}&title={encoded_title}",
-                         target="_blank", color="primary", size="sm")])])
+    share_buttons = html.Div([
+        html.H5("İşlemler:", className="mb-3"),
+        dbc.ButtonGroup([
+            dbc.Button(
+                [html.I(className="fas fa-file-pdf me-1"), " PDF İndir"],
+                href=reverse('blog:download_article_pdf', args=[article.id]),
+                external_link=True, color="danger", outline=True, size="sm", className="me-2"
+            ),
+            dbc.Button(
+                [html.I(className="fab fa-twitter me-1"), " Twitter"],
+                href=f"https://twitter.com/intent/tweet?url={page_url}&text={encoded_title}",
+                target="_blank", color="info", outline=True, size="sm"
+            ),
+            dbc.Button(
+                [html.I(className="fab fa-linkedin-in me-1"), " LinkedIn"],
+                href=f"https://www.linkedin.com/shareArticle?mini=true&url={page_url}&title={encoded_title}",
+                target="_blank", color="primary", size="sm"
+            )
+        ])
+    ])
 
     feedback_buttons = html.Div(
         [html.H5("Bu içerik faydalı oldu mu?", className="mb-3"),
@@ -264,13 +264,9 @@ def article_detail_view(request, article_id, slug):
                         *[dbc.Badge(keyword, color="secondary", className="me-2 p-2") for keyword in keywords_list]
                     ], className="mb-4"),
                     html.Div(id='dynamic-article-content'),
-
-                    # --- GÜNCELLENEN BÖLÜM: Kaynakça tekrar numaralı liste oldu ---
                     html.Hr(className="my-5"),
                     html.H4("Kaynakça"),
                     html.Ol(formatted_bibliography_items),
-                    # --- GÜNCELLEME BİTTİ ---
-
                 ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
             ])
         ], fluid=True, className="px-md-5"),
@@ -297,8 +293,8 @@ def article_detail_view(request, article_id, slug):
 
 def download_article_as_pdf(request, article_id):
     """
-    WeasyPrint kullanarak, kaynakçası NUMARALANDIRILMIŞ, yüksek kalitede,
-    Türkçe karakter ve grafik destekli tam bir PDF oluşturan nihai fonksiyon.
+    WeasyPrint kullanarak yüksek kalitede, Türkçe karakter, grafik, tablo, özet ve kaynakça
+    destekli tam bir PDF oluşturan nihai fonksiyon.
     """
     article = get_object_or_404(
         GeneratedArticle.objects.select_related('owner__profile'),
@@ -338,7 +334,6 @@ def download_article_as_pdf(request, article_id):
                         chart_type = data_item.get('chart_type', 'bar').lower()
                         fig = None
                         chart_data = data_item.get('data', {})
-
                         if chart_type == 'bar':
                             fig = px.bar(chart_data, x='x', y='y', template="plotly_white")
                         elif chart_type == 'line':
@@ -361,16 +356,11 @@ def download_article_as_pdf(request, article_id):
 
     final_html_content = "".join(final_html_parts)
 
-    # --- KAYNAKÇA BÖLÜMÜ GÜNCELLENDİ (NUMARALI LİSTE İÇİN) ---
     if article.bibliography:
-        # Kaynakçayı satırlara böl
         references_list = [ref.strip() for ref in article.bibliography.splitlines() if ref.strip()]
-        # Her satırı <li> etiketi içine al (başındaki numaraları silerek)
         list_items_html = "".join([f"<li>{re.sub(r'^\d+\.\s*', '', ref)}</li>" for ref in references_list])
-        # Numaralı liste (<ol>) olarak birleştir
         bibliography_html = f"<h3>Kaynakça</h3><ol>{list_items_html}</ol>"
         final_html_content += bibliography_html
-    # --- GÜNCELLEME BİTTİ ---
 
     font_config_css = CSS(
         string='@font-face { font-family: "Noto Sans"; src: url("/static/fonts/NotoSans-Regular.ttf"); }')
@@ -388,14 +378,6 @@ def download_article_as_pdf(request, article_id):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{article.slug}.pdf"'
     return response
-@login_required
-def resume_view(request):
-    main_navbar = create_main_navbar(request)
-    profile = Profile.objects.filter(user=request.user).first()
-    resume_content = create_resume_layout(profile)
-    full_layout = html.Div([main_navbar, resume_content])
-    resume_app.layout = full_layout
-    return render(request, 'blog/resume.html')
 
 
 @login_required
@@ -404,22 +386,24 @@ def generate_article_view(request):
         messages.error(request, "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
         return redirect('anasayfa')
 
-    # YENİ: Profil Ad/Soyad kontrolü
     try:
-        # Django'nun OneToOneField'ı sayesinde request.user.profile ile doğrudan erişebiliriz
         profile = request.user.profile
         if not profile.first_name or not profile.last_name:
-            # Eğer ad veya soyad boşsa, bir "DoesNotExist" hatası fırlatmış gibi davranalım
             raise Profile.DoesNotExist
     except Profile.DoesNotExist:
-        # Profil yoksa veya ad/soyad boşsa, uyarı ver ve admin paneline yönlendir
         messages.warning(request, "Makale oluşturmadan önce lütfen profilinizdeki Ad ve Soyad alanlarını doldurun.")
-        # Kullanıcının kendi profilini admin panelinde düzenlemesi için yönlendirme
-        # Not: Bu linkin çalışması için kullanıcının admin paneline erişim izni olmalı.
-        return redirect(reverse('admin:auth_user_change', args=[request.user.id]))
+        # Profile modeli 'blog' uygulaması altında olduğu için 'admin:blog_profile_change'
+        # Eğer profil User modeline inline ise 'admin:auth_user_change' de çalışabilir.
+        # Bu daha doğru bir yönlendirme olacaktır.
+        try:
+            profile_id = request.user.profile.id
+            redirect_url = reverse('admin:blog_profile_change', args=[profile_id])
+        except Profile.DoesNotExist:
+            # Eğer hiç profil oluşturulmamışsa, ekleme sayfasına yönlendir
+            redirect_url = reverse('admin:blog_profile_add') + f'?user={request.user.id}'
+        return redirect(redirect_url)
 
     main_navbar = create_main_navbar(request)
-    # ... (fonksiyonun geri kalanı aynı) ...
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Location(id='url', refresh=True),
@@ -469,10 +453,19 @@ def contact_view(request):
 
 def custom_logout_view(request):
     logout(request)
-    return redirect('blog:anasayfa')
+    return redirect('anasayfa')
 
 
 def robots_txt_view(request):
     base_url = f"{request.scheme}://{request.get_host()}"
-
     return render(request, 'robots.txt', {'base_url': base_url}, content_type="text/plain")
+
+
+@login_required
+def resume_view(request):
+    main_navbar = create_main_navbar(request)
+    profile = Profile.objects.filter(user=request.user).first()
+    resume_content = create_resume_layout(profile)
+    full_layout = html.Div([main_navbar, resume_content])
+    resume_app.layout = full_layout
+    return render(request, 'blog/resume.html')

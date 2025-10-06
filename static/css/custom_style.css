@@ -1,11 +1,16 @@
+html {
+  scroll-behavior: smooth;
+}
+
 /* Makale Detay Sayfası - İçindekiler Menüsü */
 .toc-link {
-    /* Yazı boyutunu son kez küçültelim */
-    font-size: 0.7rem;
+    font-size: 0.8rem;
 }
 
 /* Aktif olan linkin rengini daha belirgin yapalım */
 .toc-link.active {
     font-weight: bold;
-    color: var(--bs-primary);
+    color: var(--bs-primary); /* Bootstrap'in ana rengini kullan */
 }
+
+/* ... (varsa diğer özel stilleriniz) ... */

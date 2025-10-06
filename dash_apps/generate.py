@@ -1,24 +1,16 @@
 import re, json
-
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html
 from datetime import date
-
 import google.generativeai as genai
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
-
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
 
 
 def run_gemini_sync(user_request_text):
-    """
-    Doğrudan Gemini API'sini çağırır ve metin içine gömülecek şekilde
-    yapısal veri (grafik/tablo) üretir.
-    """
     from blog.models import APIKey
-
     try:
         api_key_object = APIKey.objects.get(service_name='Google Gemini', is_active=True)
     except APIKey.DoesNotExist:
@@ -26,16 +18,13 @@ def run_gemini_sync(user_request_text):
 
     genai.configure(api_key=api_key_object.key)
     generation_config = {"temperature": 0.7, "max_output_tokens": 8192}
-    model = genai.GenerativeModel(model_name="gemini-2.5-pro", generation_config=generation_config)
+    model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest", generation_config=generation_config)
     current_year = date.today().year
 
     prompt = f"""
     Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak.
-
     İstek Konusu: "{user_request_text}"
-
     Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur.
-
     Oluşturulacak Bölümlerin Sırası:
     1.  Başlık: Spesifik, analitik ve akademik bir başlık.
     2.  İngilizce Özet (Abstract): Yaklaşık 150 kelimelik, makaleyi özetleyen İngilizce bir abstract.
@@ -49,14 +38,9 @@ def run_gemini_sync(user_request_text):
         - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "description": "Bu tablo neyi gösteriyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: Dünya Bankası, 2024)", "columns": ["Sütun 1"], "data": [["Değer 1A"]]}}}}`
         - Bir grafik için: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "Grafik Başlığı", "description": "Bu grafik neyi analiz ediyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: TUIK, 2025)", "data": {{"x": ["Kategori A"], "y": [10]}}}}}}`
         - Eğer uygun veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
-
     Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, aralarında belirtilen ayraçla birlikte ver.
     """
-
-    print("Gelişmiş prompt ile Gemini API'sine istek gönderiliyor...")
     response = model.generate_content(prompt)
-    print("Gemini API'sinden yanıt alındı.")
-
     response_text = response.text
     parts = response_text.split('_||_SECTION_BREAK_||_')
 
@@ -67,7 +51,6 @@ def run_gemini_sync(user_request_text):
             if json_string:
                 structured_data_json = json.loads(json_string)
         except json.JSONDecodeError:
-            print("HATA: AI tarafından üretilen yapısal veri geçerli bir JSON değil.")
             structured_data_json = {}
 
     ai_data = {
@@ -84,20 +67,16 @@ def run_gemini_sync(user_request_text):
     title_raw = ai_data.get('title', '')
     title_clean = re.sub(r'^\s*\d+\.\s*başlık:\s*', '', title_raw, flags=re.IGNORECASE)
     ai_data['title'] = title_clean.replace('**', '').strip()
-
     abstract_raw = ai_data.get('english_abstract', '')
     abstract_clean = re.sub(r'^\s*(\d+\.\s*)?((ingilizce\s*)?özet|abstract)(\s*\(abstract\))?:\s*', '', abstract_raw,
                             flags=re.IGNORECASE)
     ai_data['english_abstract'] = abstract_clean.strip()
-
     tr_abstract_raw = ai_data.get('turkish_abstract', '')
     tr_abstract_clean = re.sub(r'^\s*(\d+\.\s*)?(türkçe\s*)?özet:\s*', '', tr_abstract_raw, flags=re.IGNORECASE)
     ai_data['turkish_abstract'] = tr_abstract_clean.strip()
-
     content_raw = ai_data.get('content', '')
     content_clean = re.sub(r'^\s*giriş:\s*', '', content_raw, flags=re.IGNORECASE)
     ai_data['content'] = content_clean.strip()
-
     biblio_raw = ai_data.get('bibliography', '')
     biblio_clean = re.sub(r'^\s*(\d+\.\s*)?kaynakça:\s*', '', biblio_raw, flags=re.IGNORECASE)
     ai_data['bibliography'] = biblio_clean.strip()
@@ -116,7 +95,6 @@ def run_gemini_sync(user_request_text):
 def handle_form_submission(n_clicks, request_text, user_data):
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
-
     if not user_data or 'user_id' not in user_data:
         return dbc.Alert("Kullanıcı oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.", color="danger"), no_update
     if not request_text or len(request_text.strip()) < 10:
@@ -125,7 +103,6 @@ def handle_form_submission(n_clicks, request_text, user_data):
     try:
         user = User.objects.get(id=user_data['user_id'])
         ai_data = run_gemini_sync(request_text)
-
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
 
@@ -145,14 +122,12 @@ def handle_form_submission(n_clicks, request_text, user_data):
             structured_data=ai_data.get("structured_data"),
             status='tamamlandi'
         )
-
-        success_message = dbc.Alert([
-            "Makale başarıyla üretildi! ",
-            html.A("Görüntülemek için tıklayın.", href=new_article.get_absolute_url(), className="alert-link")
-        ], color="success")
-
+        success_message = dbc.Alert(
+            ["Makale başarıyla üretildi! ",
+             html.A("Görüntülemek için tıklayın.", href=new_article.get_absolute_url(), className="alert-link")],
+            color="success"
+        )
         return success_message, no_update
-
     except User.DoesNotExist:
         return dbc.Alert("Geçersiz kullanıcı kimliği.", color="danger"), no_update
     except Exception as e:
