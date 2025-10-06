@@ -20,7 +20,7 @@ import base64
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 
-from .models import GeneratedArticle, Profile
+from .models import GeneratedArticle, Profile, APIKey
 from dash_apps.generate import app as generate_app
 from dash_apps.article_detail import app as article_detail_app
 from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
@@ -99,11 +99,13 @@ def article_detail_view(request, article_id, slug):
             found_headings = heading_pattern.findall(part)
             for heading in found_headings:
                 level = len(heading[0])
-                title = heading[1].strip()
+                raw_title = heading[1].strip()
+                display_title = raw_title.replace("**", "").title()
                 headings.append({
-                    "title": title.replace("**", "").title(),
-                    "slug": slugify(title, allow_unicode=True),
-                    "level": level
+                    "display_title": display_title,
+                    "slug": slugify(raw_title, allow_unicode=True),
+                    "level": level,
+                    "raw_title": raw_title
                 })
 
     toc_links = []
@@ -115,8 +117,10 @@ def article_detail_view(request, article_id, slug):
             nav_items.append(
                 dbc.NavItem(
                     dbc.NavLink(
-                        [html.I(className="fas fa-chevron-right me-2 text-small"), h['title']],
-                        href=f"#{h['slug']}", external_link=True, className=f"py-1 {className}",
+                        [html.I(className="fas fa-chevron-right me-2 text-small"), h['display_title']],
+                        href=f"#{h['slug']}",
+                        external_link=True,
+                        className=f"py-1 toc-link {className}",
                         style={"font-size": "0.8rem"}
                     )
                 )
@@ -138,10 +142,17 @@ def article_detail_view(request, article_id, slug):
         author_name = article.owner.get_full_name() or article.owner.username
     author_email = article.owner.email
 
+    if article.cover_image:
+        meta_image_url = request.build_absolute_uri(article.cover_image.url)
+    else:
+        meta_image_url = request.build_absolute_uri('/static/images/default_cover.png')
+
     modified_full_content = article.full_content or ""
     for h in headings:
-        pattern_to_replace = re.compile(r'(#{' + str(h['level']) + r'}\s+' + re.escape(h['title'].strip()) + r')\s*$',
-                                        re.MULTILINE)
+        pattern_to_replace = re.compile(
+            r'(#{' + str(h['level']) + r'}\s+' + re.escape(h['raw_title']) + r')\s*$',
+            re.MULTILINE
+        )
         replacement = r'\1 ' + f'{{#{h["slug"]}}}'
         modified_full_content = pattern_to_replace.sub(replacement, modified_full_content)
 
@@ -161,14 +172,15 @@ def article_detail_view(request, article_id, slug):
     average_rating = 0
     if total_votes > 0:
         average_rating = round((article.likes / total_votes) * 4 + 1, 2)
-    logo_url = request.build_absolute_uri('/staticfiles/images/logo.png')
+
     structured_data = {
         "@context": "https://schema.org", "@type": "Article",
         "mainEntityOfPage": {"@type": "WebPage", "@id": request.build_absolute_uri(article.get_absolute_url())},
-        "headline": article.title, "image": logo_url, "datePublished": article.created_at.isoformat(),
+        "headline": article.title, "image": meta_image_url, "datePublished": article.created_at.isoformat(),
         "dateModified": article.created_at.isoformat(),
         "author": {"@type": "Person", "name": author_name, "email": author_email},
-        "publisher": {"@type": "Organization", "name": "AI Blog", "logo": {"@type": "ImageObject", "url": logo_url}},
+        "publisher": {"@type": "Organization", "name": "AI Blog",
+                      "logo": {"@type": "ImageObject", "url": request.build_absolute_uri('/static/images/logo.png')}},
         "description": article.turkish_abstract or article.english_abstract, "articleBody": article.full_content,
         "aggregateRating": {"@type": "AggregateRating", "ratingValue": str(average_rating),
                             "reviewCount": str(total_votes)} if total_votes > 0 else None
@@ -252,6 +264,7 @@ def article_detail_view(request, article_id, slug):
                             dbc.Col(edit_button if edit_button else ""),
                         ], justify="between", align="center", className="border-bottom pb-3 mb-4")
                     ]),
+
                     html.Div([
                         html.H4("Abstract"),
                         html.P(html.Em(article.english_abstract or "İngilizce özet mevcut değil.")),
@@ -259,14 +272,18 @@ def article_detail_view(request, article_id, slug):
                         html.H4("Özet"),
                         html.P(html.Em(article.turkish_abstract or "Türkçe özet mevcut değil."))
                     ], className="p-4 bg-light rounded mb-4"),
+
                     html.Div([
                         html.H5("Anahtar Kelimeler:", className="d-inline-block me-2"),
                         *[dbc.Badge(keyword, color="secondary", className="me-2 p-2") for keyword in keywords_list]
                     ], className="mb-4"),
+
                     html.Div(id='dynamic-article-content'),
+
                     html.Hr(className="my-5"),
                     html.H4("Kaynakça"),
                     html.Ol(formatted_bibliography_items),
+
                 ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
             ])
         ], fluid=True, className="px-md-5"),
@@ -287,14 +304,16 @@ def article_detail_view(request, article_id, slug):
         'meta_title': article.title,
         'meta_description': article.turkish_abstract or "",
         'meta_keywords': article.keywords or "",
-        'structured_data_json': json.dumps(structured_data, indent=4)
+        'structured_data_json': json.dumps(structured_data, indent=4),
+        'meta_image_url': meta_image_url,
+        'request': request,
     })
 
 
 def download_article_as_pdf(request, article_id):
     """
-    WeasyPrint kullanarak yüksek kalitede, Türkçe karakter, grafik, tablo, özet ve kaynakça
-    destekli tam bir PDF oluşturan nihai fonksiyon.
+    WeasyPrint kullanarak, istenmeyen numaralandırma hatası giderilmiş,
+    nihai PDF oluşturan fonksiyon.
     """
     article = get_object_or_404(
         GeneratedArticle.objects.select_related('owner__profile'),
@@ -311,15 +330,22 @@ def download_article_as_pdf(request, article_id):
     full_content = article.full_content or ""
     structured_data = article.structured_data or {}
 
-    content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_(\d+)_\|\|_)', full_content)
+    pattern = r'(_\|\|_STRUCTURED_DATA_(\d+)_\|\|_)'
+    content_parts = re.split(pattern, full_content)
 
     final_html_parts = []
-    for part in content_parts:
-        placeholder_match = re.match(r'_\|\|_STRUCTURED_DATA_(\d+)_\|\|_', part)
 
-        if placeholder_match:
-            placeholder_num = placeholder_match.group(1)
+    # --- DÖNGÜ DÜZELTİLDİ ---
+    i = 0
+    while i < len(content_parts):
+        text_part = content_parts[i]
+        if text_part.strip():
+            final_html_parts.append(markdown.markdown(text_part, extensions=['extra']))
+
+        if i + 2 < len(content_parts):
+            placeholder_num = content_parts[i + 2]
             data_item = structured_data.get(placeholder_num)
+
             if data_item:
                 item_type = data_item.get('type')
                 if item_type == 'table':
@@ -342,7 +368,6 @@ def download_article_as_pdf(request, article_id):
                             fig = px.pie(chart_data, names='x', values='y', template="plotly_white")
                         elif chart_type == 'scatter':
                             fig = px.scatter(chart_data, x='x', y='y', template="plotly_white")
-
                         if fig:
                             img_bytes = fig.to_image(format="svg", engine="kaleido")
                             encoded_img = base64.b64encode(img_bytes).decode('utf-8')
@@ -351,8 +376,8 @@ def download_article_as_pdf(request, article_id):
                     except Exception as e:
                         print(f"Grafik resme çevrilirken hata: {e}")
                         final_html_parts.append(f"<p><i>[Grafik oluşturulamadı: {e}]</i></p>")
-        elif part.strip():
-            final_html_parts.append(markdown.markdown(part, extensions=['extra']))
+        i += 3
+    # --- DÜZELTME BİTTİ ---
 
     final_html_content = "".join(final_html_parts)
 
@@ -392,18 +417,28 @@ def generate_article_view(request):
             raise Profile.DoesNotExist
     except Profile.DoesNotExist:
         messages.warning(request, "Makale oluşturmadan önce lütfen profilinizdeki Ad ve Soyad alanlarını doldurun.")
-        # Profile modeli 'blog' uygulaması altında olduğu için 'admin:blog_profile_change'
-        # Eğer profil User modeline inline ise 'admin:auth_user_change' de çalışabilir.
-        # Bu daha doğru bir yönlendirme olacaktır.
         try:
             profile_id = request.user.profile.id
             redirect_url = reverse('admin:blog_profile_change', args=[profile_id])
-        except Profile.DoesNotExist:
-            # Eğer hiç profil oluşturulmamışsa, ekleme sayfasına yönlendir
+        except (Profile.DoesNotExist, AttributeError):
             redirect_url = reverse('admin:blog_profile_add') + f'?user={request.user.id}'
         return redirect(redirect_url)
 
-    main_navbar = create_main_navbar(request)
+    # Aktif API anahtarlarını veritabanından çek
+    active_api_keys = APIKey.objects.filter(is_active=True)
+    if not active_api_keys:
+        messages.error(request, "Sistemde aktif bir AI Servis anahtarı bulunamadı. Lütfen admin panelinden ekleyin.")
+        # Burada anasayfaya veya başka bir uygun sayfaya yönlendirebilirsiniz
+        return redirect('anasayfa')
+
+    # Dropdown için seçenekleri oluştur
+    api_options = [
+        {'label': f"{key.service_name} - {key.model_name}", 'value': key.id}
+        for key in active_api_keys
+    ]
+
+    main_navbar = create_main_navbar(request) # Bu fonksiyonun sizde olduğunu varsayıyorum.
+
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Location(id='url', refresh=True),
@@ -411,6 +446,20 @@ def generate_article_view(request):
                   html.P("AI Asistanınız için yeni bir görev oluşturun.", className="lead text-muted")],
                  className="text-center mb-5"),
         dbc.Card(dbc.CardBody([
+            # YENİ: AI Servis Seçimi Dropdown
+            dbc.Row([
+                dbc.Col(html.Label("Kullanılacak Yapay Zeka Servisi:"), width=12),
+                dbc.Col(
+                    dcc.Dropdown(
+                        id='ai-service-dropdown',
+                        options=api_options,
+                        value=api_options[0]['value'] if api_options else None,  # İlkini varsayılan yap
+                        clearable=False
+                    ),
+                    width=12
+                )
+            ], className="mb-4"),
+
             html.P(
                 "Lütfen hakkında akademik bir makale üretilmesini istediğiniz konuyu, spesifik bir soruyu veya anahtar kelimeleri aşağıya detaylı bir şekilde girin.",
                 className="card-text"),
@@ -425,8 +474,13 @@ def generate_article_view(request):
         ]), className="p-md-5 p-3 shadow-lg"),
         html.Div(html.A("← Anasayfaya Dön", href="/", className="mt-3 d-inline-block"), className="text-center")
     ]), md=8, className="mx-auto"))
+
     full_layout = html.Div([main_navbar, dbc.Container(generate_content, className="my-5")])
+    # Navbar olmadan direkt container'ı layout olarak atıyorum, siz kendi yapınıza göre düzenleyin
+    #full_layout = dbc.Container(generate_content, className="my-5")
+
     generate_app.layout = full_layout
+
     return render(request, 'blog/generate_article.html')
 
 
@@ -453,7 +507,7 @@ def contact_view(request):
 
 def custom_logout_view(request):
     logout(request)
-    return redirect('anasayfa')
+    return redirect('blog:anasayfa')
 
 
 def robots_txt_view(request):

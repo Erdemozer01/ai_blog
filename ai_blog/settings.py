@@ -221,3 +221,15 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Istanbul'
 
 NOTO_FONT_PATH = os.path.join(BASE_DIR, "static/fonts/NotoSans-Regular.ttf")
+
+
+# ==============================================================================
+# EMAIL AYARLARI
+# ==============================================================================
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Gmail SMTP sunucusu
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True  # Güvenli bağlantı için
+EMAIL_HOST_USER = 'artificalintelligentblog@gmail.com'
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')

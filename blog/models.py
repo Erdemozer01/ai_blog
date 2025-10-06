@@ -6,15 +6,24 @@ from django.urls import reverse
 
 
 class APIKey(models.Model):
-    SERVICE_CHOICES = (('Google Gemini', 'Google Gemini'),)
-    service_name = models.CharField(max_length=100, choices=SERVICE_CHOICES, unique=True, verbose_name="Servis Adı")
+    SERVICE_CHOICES = (
+        ('Google Gemini', 'Google Gemini'),
+        ('OpenAI', 'OpenAI'),
+        ('Anthropic', 'Anthropic'),
+    )
+    service_name = models.CharField(max_length=100, choices=SERVICE_CHOICES, verbose_name="Servis Adı")
+    model_name = models.CharField(max_length=100, verbose_name="Model Adı", help_text="Örn: gemini-1.5-pro, gpt-4o")
     key = models.CharField(max_length=255, verbose_name="API Anahtarı")
     is_active = models.BooleanField(default=True, verbose_name="Aktif mi?")
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self): return self.service_name
+    def __str__(self):
+        return f"{self.service_name} ({self.model_name})"
 
-    class Meta: verbose_name = "API Anahtarı"; verbose_name_plural = "API Anahtarları"
+    class Meta:
+        verbose_name = "API Anahtarı"
+        verbose_name_plural = "API Anahtarları"
+        unique_together = ('service_name', 'model_name')
 
 
 class Category(models.Model):
@@ -38,6 +47,13 @@ class GeneratedArticle(models.Model):
     full_content = models.TextField(blank=True, null=True, verbose_name="Üretilen Tam İçerik")
     bibliography = models.TextField(blank=True, null=True, verbose_name="Üretilen Kaynakça")
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True)
+    cover_image = models.ImageField(
+        upload_to='article_covers/',
+        blank=True,
+        null=True,
+        verbose_name="Kapak Fotoğrafı",
+        help_text="Makale listeleme ve paylaşım için kullanılacak kapak fotoğrafı."
+    )
 
 
     structured_data = models.JSONField(blank=True, null=True, verbose_name="Grafik/Tablo Verileri")

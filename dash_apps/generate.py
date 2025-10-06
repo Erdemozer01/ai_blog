@@ -1,5 +1,6 @@
 import re, json
 import dash_bootstrap_components as dbc
+import openai
 from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html
 from datetime import date
@@ -9,20 +10,12 @@ external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
 
 
-def run_gemini_sync(user_request_text):
-    from blog.models import APIKey
-    try:
-        api_key_object = APIKey.objects.get(service_name='Google Gemini', is_active=True)
-    except APIKey.DoesNotExist:
-        raise ValueError("Veritabanında aktif bir 'Google Gemini' API anahtarı bulunamadı.")
-
-    genai.configure(api_key=api_key_object.key)
-    generation_config = {"temperature": 0.7, "max_output_tokens": 8192}
-    model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest", generation_config=generation_config)
+def get_base_prompt(user_request_text):
+    """Tüm modeller için ortak olan prompt metnini oluşturur."""
     current_year = date.today().year
-
-    prompt = f"""
-    Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak.
+    # Not: JSON içeriği için `client.chat.completions.create`'e `response_format={ "type": "json_object" }` eklenebilir
+    # ama bu, metinle JSON'u bir arada isteme senaryomuzu karmaşıklaştırır. Bu yüzden metin içinde JSON istiyoruz.
+    return f"""
     İstek Konusu: "{user_request_text}"
     Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur.
     Oluşturulacak Bölümlerin Sırası:
@@ -40,8 +33,51 @@ def run_gemini_sync(user_request_text):
         - Eğer uygun veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
     Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, aralarında belirtilen ayraçla birlikte ver.
     """
-    response = model.generate_content(prompt)
-    response_text = response.text
+
+
+def run_ai_generation(user_request_text, api_key_id):
+    """Seçilen AI servisine göre makale üretimini çalıştırır."""
+    from blog.models import APIKey
+    try:
+        api_key_object = APIKey.objects.get(id=api_key_id, is_active=True)
+    except APIKey.DoesNotExist:
+        raise ValueError("Seçilen API anahtarı bulunamadı veya aktif değil.")
+
+    response_text = ""
+    base_prompt = get_base_prompt(user_request_text)
+
+    if api_key_object.service_name == 'Google Gemini':
+        genai.configure(api_key=api_key_object.key)
+        generation_config = {"temperature": 0.7, "max_output_tokens": 8192}
+        model = genai.GenerativeModel(model_name=api_key_object.model_name, generation_config=generation_config)
+
+        system_prompt = "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak."
+        full_prompt = f"{system_prompt}\n\n{base_prompt}"
+
+        response = model.generate_content(full_prompt)
+        response_text = response.text
+
+    elif api_key_object.service_name == 'OpenAI':
+        client = openai.OpenAI(api_key=api_key_object.key)
+        messages = [
+            {
+                "role": "system",
+                "content": "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen 8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka hiçbir açıklama olmadan sunmalısın."
+            },
+            {
+                "role": "user",
+                "content": base_prompt
+            }
+        ]
+        response = client.chat.completions.create(
+            model=api_key_object.model_name,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=4096,  # max_tokens OpenAI için farklı olabilir, modele göre ayarlayın
+        )
+        response_text = response.choices[0].message.content
+
+    # --- Yanıtı İşleme (Bu kısım her iki model için de ortak) ---
     parts = response_text.split('_||_SECTION_BREAK_||_')
 
     structured_data_json = None
@@ -64,6 +100,7 @@ def run_gemini_sync(user_request_text):
         "structured_data": structured_data_json or {}
     }
 
+    # Temizleme işlemleri
     title_raw = ai_data.get('title', '')
     title_clean = re.sub(r'^\s*\d+\.\s*başlık:\s*', '', title_raw, flags=re.IGNORECASE)
     ai_data['title'] = title_clean.replace('**', '').strip()
@@ -90,9 +127,10 @@ def run_gemini_sync(user_request_text):
     Input('submit-request-button', 'n_clicks'),
     State('request-textarea', 'value'),
     State('user-session-store', 'data'),
+    State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
     prevent_initial_call=True
 )
-def handle_form_submission(n_clicks, request_text, user_data):
+def handle_form_submission(n_clicks, request_text, user_data, selected_api_id):  # YENİ: Parametre eklendi
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
     if not user_data or 'user_id' not in user_data:
@@ -100,9 +138,16 @@ def handle_form_submission(n_clicks, request_text, user_data):
     if not request_text or len(request_text.strip()) < 10:
         return dbc.Alert("Lütfen en az 10 karakterlik bir konu girin.", color="warning"), no_update
 
+    # YENİ: AI servisi seçilip seçilmediğini kontrol et
+    if not selected_api_id:
+        return dbc.Alert("Lütfen bir yapay zeka servisi seçin.", color="warning"), no_update
+
     try:
         user = User.objects.get(id=user_data['user_id'])
-        ai_data = run_gemini_sync(request_text)
+
+        # Güncellenmiş fonksiyonu çağır
+        ai_data = run_ai_generation(request_text, selected_api_id)
+
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
 

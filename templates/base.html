@@ -20,6 +20,16 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/staticfiles/images/favicon-16x16.png">
     <link rel="manifest" href="/static/images/site.webmanifest">
 
+    <meta property="og:title" content="{{ meta_title|default:'AI Blog' }}"/>
+    <meta property="og:description" content="{{ meta_description|default:'...' }}"/>
+    <meta property="og:type" content="article"/>
+    <meta property="og:url" content="{{ request.build_absolute_uri }}"/>
+    <meta property="og:image" content="{{ meta_image_url }}"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="{{ meta_title|default:'AI Blog' }}"/>
+    <meta name="twitter:description" content="{{ meta_description|default:'...' }}"/>
+    <meta name="twitter:image" content="{{ meta_image_url }}"/>
+
     {% if structured_data_json %}
         <script type="application/ld+json">
         {{ structured_data_json|safe }}
@@ -44,6 +54,6 @@
 {% include 'includes/arrow.html' %}
 
 {% plotly_footer %}
-
+<script src="{% static 'js/custom_clientside.js' %}"></script>
 </body>
 </html>
