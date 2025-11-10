@@ -1,16 +1,326 @@
+/* =============================================================================
+   NİHAİ, BİRLEŞTİRİLMİŞ VE DÜZENLENMİŞ ANA STİL DOSYASI
+   (Hazırlayan: Gemini)
+
+   Bu dosya, projenin tüm görsel ihtiyaçlarını karşılamak üzere
+   modern Flexbox standartlarına göre sıfırdan düzenlenmiştir.
+   ============================================================================= */
+
+/* 1. Global Ayarlar ve Fontlar
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+@import url('https://fonts.googleapis.com/css?family=Open+Sans:300,400,600');
+
 html {
-  scroll-behavior: smooth;
+    font-size: 62.5%; /* 1rem = 10px olmasını sağlar */
+    height: 100%;
 }
 
-/* Makale Detay Sayfası - İçindekiler Menüsü */
-.toc-link {
-    font-size: 0.8rem;
+body {
+    min-height: 100%;
+    margin: 0;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 1.4em; /* Varsayılan 14px */
+    line-height: 1.6;
+    background-color: #f8f8f8; /* Hedef görseldeki açık gri arkaplan */
+    color: #333;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Aktif olan linkin rengini daha belirgin yapalım */
-.toc-link.active {
-    font-weight: bold;
-    color: var(--bs-primary); /* Bootstrap'in ana rengini kullan */
+* {
+    box-sizing: border-box;
 }
 
-/* ... (varsa diğer özel stilleriniz) ... */
+/* 2. Ana Uygulama Düzeni (Header, Sidebar, İçerik)
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+
+/* Header (Kırmızı Şerit) */
+#app-page-header {
+    height: 60px;
+    background-color: #e7625f;
+    color: white;
+    padding: 0 25px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0; /* Sayfa küçüldüğünde header'ın küçülmesini engeller */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+/* Header ve footer dışındaki ana içerik alanı */
+#app-page-content {
+    flex-grow: 1; /* Mevcut tüm boşluğu doldurur */
+    display: flex;
+    flex-direction: row;
+    padding: 40px;
+    gap: 40px; /* Sidebar ve ana içerik arasına boşluk */
+}
+
+/* Sidebar (Soldaki Kontrol Paneli) */
+.sidebar {
+    flex: 0 0 450px; /* Genişliği 450px, esnemez */
+
+    height: fit-content; /* Yüksekliği içeriğine göre ayarlanır */
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 0; /* İçeriği tablar yönetecek */
+
+    max-width: 25%; /* Maksimum genişlik %25 */
+
+    box-sizing: border-box; /* Padding'i genişliğe dahil et */
+    background-color: #f8f9fa; /* Hafif gri arka plan (isteğe bağlı) */
+    border-right: 1px solid #dee2e6; /* Sağ kenarlık */
+    overflow-y: auto; /* İçerik taşarsa kaydırma çubuğu */
+}
+
+/* Ana İçerik (Sağdaki Geniş Alan) */
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 15px; /* İç boşluk */
+    box-sizing: border-box; /* Padding'i genişliğe dahil et */
+    overflow-y: auto; /* İçerik taşarsa kaydırma çubuğu */
+}
+
+
+/* 3. Header İçeriği ve Markalaşma
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+
+#app-page-header > a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: white;
+}
+
+#app-page-header > a > img {
+    height: 35px;
+    margin-right: 15px;
+}
+
+#app-page-header h2 {
+    font-size: 2.2rem;
+    font-weight: 300;
+    margin: 0;
+}
+
+#gh-link {
+    margin-left: auto;
+    color: white;
+    border: 1px solid white;
+    border-radius: 4px;
+    padding: 6px 15px;
+    text-decoration: none;
+    font-size: 1.2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+#gh-link:hover {
+    background-color: white;
+    color: #e7625f;
+}
+
+/* 4. Bileşen Stilleri (Tablar, Placeholder, NGL Viewer)
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+
+/* Sidebar içindeki Kontrol Tabları */
+.sidebar-tabs .nav-tabs {
+    justify-content: flex-end !important; /* Sekmeleri sağa yaslar */
+}
+
+#ngl-control-tabs {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* Tab Butonları */
+#ngl-control-tabs .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0;
+    margin: 0;
+}
+
+#ngl-control-tabs .nav-item {
+    list-style: none;
+}
+
+#ngl-control-tabs .nav-link {
+    display: block;
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    color: #888 !important;
+    font-size: 1.4rem;
+    font-weight: 600;
+    padding: 15px 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+#ngl-control-tabs .nav-link.active,
+#ngl-control-tabs .nav-link:hover {
+
+    /* Tab İçerik Alanı */
+
+    #ngl-control-tabs .tab-content {
+        padding: 25px;
+        min-height: 400px;
+    }
+
+    #ngl-control-tabs h4.what-is {
+        font-size: 2.2rem;
+        font-weight: 300;
+        text-align: left;
+        margin-bottom: 15px;
+    }
+
+    #ngl-control-tabs p {
+        font-size: 1.4rem;
+        line-height: 1.7;
+        color: #636363;
+    }
+
+
+    /* Ana İçerikteki Placeholder Metni */
+
+    #ngl-placeholder {
+        font-size: 1.8rem;
+        color: #aaa;
+        margin-top: 50px;
+        padding: 50px;
+        text-align: center;
+    }
+
+    /* NGL Görüntüleyici Alanı */
+
+    #ngl-biomolecule-viewer {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+        background-color: white;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e0e0e0;
+        flex-grow: 1; /* Mevcut tüm alanı doldur */
+
+    }
+
+    /* Diğer Dash Bileşenleri */
+
+    ._dash-undo-redo {
+        display: none;
+    }
+
+    .dash-default-spinner {
+        opacity: 0.3 !important;
+    }
+
+
+    /* 5. Genel Form Elemanları ve Yardımcı Sınıflar
+    –––––––––––––––––––––––––––––––––––––––––––––––––– */
+
+    .app-controls-block {
+        margin-top: 20px;
+        margin-bottom: 30px;
+    }
+
+    .app-controls-name {
+        display: block;
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .control-upload {
+        border: 2px dashed #ddd;
+        border-radius: 5px;
+        padding: 30px;
+        text-align: center;
+        color: #888;
+        transition: all 0.3s ease;
+    }
+
+    .control-upload:hover {
+        border-color: #e7625f;
+        color: #e7625f;
+    }
+
+    /* Scrollbar */
+
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #aaa;
+    }
+
+
+    /* 6. Medya Sorguları (Duyarlı Tasarım)
+    –––––––––––––––––––––––––––––––––––––––––––––––––– */
+
+    @media (max-width: 1200px) {
+        #app-page-content {
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            flex-basis: auto;
+            width: 100%;
+        }
+    }
+
+    /* style.css veya benzeri bir dosya */
+
+    /* Ana içeriği esnek bir kutu (flexbox) container'ı yap */
+
+    #app-page-content {
+        display: flex; /* İçindeki öğeleri yan yana hizalar */
+        flex-direction: row; /* Varsayılan olarak zaten satır bazında hizalar */
+        flex-wrap: nowrap; /* Öğelerin yeni bir satıra geçmesini engeller */
+        height: calc(100vh - 56px); /* Navigasyon çubuğunun yüksekliğini düşerek tam ekran yüksekliği sağlar */
+        width: 100%;
+    }
+
+    /* Sol panel için stil */
+
+    .sidebar {
+        flex: 0 0 25%; /* Esneklik yok, baz genişlik %25 */
+        max-width: 25%; /* Maksimum genişlik %25 */
+        padding: 15px; /* İç boşluk */
+        box-sizing: border-box; /* Padding'i genişliğe dahil et */
+        background-color: #f8f9fa; /* Hafif gri arka plan (isteğe bağlı) */
+        border-right: 1px solid #dee2e6; /* Sağ kenarlık */
+        overflow-y: auto; /* İçerik taşarsa kaydırma çubuğu */
+    }
+
+    /* NGL Viewer'ın kapladığı alanı doldurmasını sağlama */
+
+    #ngl-biomolecule-viewer {
+        flex-grow: 1; /* Mevcut tüm alanı doldur */
+        height: 100%; /* Parent'ının yüksekliğini al */
+        min-height: 500px; /* Minimum bir yükseklik belirleyebiliriz */
+    }
+
+    /* dash-bio bileşenlerinin tam genişlikte olmasını sağlamak için */
+
+    .dashbio-nglmoleculeviewer {
+        width: 100%;
+        height: 100%; /* Parent'ının yüksekliğini al */
+    }
+}
+

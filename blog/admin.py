@@ -39,24 +39,22 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         if obj.cover_image:
             return format_html('<img src="{}" width="150" />', obj.cover_image.url)
         return "Fotoğraf Yok"
+
     cover_image_preview.short_description = 'Kapak Fotoğrafı Önizlemesi'
+
     # --- EKLEME BİTTİ ---
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('category', 'owner')
 
+
 @admin.register(APIKey)
 class APIKeyAdmin(admin.ModelAdmin):
-    list_display = ('service_name', 'is_active', 'created_at', 'key_preview')
+    list_display = ('service_name', 'model_name', 'is_active', 'created_at')
     list_filter = ('is_active', 'service_name')
     readonly_fields = ('created_at',)
+    list_editable = ('model_name', 'is_active',)
 
-    def key_preview(self, obj):
-        if obj.key:
-            return f"{obj.key[:8]}...{obj.key[-4:]}"
-        return "Anahtar yok"
-
-    key_preview.short_description = 'Anahtar Önizleme'
 
 
 @admin.register(Category)
@@ -124,6 +122,7 @@ class WorkExperienceInline(admin.StackedInline):
     extra = 0  # Varsayılan boş alan sayısını azalt
     fields = ('job_title', 'company', 'start_date', 'end_date', 'description', 'order')
 
+
 class EducationInline(admin.StackedInline):
     model = Education
     extra = 0
@@ -134,6 +133,7 @@ class SkillInline(admin.TabularInline):
     model = Skill
     extra = 0
     fields = ('name', 'level')
+
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -164,10 +164,5 @@ class ProfileAdmin(admin.ModelAdmin):
                 obj.profile_picture.url
             )
         return "Resim Yok"
+
     image_preview.short_description = 'Resim Önizleme'
-
-
-# Admin site customization
-admin.site.site_header = "AI Blog Yönetim Paneli"
-admin.site.site_title = "AI Blog Yönetim Portalı"
-admin.site.index_title = "Yönetim Paneline Hoş Geldiniz"

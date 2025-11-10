@@ -17,3 +17,11 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Django app'leri içindeki tüm görev modüllerini (tasks.py dosyalarını)
 # otomatik olarak bul ve yükle.
 app.autodiscover_tasks()
+
+app.conf.imports = ('bio_tools.tasks',)
+
+# Make sure you're not setting parser explicitly
+app.conf.update(
+    broker_connection_retry_on_startup=True,
+    # Remove or don't set: broker_transport_options with parser_class
+)

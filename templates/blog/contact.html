@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
+{% load plotly_dash static %}
 
-{% load plotly_dash %}
+{% block stylesheet %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.ico' %}">
+{% endblock %}
+
 
 {% block content %}
 

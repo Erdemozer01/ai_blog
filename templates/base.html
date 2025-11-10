@@ -18,7 +18,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/staticfiles/images/android-chrome-192x192.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/staticfiles/images/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/staticfiles/images/favicon-16x16.png">
-    <link rel="manifest" href="/static/images/site.webmanifest">
+    <link rel="manifest" href="/staticfiles/images/site.webmanifest">
 
     <meta property="og:title" content="{{ meta_title|default:'AI Blog' }}"/>
     <meta property="og:description" content="{{ meta_description|default:'...' }}"/>
@@ -54,6 +54,9 @@
 {% include 'includes/arrow.html' %}
 
 {% plotly_footer %}
-<script src="{% static 'js/custom_clientside.js' %}"></script>
+
+
+{% block js %}{% endblock %}
+
 </body>
 </html>

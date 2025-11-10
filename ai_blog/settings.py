@@ -56,13 +56,18 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'django.contrib.sites',
     'django.contrib.sitemaps',
-    'django_plotly_dash.apps.DjangoPlotlyDashConfig',
     'blog.apps.BlogConfig',
+    'bio_tools.apps.BioToolsConfig',
+
+    'django_plotly_dash',
     'django_bootstrap5',
+    'dash_uploader',
     'dash_apps',
     'channels',
     'channels_redis',
-    'autoslug'
+    'autoslug',
+    'rest_framework',
+
 ]
 
 SITE_ID = 1
@@ -82,7 +87,7 @@ MIDDLEWARE = [
     'django_plotly_dash.middleware.ExternalRedirectionMiddleware',
 
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
+    'bio_tools.middleware.performance.PerformanceMonitoringMiddleware',  # EKLE
 ]
 
 ROOT_URLCONF = 'ai_blog.urls'
@@ -148,17 +153,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / "staticfiles/"
+    BASE_DIR / 'static',
 ]
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+FASTQ_UPLOAD_DIR = os.path.join(BASE_DIR, 'media', 'fastq_uploads')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -208,20 +215,20 @@ STATICFILES_FINDERS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CELERY_BROKER_URL = os.environ.get('REDIS_URL')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
-
-# settings.py dosyasında bu satırlar olmamalı:
-CELERY_BROKER_USE_SSL = {'ssl_cert_reqs': True}
-CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': True}
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Istanbul'
 
-NOTO_FONT_PATH = os.path.join(BASE_DIR, "static/fonts/NotoSans-Regular.ttf")
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 3600,
+}
 
+NOTO_FONT_PATH = os.path.join(BASE_DIR, "static/fonts/NotoSans-Regular.ttf")
 
 # ==============================================================================
 # EMAIL AYARLARI
@@ -233,3 +240,176 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Güvenli bağlantı için
 EMAIL_HOST_USER = 'artificalintelligentblog@gmail.com'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024 * 1024
+
+# Ayrıca dosya yükleme limitini de ayarlayabilirsiniz
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024 * 1024
+
+# Logging ayarları ekle
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'django.log'),
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'celery_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'celery.log'),
+            'maxBytes': 1024 * 1024 * 10,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'celery': {
+            'handlers': ['celery_file', 'console'],
+            'level': 'INFO',
+        },
+        'bio_tools.performance': {
+            'handlers': ['file', 'console'],
+            'level': 'WARNING',
+        },
+    },
+}
+
+# REST Framework ayarları
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ]
+}
+
+
+# ============================================================================
+# CACHE CONFIGURATION - DÜZELTİLMİŞ
+# ============================================================================
+
+# Önce Redis bağlantısını test et
+import redis
+import logging
+
+logger = logging.getLogger(__name__)
+
+REDIS_AVAILABLE = False
+try:
+    # Redis bağlantısını test et
+    r = redis.Redis(host='localhost', port=6379, db=0, socket_timeout=2)
+    r.ping()
+    REDIS_AVAILABLE = True
+    logger.info("✓ Redis bağlantısı başarılı")
+except Exception as e:
+    logger.warning(f"⚠️ Redis bağlanamıyor: {e}. Fallback cache kullanılacak.")
+
+# Cache konfigürasyonu
+if REDIS_AVAILABLE:
+    # Redis çalışıyor - kullan
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/1',
+            'OPTIONS': {
+                'parser_class': 'redis.connection.PythonParser',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+            },
+            'KEY_PREFIX': 'ai_blog',
+            'TIMEOUT': 300,
+        },
+        'fastq_analysis': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/2',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': 'fastq',
+            'TIMEOUT': 3600,
+        },
+        'session': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/3',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': 'session',
+            'TIMEOUT': 86400,
+        }
+    }
+
+    # Session'ları Redis'te sakla
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'session'
+
+else:
+    # Redis yok - LocMem (RAM) cache kullan
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'default-cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000
+            }
+        },
+        'fastq_analysis': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'fastq-cache',
+            'TIMEOUT': 3600,
+            'OPTIONS': {
+                'MAX_ENTRIES': 500
+            }
+        },
+        'session': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'session-cache',
+            'TIMEOUT': 86400,
+            'OPTIONS': {
+                'MAX_ENTRIES': 2000
+            }
+        }
+    }
+
+    # Session'ları database'de sakla
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+
+

@@ -7,7 +7,7 @@
                 <hr class="mb-4 mt-0 d-inline-block mx-auto"
                     style="width: 60px; background-color: #7c4dff; height: 2px"/>
                 <p>
-                    Bu platform, Akademik seviyede makale sunmaktadır.
+                    Çeşitli konularda üretilmiş akademik makaleleri ve Biyoinformatik Araçlarını keşfedin.
                 </p>
             </div>
 
@@ -15,11 +15,12 @@
                 <h6 class="text-uppercase fw-bold">Hızlı Erişim</h6>
                 <hr class="mb-4 mt-0 d-inline-block mx-auto"
                     style="width: 60px; background-color: #7c4dff; height: 2px"/>
-                <p><a href="{% url 'blog:anasayfa' %}" class="text-white">Anasayfa</a></p>
-                <p><a href="{% url 'blog:contact' %}" class="text-white">İletişim</a></p>
+                <p><a href="{% url 'blog:anasayfa' %}" class="text-white" style="text-decoration: none;">Anasayfa</a></p>
+                <p><a href="{% url 'admin:login' %}" class="text-white" style="text-decoration: none;">Giriş Yap</a></p>
+                <p><a href="{% url 'blog:contact' %}" class="text-white" style="text-decoration: none;">İletişim</a></p>
 
                 {% if user.is_authenticated and user.is_superuser %}
-                    <p><a href="{% url 'blog:generate_article' %}" class="text-white">Makale Üret</a></p>
+                    <p><a href="{% url 'blog:generate_article' %}" class="text-white" style="text-decoration: none;">Makale Üret</a></p>
                 {% endif %}
 
             </div>

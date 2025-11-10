@@ -1,7 +1,8 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from .models import Profile
+from .models import Profile, GeneratedArticle
+from django.core.cache import cache
 
 
 @receiver(post_save, sender=User)
@@ -36,3 +37,15 @@ def update_user_from_profile(sender, instance, **kwargs):
         post_save.disconnect(handle_user_save, sender=User)
         user.save(update_fields=['email', 'first_name', 'last_name'])
         post_save.connect(handle_user_save, sender=User)
+
+
+
+@receiver([post_save, post_delete], sender=GeneratedArticle)
+def invalidate_homepage_stats_cache(sender, instance, **kwargs):
+    """
+    GeneratedArticle modeli kaydedildiğinde veya silindiğinde
+    anasayfa istatistikleri cache'ini temizler.
+    Özellikle yeni bir makale 'tamamlandi' durumuna geçtiğinde önemlidir.
+    """
+    print("Signal received: Invalidating 'homepage_stats' cache...")
+    cache.delete('homepage_stats')

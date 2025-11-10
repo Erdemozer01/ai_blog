@@ -1,0 +1,30 @@
+# bio_tools/urls.py
+
+from django.urls import path, re_path, include
+from . import views
+from dash_apps.fastq_app import app as dash_app
+
+app_name = 'bio_tools'
+
+urlpatterns = [
+    path('sequence-analyzer/', views.sequence_analyzer_view, name='sequence_analyzer'),
+
+    path('sequence-alignment/', views.sequence_alignment_view, name='sequence_alignment'),
+
+    path('molecule-viewer/', views.molecule_viewer_view, name='molecule_viewer'),
+
+    path('mutation-predictor/', views.mutation_predictor_view, name='mutation_predictor'),
+
+    path('bacterial-designer-tools/', views.bacterial_designer_view, name='bacterial_designer'),
+
+    path('pipline-designer-tools/', views.pipline_designer_view, name='pipline_designer_view'),
+
+    path('api/start-analysis/', views.start_analysis_view, name='start_analysis'),
+
+    path('api/job-status/<str:job_id>/', views.get_job_status_view, name='get_job_status'),
+
+    re_path(
+        r'^fastq-analyzer/(?P<path>.*)$', views.FastqDashAppView.as_view(), name='fastq_analyzer'),
+
+    path('api/', include('bio_tools.api.urls')),
+]

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load plotly_dash static %}
+
+{% block stylesheet %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.ico' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="plotly-app-container">
+        {% plotly_direct name='SequenceAlignmentApp' %}
+    </div>
+{% endblock %}

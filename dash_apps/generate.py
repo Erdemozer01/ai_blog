@@ -5,6 +5,7 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html
 from datetime import date
 import google.generativeai as genai
+import anthropic
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
@@ -72,12 +73,24 @@ def run_ai_generation(user_request_text, api_key_id):
         response = client.chat.completions.create(
             model=api_key_object.model_name,
             messages=messages,
-            temperature=0.7,
-            max_tokens=4096,  # max_tokens OpenAI için farklı olabilir, modele göre ayarlayın
         )
         response_text = response.choices[0].message.content
 
-    # --- Yanıtı İşleme (Bu kısım her iki model için de ortak) ---
+    elif api_key_object.service_name == 'Anthropic':
+        client = anthropic.Anthropic(api_key=api_key_object.key)
+        system_prompt = "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen 8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka hiçbir açıklama olmadan sunmalısın."
+
+        response = client.messages.create(
+            model=api_key_object.model_name,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": base_prompt}
+            ],
+            max_tokens=8192,
+        )
+
+        response_text = response.content[0].text
+
     parts = response_text.split('_||_SECTION_BREAK_||_')
 
     structured_data_json = None

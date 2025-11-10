@@ -26,29 +26,83 @@ from dash_apps.article_detail import app as article_detail_app
 from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 from dash_apps.resume import app as resume_app, create_resume_layout
 from dash_apps.contact import app as contact_app
+from dash_apps.article_search import app as article_search_app, create_article_search_layout
 from dash_apps.admin_dash import app as admin_dash_app
 
 
+
+
 def create_main_navbar(request):
-    """Tüm sayfalarda tutarlı, dinamik ve mobil uyumlu bir Navbar oluşturur."""
-    nav_items_right = []
+    """
+    Tüm sayfalarda tutarlı, dinamik ve mobil uyumlu bir Navbar oluşturur.
+    Tüm linkler sağa yaslanmış ve harici link olarak ayarlanmıştır.
+    """
+    # Tüm navigasyon öğelerini tutacak tek bir liste oluştur
+    nav_items = []
+
+    # Herkesin görebileceği ana linkleri listeye ekle
+    nav_items.append(dbc.NavItem(dbc.NavLink("Blog", href=reverse('blog:anasayfa'), active="exact", external_link=True)))
+    nav_items.append(dbc.NavItem(dbc.NavLink("Makale Arama", href=reverse('blog:article_search'), active="exact", external_link=True)))
+    bio_tools_dropdown = dbc.DropdownMenu(
+        label="Biyoinformatik Araçları",
+        children=[
+            dbc.DropdownMenuItem("Sekans Analiz Aracı", href=reverse('bio_tools:sequence_analyzer'),
+                                 external_link=True, id="sequence_analyzer"),
+            dbc.DropdownMenuItem("Sekans Hizalama Aracı", href=reverse('bio_tools:sequence_alignment'),
+                                 external_link=True, id="sequence_alignment"),
+            dbc.DropdownMenuItem("3D Molekül Görüntüleyici", href=reverse('bio_tools:molecule_viewer'),
+                                 external_link=True, id="molecule_viewer"),
+            dbc.DropdownMenuItem("Mutasyon Etki Tahmincisi", href=reverse('bio_tools:mutation_predictor'),
+                                 external_link=True, id="mutation_predictor"),
+
+            dbc.DropdownMenuItem("Bakteri Tasarımcısı", href=reverse('bio_tools:bacterial_designer'),
+                                 external_link=True, id="bacterial_designer"),
+
+            dbc.DropdownMenuItem("Pipline Tasarımcısı", href=reverse('bio_tools:pipline_designer_view'),
+                                 external_link=True, id="pipline_designer_view"),
+
+            dbc.DropdownMenuItem(
+                "FASTQ Analizi",
+                href="/bio-tools/fastq-analyzer/",
+                external_link=True,
+            ),
+
+        ],
+        nav=True,
+        in_navbar=True,
+    )
+
+    nav_items.append(bio_tools_dropdown)
+
+    # Kullanıcının durumuna göre değişecek olan öğeleri listeye ekle
     if request.user.is_authenticated:
+        # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
         if request.user.is_superuser:
-            dropdown_items.append(dbc.DropdownMenuItem("Yönetici Paneli", href="/admin/", external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href=reverse('blog:generate_article'), external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href=reverse('blog:admin_dashboard'), external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem("Django Admin", href="/admin/", external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href="/generate-article/", external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Özgeçmiş", href="/resume/", external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href="/admin-dashboard/", external_link=True))
+
+        dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume'), external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href="/logout/", external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href=reverse('blog:logout'), external_link=True))
+
         user_menu = dbc.DropdownMenu(
-            label=f"{request.user.username}",
+            label=request.user.username,
             children=dropdown_items,
-            nav=True, in_navbar=True, align_end="end", className="ms-lg-2"
+            nav=True,
+            in_navbar=True,
+            align_end=True,
         )
-        nav_items_right.append(user_menu)
-    nav_items_right.append(dbc.NavItem(dbc.NavLink("İletişim", href="/contact/", external_link=True)))
+        nav_items.append(user_menu)
+        nav_items.append(dbc.NavItem(dbc.NavLink("İletişim", href=reverse('blog:contact'), external_link=True, active="exact")))
+
+    else:
+        # --- KULLANICI GİRİŞ YAPMAMIŞSA ---
+        nav_items.append(dbc.NavItem(dbc.NavLink("Giriş Yap", href="/admin/login/", external_link=True)))
+
+    # Navbar'ın ana yapısı
     navbar = dbc.Navbar(
         dbc.Container([
             html.A(
@@ -56,18 +110,23 @@ def create_main_navbar(request):
                     dbc.Col(html.I(className="fas fa-brain fa-2x me-2 text-primary")),
                     dbc.Col(dbc.NavbarBrand("AI Blog", className="ms-2")),
                 ], align="center", className="g-0"),
-                href="/", style={"textDecoration": "none", "color": "inherit"},
+                href="/", style={"textDecoration": "none"},
             ),
             dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
             dbc.Collapse(
-                dbc.Nav(nav_items_right, className="ms-auto", navbar=True),
-                id="navbar-collapse", is_open=False, navbar=True,
+                # Tek bir Nav bileşeni içinde tüm öğeleri topla ve sağa yasla
+                dbc.Nav(nav_items, className="ms-auto", navbar=True),
+                id="navbar-collapse",
+                is_open=False,
+                navbar=True,
             ),
         ]),
-        color="dark", dark=True, className="mb-4 shadow"
+        color="dark",
+        dark=True,
+        className="mb-4 shadow",
+        sticky="top",
     )
     return navbar
-
 
 def admin_dashboard_view(request):
     admin_dash_app
@@ -383,7 +442,8 @@ def download_article_as_pdf(request, article_id):
 
     if article.bibliography:
         references_list = [ref.strip() for ref in article.bibliography.splitlines() if ref.strip()]
-        list_items_html = "".join([f"<li>{re.sub(r'^\d+\.\s*', '', ref)}</li>" for ref in references_list])
+
+        list_items_html = "".join(["<li>{}</li>".format(re.sub(r'^\d+\.\s*', '', ref)) for ref in references_list])
         bibliography_html = f"<h3>Kaynakça</h3><ol>{list_items_html}</ol>"
         final_html_content += bibliography_html
 
@@ -442,7 +502,7 @@ def generate_article_view(request):
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Location(id='url', refresh=True),
-        html.Div([html.I(className="fas fa-magic fa-3x text-success mb-3"), html.H1("Yeni Makale Fikri"),
+        html.Div([html.I(className="fa-solid fa-wand-magic-sparkles fa-4x text-success mb-3"), html.H1("Yeni Makale Fikri"),
                   html.P("AI Asistanınız için yeni bir görev oluşturun.", className="lead text-muted")],
                  className="text-center mb-5"),
         dbc.Card(dbc.CardBody([
@@ -502,7 +562,7 @@ def contact_view(request):
     ], md=8, lg=7, className="mx-auto"))
     full_layout = html.Div([main_navbar, dbc.Container(contact_content, className="my-5")])
     contact_app.layout = full_layout
-    return render(request, 'blog/contact.html')
+    return render(request, 'blog/contact.html', {'meta_title': "İletişim - AI Blog"})
 
 
 def custom_logout_view(request):
@@ -523,3 +583,28 @@ def resume_view(request):
     full_layout = html.Div([main_navbar, resume_content])
     resume_app.layout = full_layout
     return render(request, 'blog/resume.html')
+
+
+def article_search_view(request):
+    """
+    Makale arama sayfası için navbar'ı ve Dash uygulamasını DOĞRU şekilde birleştirir.
+    """
+    # 1. Navbar'ı oluştur
+    main_navbar = create_main_navbar(request)
+
+    # 2. article_search.py'dan navbar'sız İÇERİK layout'unu SIFIRDAN oluştur
+    content_layout = create_article_search_layout()
+
+    # 3. Navbar ve içeriği birleştirerek tam sayfa düzenini oluştur
+    full_layout = html.Div([
+        main_navbar,
+        content_layout
+    ])
+
+    # 4. Bu tam düzeni Dash uygulamasına her istekte yeniden ata
+    article_search_app.layout = full_layout
+
+    # 5. Dash uygulamasını içeren template'i render et
+    return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
+
+

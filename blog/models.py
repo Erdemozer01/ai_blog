@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils.text import slugify
 from autoslug.fields import AutoSlugField
 from django.urls import reverse
+from .utils import custom_slugify
 
 
 class APIKey(models.Model):
@@ -46,7 +47,7 @@ class GeneratedArticle(models.Model):
     turkish_abstract = models.TextField(blank=True, null=True, verbose_name="Türkçe Özet")
     full_content = models.TextField(blank=True, null=True, verbose_name="Üretilen Tam İçerik")
     bibliography = models.TextField(blank=True, null=True, verbose_name="Üretilen Kaynakça")
-    slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True, slugify=custom_slugify, max_length=255)
     cover_image = models.ImageField(
         upload_to='article_covers/',
         blank=True,

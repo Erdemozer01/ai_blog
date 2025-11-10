@@ -7,8 +7,6 @@ app = DjangoDash('ResumeApp',
                  external_stylesheets=[dbc.themes.BOOTSTRAP, 'https://use.fontawesome.com/releases/v5.8.1/css/all.css'])
 
 
-# BU DOSYADA ARTIK app.layout ATAMASI YOK.
-
 def create_resume_layout(profile):
     """
     Bir Profile nesnesi alır ve buna dayanarak tam bir özgeçmiş sayfası

@@ -5,6 +5,7 @@ from dash import Input, Output, State, no_update, html, dcc
 import plotly.express as px
 import re
 from blog.models import GeneratedArticle
+import pandas as pd
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('ArticleDetailApp', external_stylesheets=external_stylesheets)
@@ -31,52 +32,92 @@ def create_table_from_json(table_data):
         return dbc.Alert("Tablo verisi hatalı formatta.", color="danger")
 
 
-def create_graph_from_json(chart_data):
+def create_graph_from_json(data_item):
+    """
+    Gelen JSON verisine göre dinamik olarak bir Plotly grafiği veya Dash tablosu oluşturur.
+    Hem sözlük (dict) hem de liste (list) formatındaki veri yapılarını işleyebilir.
+    """
+    template = "plotly_white"
 
-    try:
-        chart_type = chart_data.get('chart_type', 'bar').lower()
-        fig = None
-        template = "plotly_white"
-        if chart_type == 'bar':
-            fig = px.bar(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''}, text_auto=True, template=template,
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig.update_traces(hovertemplate='<b>%{x}</b><br>Değer: %{y}<extra></extra>')
-        elif chart_type == 'line':
-            fig = px.line(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''}, markers=True, template=template)
-            fig.update_traces(hovertemplate='<b>%{x}</b><br>Değer: %{y}<extra></extra>')
-        elif chart_type == 'pie':
-            fig = px.pie(chart_data['data'], names='x', values='y', template=template,
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig.update_traces(hovertemplate='<b>%{label}</b><br>Oran: %{percent}<extra></extra>')
-        elif chart_type == 'scatter':
-            fig = px.scatter(chart_data['data'], x='x', y='y', labels={'x': '', 'y': ''}, template=template)
-            fig.update_traces(hovertemplate='<b>X:</b> %{x}<br><b>Y:</b> %{y}<extra></extra>')
+    # --- Tablo Oluşturma Mantığı (Değişiklik yok) ---
+    if data_item.get('type') == 'table':
+        table_data = data_item.get('data', {})
+        header = [html.Th(col) for col in table_data.get('columns', [])]
+        rows = [html.Tr([html.Td(item) for item in row]) for row in table_data.get('data', [])]
 
-        if fig:
+        return html.Div([
+            html.H5(data_item.get('title', 'Tablo'), className="mt-4"),
+            html.P(data_item.get('description', ''), className="text-muted small"),
+            dbc.Table([html.Thead(html.Tr(header)), html.Tbody(rows)], bordered=True, striped=True, hover=True,
+                      responsive=True),
+            html.Em(f"Kaynak: {data_item.get('source', 'Belirtilmemiş')}", className="small")
+        ], className="mb-5")
+
+    # --- Grafik Oluşturma Mantığı (YENİ VE ESNEK YAPI) ---
+    elif data_item.get('type') == 'chart':
+        chart_type = data_item.get('chart_type', 'bar')
+        chart_data = data_item.get('data', {})
+
+        if not chart_data:
+            return html.Div("Grafik için veri bulunamadı.", className="alert alert-warning")
+
+        df = None
+        try:
+            # --- AKILLI VERİ İŞLEME ---
+            # Gelen verinin formatını kontrol et
+            if isinstance(chart_data, dict):
+                # Format 1: {'x': [...], 'y1': [...]} ise doğrudan DataFrame yap
+                df = pd.DataFrame(chart_data)
+            elif isinstance(chart_data, list) and len(chart_data) > 1:
+                # Format 2: [['header1', 'header2'], [val1, val2], ...] ise
+                # İlk satırı başlık, geri kalanını veri olarak al
+                df = pd.DataFrame(chart_data[1:], columns=chart_data[0])
+            else:
+                return html.Div("Desteklenmeyen veya geçersiz grafik verisi formatı.", className="alert alert-danger")
+
+            # Sütun adlarını dinamik olarak al
+            if df.empty or len(df.columns) < 2:
+                return html.Div("Grafik için yetersiz sütun verisi (en az 2 sütun gerekli).",
+                                className="alert alert-warning")
+
+            x_col = df.columns[0]  # Her zaman ilk sütunu X ekseni olarak kabul et
+            y_cols = df.columns[1:].tolist()  # Geri kalan tüm sütunları Y ekseni olarak kabul et
+
+            # --- GRAFİK ÇİZDİRME ---
+            fig = None
+            if chart_type == 'line':
+                fig = px.line(df, x=x_col, y=y_cols, template=template, markers=True, title=data_item.get('title', ''))
+            elif chart_type == 'bar':
+                fig = px.bar(df, x=x_col, y=y_cols, template=template, barmode='group',
+                             title=data_item.get('title', ''))
+            elif chart_type == 'pie':
+                if len(y_cols) == 1:
+                    fig = px.pie(df, names=x_col, values=y_cols[0], template=template, title=data_item.get('title', ''))
+                else:
+                    return html.Div("Pasta grafiği için bir isim ve bir değer sütunu gereklidir.",
+                                    className="alert alert-warning")
+            else:  # Desteklenmeyen veya belirtilmeyen türler için varsayılan
+                fig = px.line(df, x=x_col, y=y_cols, template=template, markers=True, title=data_item.get('title', ''))
+
             fig.update_layout(
-                margin=dict(l=40, r=20, t=20, b=20),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(
-                    family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif")
+                margin=dict(l=40, r=20, t=60, b=40),
+                legend_title_text='',
+                title_x=0.5
             )
-            card_header = dbc.CardHeader([
-                html.H5(chart_data.get('title', 'Grafik'), className="mb-1"),
-                html.P(chart_data.get('description', ''), className="mb-0 text-muted small")
-            ])
-            card_footer = None
-            if chart_data.get('source'):
-                card_footer = dbc.CardFooter(html.Small(f"Kaynak: {chart_data.get('source')}", className="text-muted"))
-            return dbc.Card([
-                card_header,
-                dbc.CardBody(dcc.Graph(figure=fig, config={'displayModeBar': True, 'displaylogo': False})),
-                card_footer
-            ], className="my-5 shadow-sm")
-        else:
-            return dbc.Alert(f"Desteklenmeyen grafik türü: {chart_type}", color="warning")
-    except (KeyError, TypeError):
-        return dbc.Alert("Grafik verisi hatalı formatta.", color="danger")
 
+            return html.Div([
+                # Başlığı ve açıklamayı doğrudan grafiğin içine taşıdığımız için buradan kaldırabiliriz
+                # html.H5(data_item.get('title', 'Grafik'), className="mt-4"),
+                html.P(data_item.get('description', ''), className="text-muted small"),
+                dcc.Graph(figure=fig),
+                html.Em(f"Kaynak: {data_item.get('source', 'Belirtilmemiş')}", className="small")
+            ], className="mb-5")
+
+        except Exception as e:
+            # Hata ayıklamayı kolaylaştırmak için daha detaylı hata mesajı
+            return html.Div(f"Grafik oluşturulurken beklenmedik bir hata oluştu: {e}", className="alert alert-danger")
+
+    return None
 
 @app.callback(
     Output('dynamic-article-content', 'children'),
@@ -139,7 +180,6 @@ def render_article_content(article_data):
     prevent_initial_call=True
 )
 def update_feedback(like_clicks, dislike_clicks, article_data, stored_clicks):
-    # ... (Bu fonksiyon aynı, değişiklik yok)
     stored_clicks = stored_clicks or {'like': 0, 'dislike': 0}
     button_id = None
     if like_clicks and like_clicks > stored_clicks.get('like', 0):
@@ -173,7 +213,6 @@ def update_feedback(like_clicks, dislike_clicks, article_data, stored_clicks):
     [State("navbar-collapse", "is_open")],
 )
 def toggle_navbar_collapse(n_clicks, is_open):
-    # ... (Bu fonksiyon aynı, değişiklik yok)
     if n_clicks:
         return not is_open
     return is_open

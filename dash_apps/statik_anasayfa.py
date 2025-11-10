@@ -158,7 +158,7 @@ def get_sidebar():
                                'total'] or 0,
             'categories_count': Category.objects.filter(generatedarticle__status='tamamlandi').distinct().count()
         }
-        cache.set('homepage_stats', stats, 300)
+        cache.set('homepage_stats', stats, 60)
 
     stats_card = dbc.Card([
         dbc.CardHeader([html.I(className="fas fa-chart-bar me-2"), "İstatistikler"]),

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe src="{{ dash_url }}"
+            id="dashFrame"
+            allow="clipboard-write"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-downloads">
+    </iframe>
+
+    <script>
+        // Loading indicator
+        const iframe = document.getElementById('dashFrame');
+        iframe.addEventListener('load', function() {
+            console.log('Dash yüklendi');
+        });
+    </script>
+</body>
+</html>
