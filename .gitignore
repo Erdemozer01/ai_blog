@@ -15,3 +15,6 @@ staticfiles/*
 
 # Gizli bilgileri içeren .env dosyasını her zaman yok say
 .env
+.venv1
+./fastq*
+...fastq.gz
