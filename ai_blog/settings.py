@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import locale
 import os
 from pathlib import Path
+import platform
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -114,13 +115,39 @@ ASGI_APPLICATION = "ai_blog.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
+DATABASES_WINDOWS = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
+# Linux (Production) Veritabanı Ayarı
+DATABASES_LINUX = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'aiblog$default',
+        'USER': 'aiblog',
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD'),
+        'HOST': 'aiblog.mysql.pythonanywhere-services.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'ssl': {
+                'ssl-ca': '/etc/ssl/certs/ca-certificates.crt',
+            },
+            'sql_mode': 'STRICT_TRANS_TABLES',
+        },
+    }
+}
+
+if platform.system() == 'Windows':
+    DATABASES = DATABASES_WINDOWS
+elif platform.system() == 'Linux':
+    DATABASES = DATABASES_LINUX
+else:
+    # Diğer işletim sistemleri (örn. macOS) için varsayılan olarak
+    # geliştirme (SQLite) ayarını kullanalım.
+    DATABASES = DATABASES_WINDOWS
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
