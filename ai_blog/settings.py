@@ -305,7 +305,7 @@ else:
     # SECRET_KEY .env dosyasından gelir (veya güvensiz bir varsayılan)
     SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-fallback')
 
-    ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost", 'aiblog.pythonanywhere.com']
 
     # VERİTABANI (SQLite)
     DATABASES = {
