@@ -11,16 +11,25 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import locale
 import os
-from pathlib import Path
 import platform
+from pathlib import Path
 from dotenv import load_dotenv
+import logging  # Logger için import
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# .env dosyasını yükle
 dotenv_path = BASE_DIR / '.env'
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path=dotenv_path)
+
+# DÜZELTME: Log klasörünü burada ve Path objesi ile tanımlamak daha temiz.
+LOG_DIR = BASE_DIR / 'logs'
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Logger'ı erken başlatarak Redis/Cache uyarılarını yakalayabiliriz
+logger = logging.getLogger(__name__)
 
 try:
     locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
@@ -37,16 +46,19 @@ except locale.Error:
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# ==============================================================================
+# DÜZELTME: DEBUG AYARI
+# Canlı ortamda ASLA True olmamalı. Değeri ortam değişkeninden oku.
+# PythonAnywhere'de "Web" -> "Environment variables" kısmına DEBUG=False ekleyin.
+# ==============================================================================
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+# ALLOWED_HOSTS ayarınız DEBUG=False için doğru
 ALLOWED_HOSTS = ["aiblog.pythonanywhere.com", "127.0.0.1"]
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -69,26 +81,24 @@ INSTALLED_APPS = [
     'autoslug',
     'rest_framework',
 
+    # DÜZELTME: Redis cache ve session'lar için gerekli
+    'django_redis',
 ]
 
 SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-
     'whitenoise.middleware.WhiteNoiseMiddleware',
-
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-
     'django_plotly_dash.middleware.BaseMiddleware',
     'django_plotly_dash.middleware.ExternalRedirectionMiddleware',
-
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'bio_tools.middleware.performance.PerformanceMonitoringMiddleware',  # EKLE
+    'bio_tools.middleware.performance.PerformanceMonitoringMiddleware',
 ]
 
 ROOT_URLCONF = 'ai_blog.urls'
@@ -96,8 +106,7 @@ ROOT_URLCONF = 'ai_blog.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -122,7 +131,7 @@ DATABASES_WINDOWS = {
     }
 }
 
-# Linux (Production) Veritabanı Ayarı
+# Linux (Production) Veritabanı Ayarı (PythonAnywhere)
 DATABASES_LINUX = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -140,145 +149,110 @@ DATABASES_LINUX = {
     }
 }
 
+# Platforma göre veritabanı seçimi (Bu yapı gayet iyi)
 if platform.system() == 'Windows':
     DATABASES = DATABASES_WINDOWS
 elif platform.system() == 'Linux':
     DATABASES = DATABASES_LINUX
 else:
-    # Diğer işletim sistemleri (örn. macOS) için varsayılan olarak
-    # geliştirme (SQLite) ayarını kullanalım.
     DATABASES = DATABASES_WINDOWS
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'tr'
-
 TIME_ZONE = 'Europe/Istanbul'
-
 USE_I18N = True
-
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = '/static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / "staticfiles"  # os.path.join yerine Path
 
 MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / 'media'  # os.path.join yerine Path
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-FASTQ_UPLOAD_DIR = os.path.join(BASE_DIR, 'media', 'fastq_uploads')
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+FASTQ_UPLOAD_DIR = MEDIA_ROOT / 'fastq_uploads'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
+# Plotly Dash Ayarları
 PLOTLY_DASH = {
-
-    # Route used for the message pipe websocket connection
     "ws_route": "dpd/ws/channel",
-
-    # Route used for direct http insertion of pipe messages
     "http_route": "dpd/views",
-
-    # Flag controlling existince of http poke endpoint
     "http_poke_enabled": True,
-
-    # Insert data for the demo when migrating
     "insert_demo_migrations": False,
-
-    # Timeout for caching of initial arguments in seconds
     "cache_timeout_initial_arguments": 60,
-
-    # Name of view wrapping function
     "view_decorator": None,
-
-    # Flag to control location of initial argument storage
     "cache_arguments": True,
-
-    # Flag controlling local serving of assets
     "serve_locally": False,
 }
 
 STATICFILES_FINDERS = [
-
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-
     'django_plotly_dash.finders.DashAssetFinder',
     'django_plotly_dash.finders.DashComponentFinder',
     'django_plotly_dash.finders.DashAppDirectoryFinder',
 ]
 
-# settings.py dosyasının sonuna
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# ==============================================================================
+# DÜZELTME: REDIS VE CELERY AYARLARI
+# Tüm 'localhost' bağlantıları kaldırıldı.
+# Harici Redis URL'nizi ortam değişkeni olarak ekleyin.
+# Örn: redis://:şifreniz@sunucu.com:port
+# ==============================================================================
+REDIS_URL = os.environ.get('REDIS_URL')
+
+if REDIS_URL:
+    CELERY_BROKER_URL = REDIS_URL + '/0'  # Celery için DB 0
+    CELERY_RESULT_BACKEND = REDIS_URL + '/0'
+else:
+    logger.warning("⚠️ REDIS_URL ortam değişkeni bulunamadı. Celery çalışmayacak.")
+    CELERY_BROKER_URL = None
+    CELERY_RESULT_BACKEND = None
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Istanbul'
-
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_BROKER_TRANSPORT_OPTIONS = {
-    'visibility_timeout': 3600,
-}
+CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 
-NOTO_FONT_PATH = os.path.join(BASE_DIR, "static/fonts/NotoSans-Regular.ttf")
+NOTO_FONT_PATH = BASE_DIR / "static/fonts/NotoSans-Regular.ttf"
 
 # ==============================================================================
 # EMAIL AYARLARI
 # ==============================================================================
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Gmail SMTP sunucusu
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_USE_TLS = True  # Güvenli bağlantı için
+EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'artificalintelligentblog@gmail.com'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
+# Yükleme Limitleri
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024 * 1024
-
-# Ayrıca dosya yükleme limitini de ayarlayabilirsiniz
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024 * 1024
 
-# Logging ayarları ekle
-import os
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)
-
+# ==============================================================================
+# LOGGING AYARLARI
+# DÜZELTME: LOG_DIR zaten yukarıda tanımlı.
+# ==============================================================================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -296,15 +270,15 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'django.log'),
-            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'filename': LOG_DIR / 'django.log',  # Path objesi kullanımı
+            'maxBytes': 1024 * 1024 * 10,
             'backupCount': 5,
             'formatter': 'verbose',
         },
         'celery_file': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'celery.log'),
+            'filename': LOG_DIR / 'celery.log',  # Path objesi kullanımı
             'maxBytes': 1024 * 1024 * 10,
             'backupCount': 5,
             'formatter': 'verbose',
@@ -342,49 +316,30 @@ REST_FRAMEWORK = {
     ]
 }
 
-
 # ============================================================================
 # CACHE CONFIGURATION - DÜZELTİLMİŞ
+# DÜZELTME: Hatalı 'localhost ping' testi kaldırıldı.
+# Yapılandırma doğrudan REDIS_URL değişkeninin varlığına bakıyor.
 # ============================================================================
 
-# Önce Redis bağlantısını test et
-import redis
-import logging
-
-logger = logging.getLogger(__name__)
-
-REDIS_AVAILABLE = False
-try:
-    # Redis bağlantısını test et
-    r = redis.Redis(host='localhost', port=6379, db=0, socket_timeout=2)
-    r.ping()
-    REDIS_AVAILABLE = True
-    logger.info("✓ Redis bağlantısı başarılı")
-except Exception as e:
-    logger.warning(f"⚠️ Redis bağlanamıyor: {e}. Fallback cache kullanılacak.")
-
-# Cache konfigürasyonu
-if REDIS_AVAILABLE:
-    # Redis çalışıyor - kullan
+if REDIS_URL:
+    logger.info("✓ REDIS_URL bulundu. Redis cache ve session'lar kullanılacak.")
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://127.0.0.1:6379/1',
+            'LOCATION': REDIS_URL + '/1',  # DB 1 (default cache)
             'OPTIONS': {
                 'parser_class': 'redis.connection.PythonParser',
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'SOCKET_CONNECT_TIMEOUT': 5,
                 'SOCKET_TIMEOUT': 5,
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 50,
-                    'retry_on_timeout': True,
-                },
             },
             'KEY_PREFIX': 'ai_blog',
             'TIMEOUT': 300,
         },
         'fastq_analysis': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://127.0.0.1:6379/2',
+            'LOCATION': REDIS_URL + '/2',  # DB 2
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             },
@@ -393,7 +348,7 @@ if REDIS_AVAILABLE:
         },
         'session': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://127.0.0.1:6379/3',
+            'LOCATION': REDIS_URL + '/3',  # DB 3
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             },
@@ -407,36 +362,29 @@ if REDIS_AVAILABLE:
     SESSION_CACHE_ALIAS = 'session'
 
 else:
+    logger.warning("⚠️ REDIS_URL bulunamadı. Fallback (LocMem) cache ve DB session'lar kullanılacak.")
+
     # Redis yok - LocMem (RAM) cache kullan
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'default-cache',
             'TIMEOUT': 300,
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000
-            }
+            'OPTIONS': {'MAX_ENTRIES': 1000}
         },
         'fastq_analysis': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'fastq-cache',
             'TIMEOUT': 3600,
-            'OPTIONS': {
-                'MAX_ENTRIES': 500
-            }
+            'OPTIONS': {'MAX_ENTRIES': 500}
         },
         'session': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'session-cache',
             'TIMEOUT': 86400,
-            'OPTIONS': {
-                'MAX_ENTRIES': 2000
-            }
+            'OPTIONS': {'MAX_ENTRIES': 2000}
         }
     }
 
     # Session'ları database'de sakla
     SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-
-
-
