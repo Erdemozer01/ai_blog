@@ -489,7 +489,7 @@ def generate_article_view(request):
     if not active_api_keys:
         messages.error(request, "Sistemde aktif bir AI Servis anahtarı bulunamadı. Lütfen admin panelinden ekleyin.")
         # Burada anasayfaya veya başka bir uygun sayfaya yönlendirebilirsiniz
-        return redirect('anasayfa')
+        return redirect('blog:anasayfa')
 
     # Dropdown için seçenekleri oluştur
     api_options = [
