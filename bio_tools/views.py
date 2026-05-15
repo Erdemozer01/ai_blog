@@ -249,7 +249,8 @@ def sequence_analyzer_view(request):
 
     main_navbar = create_main_navbar(request)
     content = create_sequence_analyzer_layout()
-    sequence_analyzer_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    sequence_analyzer_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/sequence_analyzer.html', {
         'meta_title': "Sekans Analiz Aracı - AI Blog"
@@ -264,7 +265,8 @@ def sequence_alignment_view(request):
 
     main_navbar = create_main_navbar(request)
     content = create_sequence_alignment_layout()
-    sequence_alignment_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    sequence_alignment_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/sequence_alignment.html', {
         'meta_title': "Sekans Hizalama Aracı - AI Blog"
@@ -279,7 +281,8 @@ def molecule_viewer_view(request):
 
     main_navbar = create_main_navbar(request)
     content = create_molecule_viewer_layout()
-    molecule_viewer_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    molecule_viewer_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/molecule_viewer.html', {
         'meta_title': "3D Molekül Görüntüleyici - AI Blog"
@@ -294,7 +297,8 @@ def mutation_predictor_view(request):
 
     main_navbar = create_main_navbar(request)
     content = mutation_create_layout()
-    mutation_predictor_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    mutation_predictor_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/mutation_predictor.html', {
         'meta_title': "Mutasyon Etki Tahmincisi - AI Blog"
@@ -309,7 +313,8 @@ def bacterial_designer_view(request):
 
     main_navbar = create_main_navbar(request)
     content = bacterial_create_layout()
-    bacterial_designer_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    bacterial_designer_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/bacterial_designer.html', {
         'meta_title': "Bakteri Tasarımcısı - AI Blog"
@@ -324,7 +329,8 @@ def pipline_designer_view(request):
 
     main_navbar = create_main_navbar(request)
     content = create_pipeline_layout()
-    pipeline_designer_app.layout = html.Div([main_navbar, content])
+    _layout = html.Div([main_navbar, content])
+    pipeline_designer_app.layout = lambda: _layout
 
     return render(request, 'bio_tools/pipline_designer.html', {
         'meta_title': "Pipeline Tasarımcısı - AI Blog"

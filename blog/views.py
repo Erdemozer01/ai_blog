@@ -136,7 +136,12 @@ def admin_dashboard_view(request):
 def anasayfa_view(request):
     main_navbar = create_main_navbar(request)
     dash_content = create_anasayfa_content_layout()
-    anasayfa_app.layout = html.Div([main_navbar, dash_content])
+    _anasayfa_layout = html.Div([main_navbar, dash_content])
+
+    def serve_anasayfa_layout():
+        return _anasayfa_layout
+
+    anasayfa_app.layout = serve_anasayfa_layout
     return render(request, 'blog/anasayfa.html')
 
 
@@ -356,7 +361,12 @@ def article_detail_view(request, article_id, slug):
         ])
     ])
 
-    article_detail_app.layout = full_layout
+    _article_detail_layout = full_layout
+
+    def serve_article_detail_layout():
+        return _article_detail_layout
+
+    article_detail_app.layout = serve_article_detail_layout
 
     return render(request, 'blog/article_detail.html', {
         'article': article,
@@ -539,7 +549,12 @@ def generate_article_view(request):
     # Navbar olmadan direkt container'ı layout olarak atıyorum, siz kendi yapınıza göre düzenleyin
     #full_layout = dbc.Container(generate_content, className="my-5")
 
-    generate_app.layout = full_layout
+    _generate_layout = full_layout
+
+    def serve_generate_layout():
+        return _generate_layout
+
+    generate_app.layout = serve_generate_layout
 
     return render(request, 'blog/generate_article.html')
 
@@ -561,7 +576,12 @@ def contact_view(request):
         html.Div(id='contact-form-feedback', className="mt-4")
     ], md=8, lg=7, className="mx-auto"))
     full_layout = html.Div([main_navbar, dbc.Container(contact_content, className="my-5")])
-    contact_app.layout = full_layout
+    _contact_layout = full_layout
+
+    def serve_contact_layout():
+        return _contact_layout
+
+    contact_app.layout = serve_contact_layout
     return render(request, 'blog/contact.html', {'meta_title': "İletişim - AI Blog"})
 
 
@@ -581,7 +601,12 @@ def resume_view(request):
     profile = Profile.objects.filter(user=request.user).first()
     resume_content = create_resume_layout(profile)
     full_layout = html.Div([main_navbar, resume_content])
-    resume_app.layout = full_layout
+    _resume_layout = full_layout
+
+    def serve_resume_layout():
+        return _resume_layout
+
+    resume_app.layout = serve_resume_layout
     return render(request, 'blog/resume.html')
 
 
@@ -601,10 +626,12 @@ def article_search_view(request):
         content_layout
     ])
 
-    # 4. Bu tam düzeni Dash uygulamasına her istekte yeniden ata
-    article_search_app.layout = full_layout
+    _article_search_layout = full_layout
+
+    def serve_article_search_layout():
+        return _article_search_layout
+
+    article_search_app.layout = serve_article_search_layout
 
     # 5. Dash uygulamasını içeren template'i render et
     return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
-
-

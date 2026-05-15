@@ -87,6 +87,22 @@ class GeneratedArticle(models.Model):
     class Meta: ordering = ['-created_at']; verbose_name = "AI Makalesi"; verbose_name_plural = "AI Makaleleri"
 
 
+class ArticleFeedback(models.Model):
+    VOTE_CHOICES = (('like', 'Faydalı'), ('dislike', 'Faydasız'))
+    article = models.ForeignKey(GeneratedArticle, on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Makale")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Kullanıcı")
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES, verbose_name="Oy")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('article', 'user')  # Kullanıcı başına 1 oy
+        verbose_name = "Makale Geri Bildirimi"
+        verbose_name_plural = "Makale Geri Bildirimleri"
+
+    def __str__(self):
+        return f"{self.user.username} → {self.article.title[:30]} ({self.vote})"
+
+
 class ContactMessage(models.Model):
     name = models.CharField(max_length=100, verbose_name="Gönderenin Adı")
     email = models.EmailField(verbose_name="Gönderenin E-postası")

@@ -4,7 +4,9 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html, dcc
 import plotly.express as px
 import re
-from blog.models import GeneratedArticle
+from django.db import transaction
+from django.db.models import F
+from blog.models import GeneratedArticle, ArticleFeedback
 import pandas as pd
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -179,30 +181,82 @@ def render_article_content(article_data):
     State('feedback-button-store', 'data'),
     prevent_initial_call=True
 )
-def update_feedback(like_clicks, dislike_clicks, article_data, stored_clicks):
+def update_feedback(like_clicks, dislike_clicks, article_data, stored_clicks, user=None):
+    # Giriş yapmamış kullanıcılar oy kullanamaz
+    if not user or not user.is_authenticated:
+        toast = dbc.Toast(
+            "Oy kullanmak için giriş yapmanız gerekmektedir.",
+            id="feedback-toast", header="Giriş Gerekli",
+            icon="warning", duration=4000, is_open=True
+        )
+        return no_update, no_update, no_update, no_update, toast, stored_clicks
+
     stored_clicks = stored_clicks or {'like': 0, 'dislike': 0}
     button_id = None
     if like_clicks and like_clicks > stored_clicks.get('like', 0):
         button_id = 'like-button'
     elif dislike_clicks and dislike_clicks > stored_clicks.get('dislike', 0):
         button_id = 'dislike-button'
+
     if not button_id or not article_data:
         return no_update, no_update, no_update, no_update, no_update, stored_clicks
+
     try:
-        article = GeneratedArticle.objects.get(id=article_data['article_id'])
-        if button_id == 'like-button':
-            article.likes += 1
-            article.save(update_fields=['likes'])
-        elif button_id == 'dislike-button':
-            article.dislikes += 1
-            article.save(update_fields=['dislikes'])
+        article_id = article_data['article_id']
+        vote_value = 'like' if button_id == 'like-button' else 'dislike'
+
+        with transaction.atomic():
+            # Kullanıcı daha önce oy kullandı mı?
+            existing = ArticleFeedback.objects.filter(
+                article_id=article_id, user=user
+            ).first()
+
+            if existing:
+                # Aynı oy → iptal et
+                if existing.vote == vote_value:
+                    existing.delete()
+                    if vote_value == 'like':
+                        GeneratedArticle.objects.filter(pk=article_id).update(likes=F('likes') - 1)
+                    else:
+                        GeneratedArticle.objects.filter(pk=article_id).update(dislikes=F('dislikes') - 1)
+                    toast_msg = "Oyunuz geri alındı."
+                    toast_icon = "secondary"
+                # Farklı oy → değiştir
+                else:
+                    old_vote = existing.vote
+                    existing.vote = vote_value
+                    existing.save()
+                    if vote_value == 'like':
+                        GeneratedArticle.objects.filter(pk=article_id).update(
+                            likes=F('likes') + 1, dislikes=F('dislikes') - 1
+                        )
+                    else:
+                        GeneratedArticle.objects.filter(pk=article_id).update(
+                            likes=F('likes') - 1, dislikes=F('dislikes') + 1
+                        )
+                    toast_msg = "Oyunuz güncellendi."
+                    toast_icon = "info"
+            else:
+                # İlk oy
+                ArticleFeedback.objects.create(
+                    article_id=article_id, user=user, vote=vote_value
+                )
+                if vote_value == 'like':
+                    GeneratedArticle.objects.filter(pk=article_id).update(likes=F('likes') + 1)
+                else:
+                    GeneratedArticle.objects.filter(pk=article_id).update(dislikes=F('dislikes') + 1)
+                toast_msg = "Geri bildiriminiz için teşekkür ederiz!"
+                toast_icon = "success"
+
+            article = GeneratedArticle.objects.only('likes', 'dislikes').get(pk=article_id)
 
         new_stored_clicks = {'like': like_clicks or 0, 'dislike': dislike_clicks or 0}
         toast = dbc.Toast(
-            "Geri bildiriminiz için teşekkür ederiz!", id="feedback-toast",
-            header="İşlem Başarılı", icon="success", duration=3000, is_open=True
+            toast_msg, id="feedback-toast",
+            header="İşlem Başarılı", icon=toast_icon, duration=3000, is_open=True
         )
-        return f"({article.likes})", f"({article.dislikes})", True, True, toast, new_stored_clicks
+        return f"({article.likes})", f"({article.dislikes})", False, False, toast, new_stored_clicks
+
     except GeneratedArticle.DoesNotExist:
         return "(0)", "(0)", True, True, dbc.Alert("Makale bulunamadı!", color="danger"), stored_clicks
 
