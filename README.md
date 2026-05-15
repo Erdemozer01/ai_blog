@@ -20,13 +20,7 @@ Bu proje, Django ve Plotly Dash kullanılarak geliştirilmiş, çeşitli konular
 - **Veritabanı:** Django ORM (varsayılan: SQLite)
 - **Veri İşleme:** Pandas
 
-## Kurulum ve Çalıştırma
 
-1.  **Depoyu Klonlayın:**
-    ```bash
-    git clone [repo_adresi]
-    cd ai_blog
-    ```
 
 2.  **Sanal Ortam Oluşturun ve Aktifleştirin:**
     ```bash
@@ -42,11 +36,7 @@ Bu proje, Django ve Plotly Dash kullanılarak geliştirilmiş, çeşitli konular
     pip install -r requirements.txt
     ```
 
-4.  **Ortam Değişkenlerini Ayarlayın:**
-    Proje ana dizininde `.env` adında bir dosya oluşturun ve içine gerekli API anahtarınızı ekleyin:
-    ```
-    API_KEY="buraya_gerekli_api_anahtarini_yapistirin"
-    ```
+
 
 5.  **Veritabanını Hazırlayın:**
     ```bash
@@ -54,15 +44,6 @@ Bu proje, Django ve Plotly Dash kullanılarak geliştirilmiş, çeşitli konular
     python manage.py migrate
     ```
 
-6.  **Süper Kullanıcı Oluşturun:**
-    ```bash
-    python manage.py createsuperuser
-    ```
-
-7.  **Admin Panelinden Ayarları Yapın:**
-    Siteyi çalıştırıp `/admin` adresine gidin.
-    - "API Anahtarları" bölümüne, ilgili servis için API anahtarınızı ekleyin.
-    - "Siteler" bölümüne, `example.com` veya `localhost:8000` için bir site kaydı oluşturun.
 
 8.  **Sunucuyu Çalıştırın:**
     ```bash
