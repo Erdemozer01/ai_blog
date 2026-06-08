@@ -46,6 +46,8 @@ def create_main_navbar(request):
     bio_tools_dropdown = dbc.DropdownMenu(
         label="Biyoinformatik Araçları",
         children=[
+            # --- Temel Araçlar ---
+            dbc.DropdownMenuItem("Temel Araçlar", header=True),
             dbc.DropdownMenuItem("Sekans Analiz Aracı", href=reverse('bio_tools:sequence_analyzer'),
                                  external_link=True, id="sequence_analyzer"),
             dbc.DropdownMenuItem("Sekans Hizalama Aracı", href=reverse('bio_tools:sequence_alignment'),
@@ -54,19 +56,25 @@ def create_main_navbar(request):
                                  external_link=True, id="molecule_viewer"),
             dbc.DropdownMenuItem("Mutasyon Etki Tahmincisi", href=reverse('bio_tools:mutation_predictor'),
                                  external_link=True, id="mutation_predictor"),
-
             dbc.DropdownMenuItem("Bakteri Tasarımcısı", href=reverse('bio_tools:bacterial_designer'),
                                  external_link=True, id="bacterial_designer"),
-
-            dbc.DropdownMenuItem("Pipline Tasarımcısı", href=reverse('bio_tools:pipline_designer_view'),
+            dbc.DropdownMenuItem("Pipeline Tasarımcısı", href=reverse('bio_tools:pipline_designer_view'),
                                  external_link=True, id="pipline_designer_view"),
+            dbc.DropdownMenuItem("FASTQ Analizi", href="/bio-tools/fastq-analyzer/",
+                                 external_link=True),
 
-            dbc.DropdownMenuItem(
-                "FASTQ Analizi",
-                href="/bio-tools/fastq-analyzer/",
-                external_link=True,
-            ),
+            dbc.DropdownMenuItem(divider=True),
 
+
+
+            # --- Hassas Tıp ---
+            dbc.DropdownMenuItem("Hassas Tıp", header=True),
+            dbc.DropdownMenuItem("Farmakogenomik Analiz", href=reverse('bio_tools:pharmacogenomics'),
+                                 external_link=True),
+            dbc.DropdownMenuItem("Varyant Önceliklendirme", href=reverse('bio_tools:variant_prioritization'),
+                                 external_link=True),
+            dbc.DropdownMenuItem("Birleşik Öğrenme (FL)", href=reverse('bio_tools:federated_learning'),
+                                 external_link=True),
         ],
         nav=True,
         in_navbar=True,

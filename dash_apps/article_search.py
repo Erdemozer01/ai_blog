@@ -179,3 +179,13 @@ def update_search_results(n_clicks, query, max_results):
     )
 
     return table, display_text
+
+
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    Input("navbar-toggler", "n_clicks"),
+    State("navbar-collapse", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_navbar(n_clicks, is_open):
+    return not is_open

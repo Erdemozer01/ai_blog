@@ -587,3 +587,50 @@ def cancel_job_view(request: HttpRequest, job_id: str):
             {'error': f'Failed to cancel job: {str(e)}'},
             status=500
         )
+
+# ============================================================
+# YENİ ARAÇLAR — Makale Entegrasyonu
+# ============================================================
+
+
+
+from dash_apps.federated_learning import app as federated_app
+from dash_apps.pharmacogenomics import app as pgx_app
+from dash_apps.variant_prioritization import app as variant_app
+
+
+from dash_apps.federated_learning import create_federated_layout
+from dash_apps.pharmacogenomics import create_pharmacogenomics_layout
+from dash_apps.variant_prioritization import create_variant_layout
+
+
+
+
+def federated_view(request):
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+    main_navbar = create_main_navbar(request)
+    _layout = html.Div([main_navbar, create_federated_layout()])
+    federated_app.layout = lambda: _layout
+    return render(request, 'bio_tools/federated_learning.html', {'meta_title': "Federated Learning - AI Blog"})
+
+
+def pharmacogenomics_view(request):
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+    main_navbar = create_main_navbar(request)
+    _layout = html.Div([main_navbar, create_pharmacogenomics_layout()])
+    pgx_app.layout = lambda: _layout
+    return render(request, 'bio_tools/pharmacogenomics.html', {'meta_title': "Farmakogenomik Analiz - AI Blog"})
+
+
+def variant_view(request):
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+    main_navbar = create_main_navbar(request)
+    _layout = html.Div([main_navbar, create_variant_layout()])
+    variant_app.layout = lambda: _layout
+    return render(request, 'bio_tools/variant_prioritization.html', {'meta_title': "Varyant Önceliklendirme - AI Blog"})

@@ -27,4 +27,10 @@ urlpatterns = [
         r'^fastq-analyzer/(?P<path>.*)$', views.FastqDashAppView.as_view(), name='fastq_analyzer'),
 
     path('api/', include('bio_tools.api.urls')),
+
+    # Yeni araçlar — Makale entegrasyonu
+
+    path('federated-learning/', views.federated_view, name='federated_learning'),
+    path('pharmacogenomics/', views.pharmacogenomics_view, name='pharmacogenomics'),
+    path('variant-prioritization/', views.variant_view, name='variant_prioritization'),
 ]
