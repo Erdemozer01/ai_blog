@@ -66,7 +66,6 @@ def create_main_navbar(request):
             dbc.DropdownMenuItem(divider=True),
 
 
-
             # --- Hassas Tıp ---
             dbc.DropdownMenuItem("Hassas Tıp", header=True),
             dbc.DropdownMenuItem("Farmakogenomik Analiz", href=reverse('bio_tools:pharmacogenomics'),
@@ -544,6 +543,29 @@ def generate_article_view(request):
             dcc.Textarea(id='request-textarea',
                          placeholder="Örn: 'Kuantum bilgisayarların kriptografi üzerine etkileri'",
                          style={'width': '100%', 'height': 150}, className="form-control form-control-lg mb-3"),
+
+            # YENİ: Makale uzunluğu seçimi
+            dbc.Row([
+                dbc.Col([
+                    html.Label("Makale Uzunluğu:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id='article-length-dropdown',
+                        options=[
+                            {'label': 'Kısa (~1 sayfa, ~500 kelime)', 'value': 500},
+                            {'label': 'Orta (~3 sayfa, ~1500 kelime)', 'value': 1500},
+                            {'label': 'Uzun (~5 sayfa, ~2500 kelime)', 'value': 2500},
+                            {'label': 'Çok Uzun (~8 sayfa, ~4000 kelime)', 'value': 4000},
+                        ],
+                        value=1500,
+                        clearable=False,
+                    ),
+                    html.Small(
+                        "Bir sayfa ortalama 500 kelimedir. Uzun makaleler daha fazla "
+                        "süre alabilir ve modelin token sınırına takılabilir.",
+                        className="text-muted",
+                    ),
+                ], width=12),
+            ], className="mb-4"),
             dcc.Loading(id="loading-spinner", type="border", children=[
                 html.Div(className="d-grid mt-4", children=[
                     dbc.Button([html.I(className="fas fa-paper-plane me-2"), "Üretimi Başlat"],

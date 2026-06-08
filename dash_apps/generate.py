@@ -11,11 +11,23 @@ external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
 
 
-def get_base_prompt(user_request_text):
+def get_base_prompt(user_request_text, word_count=1500):
     """Tüm modeller için ortak olan prompt metnini oluşturur."""
     current_year = date.today().year
-    # Not: JSON içeriği için `client.chat.completions.create`'e `response_format={ "type": "json_object" }` eklenebilir
-    # ama bu, metinle JSON'u bir arada isteme senaryomuzu karmaşıklaştırır. Bu yüzden metin içinde JSON istiyoruz.
+    # Kelime sayısına göre ara başlık ve kaynakça sayısını ölçekle
+    if word_count <= 500:
+        sections_hint = "1-2 ara başlık ve kısa bir sonuç"
+        ref_count = "5-7"
+    elif word_count <= 1500:
+        sections_hint = "3-4 ara başlık ve bir sonuç bölümü"
+        ref_count = "10-15"
+    elif word_count <= 2500:
+        sections_hint = "4-6 ara başlık ve detaylı bir sonuç bölümü"
+        ref_count = "15-20"
+    else:
+        sections_hint = "6-8 ara başlık, alt başlıklar ve kapsamlı bir sonuç bölümü"
+        ref_count = "20-30"
+
     return f"""
     İstek Konusu: "{user_request_text}"
     Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur.
@@ -25,8 +37,8 @@ def get_base_prompt(user_request_text):
     3.  Türkçe Özet: İngilizce özetin anlam olarak aynısı olan, akıcı bir Türkçe çevirisi.
     4.  Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik kategori adı.
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
-    6.  Tam İçerik: Markdown formatında, en az 1500 kelime uzunluğunda. Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden 3-4 ara başlık ve bir sonuç bölümü ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
-    7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, 10-15 kaynakça maddesi.
+    6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
+    7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, {ref_count} kaynakça maddesi.
     8.  Yapısal Veri (JSON): Makale içindeki placeholder'larla eşleşen, anahtar-değer yapısında GEÇERLİ bir JSON nesnesi oluştur. Anahtarlar metindeki placeholder'daki sayılar olmalı (örn: "1", "2"). Sadece JSON nesnesini ver, başına veya sonuna "```json" gibi kod blokları ekleme.
         - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') kendin seç.
         - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "description": "Bu tablo neyi gösteriyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: Dünya Bankası, 2024)", "columns": ["Sütun 1"], "data": [["Değer 1A"]]}}}}`
@@ -36,7 +48,7 @@ def get_base_prompt(user_request_text):
     """
 
 
-def run_ai_generation(user_request_text, api_key_id):
+def run_ai_generation(user_request_text, api_key_id, word_count=1500):
     """Seçilen AI servisine göre makale üretimini çalıştırır."""
     from blog.models import APIKey
     try:
@@ -45,11 +57,14 @@ def run_ai_generation(user_request_text, api_key_id):
         raise ValueError("Seçilen API anahtarı bulunamadı veya aktif değil.")
 
     response_text = ""
-    base_prompt = get_base_prompt(user_request_text)
+    base_prompt = get_base_prompt(user_request_text, word_count)
+
+    # Kelime sayısına göre token bütçesi (~1 kelime ≈ 1.5 token + JSON/kaynakça payı)
+    max_tokens = min(int(word_count * 2.2) + 2000, 16384)
 
     if api_key_object.service_name == 'Google Gemini':
         genai.configure(api_key=api_key_object.key)
-        generation_config = {"temperature": 0.7, "max_output_tokens": 8192}
+        generation_config = {"temperature": 0.7, "max_output_tokens": max_tokens}
         model = genai.GenerativeModel(model_name=api_key_object.model_name, generation_config=generation_config)
 
         system_prompt = "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak."
@@ -73,6 +88,7 @@ def run_ai_generation(user_request_text, api_key_id):
         response = client.chat.completions.create(
             model=api_key_object.model_name,
             messages=messages,
+            max_tokens=max_tokens,
         )
         response_text = response.choices[0].message.content
 
@@ -86,7 +102,7 @@ def run_ai_generation(user_request_text, api_key_id):
             messages=[
                 {"role": "user", "content": base_prompt}
             ],
-            max_tokens=8192,
+            max_tokens=max_tokens,
         )
 
         response_text = response.content[0].text
@@ -141,9 +157,10 @@ def run_ai_generation(user_request_text, api_key_id):
     State('request-textarea', 'value'),
     State('user-session-store', 'data'),
     State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
+    State('article-length-dropdown', 'value'),  # YENİ: Makale uzunluğu
     prevent_initial_call=True
 )
-def handle_form_submission(n_clicks, request_text, user_data, selected_api_id):  # YENİ: Parametre eklendi
+def handle_form_submission(n_clicks, request_text, user_data, selected_api_id, article_length):  # YENİ: Parametre eklendi
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
     if not user_data or 'user_id' not in user_data:
@@ -159,7 +176,7 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_api_id): 
         user = User.objects.get(id=user_data['user_id'])
 
         # Güncellenmiş fonksiyonu çağır
-        ai_data = run_ai_generation(request_text, selected_api_id)
+        ai_data = run_ai_generation(request_text, selected_api_id, article_length or 1500)
 
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
