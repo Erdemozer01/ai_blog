@@ -337,12 +337,12 @@ def pipline_designer_view(request):
     })
 
 
-# --- API VIEWS FOR CELERY ---
+# --- FASTQ ANALİZ API VIEWS ---
 
 @csrf_exempt
 def start_analysis_view(request: HttpRequest):
     """
-    FASTQ analiz işini başlatır (Celery task)
+    FASTQ analiz işini başlatır (arka plan thread)
     """
     if request.method != 'POST':
         return JsonResponse(
@@ -413,6 +413,17 @@ def start_analysis_view(request: HttpRequest):
                 status=403
             )
 
+        # Dosya boyutu limiti kontrolü (sunucu tarafı)
+        max_size_mb = getattr(settings, 'FASTQ_MAX_FILE_SIZE_MB', 100)
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        if file_size_mb > max_size_mb:
+            logger.warning(f"File too large for job {job_id}: {file_size_mb:.1f} MB")
+            return JsonResponse(
+                {'error': f'Dosya çok büyük: {file_size_mb:.1f} MB. '
+                          f'İzin verilen maksimum: {max_size_mb} MB.'},
+                status=413
+            )
+
         logger.info(f"Starting analysis job {job_id} for file: {file_path}")
 
         # Veritabanında işi oluştur veya güncelle
@@ -434,17 +445,21 @@ def start_analysis_view(request: HttpRequest):
                 status=500
             )
 
-        # Celery görevini başlat
+        # Analizi arka plan thread'inde başlat (Celery yerine)
         try:
-            process_fastq_file.delay(job_id=job_id, file_path=file_path)
+            import threading
+            from bio_tools.tasks import process_fastq_file
+            thread = threading.Thread(
+                target=process_fastq_file,
+                kwargs={'job_id': job_id, 'file_path': file_path},
+                daemon=True,
+            )
+            thread.start()
         except Exception as e:
-            logger.error(f"Celery error for job {job_id}: {e}", exc_info=True)
-
-            # Job durumunu güncelle
+            logger.error(f"Thread error for job {job_id}: {e}", exc_info=True)
             job.status = 'FAILED'
             job.error_message = f'Failed to start analysis task: {str(e)}'
             job.save()
-
             return JsonResponse(
                 {'error': f'Failed to start analysis task: {str(e)}'},
                 status=500
@@ -559,10 +574,9 @@ def cancel_job_view(request: HttpRequest, job_id: str):
                 'status': job.status
             }, status=400)
 
-        # Celery task'ı iptal et
-        from celery.result import AsyncResult
-        result = AsyncResult(job_id)
-        result.revoke(terminate=True)
+        # Celery kaldırıldı — thread'i zorla durduramayız,
+        # job durumunu CANCELLED yap. Task bir sonraki progress
+        # güncellemesinde bu durumu kontrol edip sonlanabilir.
 
         # Job durumunu güncelle
         job.status = 'CANCELLED'
@@ -592,18 +606,13 @@ def cancel_job_view(request: HttpRequest, job_id: str):
 # YENİ ARAÇLAR — Makale Entegrasyonu
 # ============================================================
 
-
-
 from dash_apps.federated_learning import app as federated_app
 from dash_apps.pharmacogenomics import app as pgx_app
 from dash_apps.variant_prioritization import app as variant_app
 
-
 from dash_apps.federated_learning import create_federated_layout
 from dash_apps.pharmacogenomics import create_pharmacogenomics_layout
 from dash_apps.variant_prioritization import create_variant_layout
-
-
 
 
 def federated_view(request):

@@ -1,4 +1,6 @@
 # analysis/tasks.py
+# NOT: Celery kaldırıldı — task'lar artık düz Python fonksiyonları.
+# FASTQ analizi view katmanında threading ile arka planda çalıştırılır.
 
 import os
 import gzip
@@ -6,8 +8,6 @@ import time
 from collections import Counter
 from typing import Optional, Callable, Dict, List
 
-from celery import Task, group, chord, shared_task
-from celery.result import AsyncResult
 from django.utils import timezone
 from datetime import timedelta
 from .models import FastqUpload, AnalysisJob
@@ -100,12 +100,11 @@ def compute_quality_means_streaming(
     if read_count_cb: read_count_cb(read_count)
 
 
-# --- YENİ CELERY GÖREVİ ---
+# --- FASTQ ANALİZ FONKSİYONU ---
 
-@shared_task
 def process_fastq_file(job_id: str, file_path: str):
     """
-    Bu fonksiyon artık bir Celery Worker tarafından arka planda çalıştırılacak.
+    FASTQ dosyasını analiz eder. View katmanında threading ile arka planda çağrılır.
     """
     try:
         job = AnalysisJob.objects.get(job_id=job_id)
@@ -166,17 +165,7 @@ def process_fastq_file(job_id: str, file_path: str):
 
     return f"İş {job_id} başarıyla tamamlandı."
 
-class CallbackTask(Task):
-    """Progress tracking ile özel task sınıfı"""
-    def on_success(self, retval, task_id, args, kwargs):
-        logger.info(f"Task {task_id} başarıyla tamamlandı")
-        # Bildirim gönderme işlemi buraya eklenebilir
-    
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Task {task_id} başarısız: {str(exc)}")
-        # Hata bildirimi buraya eklenebilir
 
-@shared_task
 def analyze_single_file(file_id):
     """
     Tek bir FASTQ dosyasını analiz eder.
@@ -227,44 +216,38 @@ def analyze_single_file(file_id):
             upload.save()
         raise
 
-@shared_task(bind=True, base=CallbackTask)
-def parallel_fastq_analysis(self, file_ids):
+def parallel_fastq_analysis(file_ids):
     """
-    Birden fazla FASTQ dosyasını paralel olarak analiz eder.
-    
+    Birden fazla FASTQ dosyasını sırayla analiz eder.
+    (Celery kaldırıldı — group/chord yerine ardışık işleme.)
+
     Args:
         file_ids: FastqUpload ID'lerinin listesi
-    
+
     Returns:
         list: Her dosya için analiz sonuçları
     """
     if not file_ids:
         return []
-    
-    logger.info(f"Paralel analiz başlatılıyor: {len(file_ids)} dosya")
-    
-    # Paralel task grubu oluştur
-    job = group(analyze_single_file.s(file_id) for file_id in file_ids)
-    result = job.apply_async()
-    
-    # Sonuçları bekle ve topla
-    results = result.get()
-    
-    logger.info(f"Paralel analiz tamamlandı: {len(results)} dosya")
+
+    logger.info(f"Analiz başlatılıyor: {len(file_ids)} dosya")
+
+    results = []
+    for file_id in file_ids:
+        try:
+            results.append(analyze_single_file(file_id))
+        except Exception as e:
+            logger.error(f"Dosya {file_id} analiz edilemedi: {e}")
+            results.append({'file_id': str(file_id), 'status': 'error',
+                            'error': str(e)})
+
+    logger.info(f"Analiz tamamlandı: {len(results)} dosya")
     return results
 
-@shared_task
 def scheduled_cleanup():
     """
-    Eski dosyaları temizleme (Celery Beat ile her gece çalışacak)
-    
-    Settings'e eklenecek:
-    CELERY_BEAT_SCHEDULE = {
-        'cleanup-old-files': {
-            'task': 'bio_tools.tasks.scheduled_cleanup',
-            'schedule': crontab(hour=2, minute=0),  # Her gece 02:00
-        },
-    }
+    Eski dosyaları temizleme. Celery Beat kaldırıldı —
+    bu fonksiyon manuel veya bir management command / cron ile çağrılabilir.
     """
     threshold = timezone.now() - timedelta(days=7)
     old_files = FastqUpload.objects.filter(created_at__lt=threshold)
@@ -279,7 +262,6 @@ def scheduled_cleanup():
     
     return f"{count} eski dosya silindi"
 
-@shared_task
 def batch_analyze_and_compare(file_ids, comparison_name=None):
     """
     Batch dosyalarını analiz et ve karşılaştır.

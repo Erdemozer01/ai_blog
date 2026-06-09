@@ -9,7 +9,6 @@ import platform  # Bu hala veritabanı ayrımı için kullanılabilir, ancak ENV
 from pathlib import Path
 from dotenv import load_dotenv
 import logging
-import redis  # Geliştirme ortamında Redis'i test etmek için
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,11 +61,8 @@ INSTALLED_APPS = [
     'django_bootstrap5',
     'dash_uploader',
     'dash_apps',
-    'channels',
-    'channels_redis',
     'autoslug',
     'rest_framework',
-    'django_redis',  # Redis cache ve session'lar için gerekli
 ]
 
 SITE_ID = 1
@@ -152,14 +148,6 @@ STATICFILES_FINDERS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Celery Ortak Ayarları
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Europe/Istanbul'
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
-
 NOTO_FONT_PATH = BASE_DIR / "static/fonts/NotoSans-Regular.ttf"
 
 # Yükleme Limitleri
@@ -193,14 +181,6 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'verbose',
         },
-        'celery_file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOG_DIR / 'celery.log',
-            'maxBytes': 1024 * 1024 * 10,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
@@ -209,10 +189,12 @@ LOGGING = {
     },
     'loggers': {
         'django': {'handlers': ['file', 'console'], 'level': 'INFO', 'propagate': True},
-        'celery': {'handlers': ['celery_file', 'console'], 'level': 'INFO'},
         'bio_tools.performance': {'handlers': ['file', 'console'], 'level': 'WARNING'},
     },
 }
+
+# FASTQ analiz dosya boyutu limiti (MB)
+FASTQ_MAX_FILE_SIZE_MB = 100
 
 # ==============================================================================
 # CANLI ORTAM AYARLARI (PRODUCTION)
@@ -254,35 +236,22 @@ if ENVIRONMENT == 'production':
         }
     }
 
-    # REDIS / CELERY / CACHE (Harici Redis)
-    REDIS_URL = os.environ.get('REDIS_URL')
-    if not REDIS_URL:
-        raise ValueError("REDIS_URL ortam değişkeni production için ayarlanmamış!")
-
-    logger.info("✓ Production: REDIS_URL bulundu. Redis cache ve session'lar kullanılacak.")
-
-    CELERY_BROKER_URL = REDIS_URL + '/0'
-    CELERY_RESULT_BACKEND = REDIS_URL + '/0'
+    # CACHE — Veritabanı tabanlı (Redis kaldırıldı)
+    logger.info("✓ Production modu — veritabanı tabanlı cache ve session kullanılacak.")
 
     CACHES = {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL + '/1', 'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache_default',
             'KEY_PREFIX': 'ai_blog', 'TIMEOUT': 300,
         },
         'fastq_analysis': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL + '/2', 'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache_fastq',
             'KEY_PREFIX': 'fastq', 'TIMEOUT': 3600,
         },
-        'session': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL + '/3', 'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
-            'KEY_PREFIX': 'session', 'TIMEOUT': 86400,
-        }
     }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'session'
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
     # EMAIL (Gerçek SMTP)
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -315,40 +284,12 @@ else:
         }
     }
 
-    # REDIS / CELERY / CACHE (Localhost Testi)
-    # Orijinal dosyanızdaki 'localhost' ping mantığı geliştirme için mükemmeldir.
-    REDIS_AVAILABLE = False
-    try:
-        r = redis.Redis(host='localhost', port=6379, db=0, socket_timeout=2)
-        r.ping()
-        REDIS_AVAILABLE = True
-        logger.info("✓ Development: Yerel Redis (localhost:6379) bağlantısı başarılı.")
-    except Exception as e:
-        logger.warning(f"⚠️ Development: Yerel Redis (localhost:6379) bağlanamıyor: {e}. Fallback cache kullanılacak.")
-
-    if REDIS_AVAILABLE:
-        CELERY_BROKER_URL = 'redis://localhost:6379/0'
-        CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-
-        CACHES = {
-            'default': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': 'redis://127.0.0.1:6379/1', 'KEY_PREFIX': 'ai_blog', 'TIMEOUT': 300},
-            'fastq_analysis': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': 'redis://127.0.0.1:6379/2', 'KEY_PREFIX': 'fastq', 'TIMEOUT': 3600},
-            'session': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': 'redis://127.0.0.1:6379/3', 'KEY_PREFIX': 'session', 'TIMEOUT': 86400}
-        }
-        SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-        SESSION_CACHE_ALIAS = 'session'
-
-    else:
-        logger.warning("Development: Celery (Redis) çalışmayacak. LocMem cache ve DB session kullanılacak.")
-        CELERY_BROKER_URL = None  # Redis yoksa Celery'yi devre dışı bırak
-        CELERY_RESULT_BACKEND = None
-
-        CACHES = {
-            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'default-cache'},
-            'fastq_analysis': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'fastq-cache'},
-            'session': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'session-cache'}
-        }
-        SESSION_ENGINE = 'django.contrib.sessions.backends.db' # Veritabanı session'ları
+    # CACHE — LocMem (Redis kaldırıldı)
+    CACHES = {
+        'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'default-cache'},
+        'fastq_analysis': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'fastq-cache'},
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Veritabanı session'ları
 
     # EMAIL (Konsola Yazdır)
     # Geliştirme sırasında gerçek e-posta göndermez, terminale basar.

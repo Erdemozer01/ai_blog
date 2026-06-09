@@ -23,37 +23,45 @@ class FastqUploadViewSet(viewsets.ModelViewSet):
     def reanalyze(self, request, pk=None):
         """Analizi yeniden başlat"""
         upload = self.get_object()
-        task = analyze_single_file.delay(str(upload.id))  # Düzeltildi
+        import threading, uuid
+        task_id = str(uuid.uuid4())
+        thread = threading.Thread(
+            target=analyze_single_file, args=(str(upload.id),), daemon=True)
+        thread.start()
         return Response({
-            'task_id': task.id,
+            'task_id': task_id,
             'status': 'started',
             'message': 'Analiz başlatıldı'
         })
-    
+
     @action(detail=False, methods=['post'])
     def batch_analyze(self, request):
         """Birden fazla dosyayı paralel analiz et"""
         file_ids = request.data.get('file_ids', [])
-        
+
         if not file_ids:
             return Response(
                 {'error': 'file_ids gerekli'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if len(file_ids) > 10:
             return Response(
                 {'error': 'Maksimum 10 dosya analiz edilebilir'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        task = parallel_fastq_analysis.delay(file_ids)
+
+        import threading, uuid
+        task_id = str(uuid.uuid4())
+        thread = threading.Thread(
+            target=parallel_fastq_analysis, args=(file_ids,), daemon=True)
+        thread.start()
         return Response({
-            'task_id': task.id,
+            'task_id': task_id,
             'status': 'started',
-            'message': f'{len(file_ids)} dosya için paralel analiz başlatıldı'
+            'message': f'{len(file_ids)} dosya için analiz başlatıldı'
         })
-    
+
     @action(detail=False, methods=['get'])
     def statistics(self, request):
         """Genel istatistikler"""
