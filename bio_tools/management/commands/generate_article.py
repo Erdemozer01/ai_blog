@@ -59,7 +59,7 @@ class Command(BaseCommand):
         # 2. API anahtarı
         api_id = options['api_id']
         if api_id:
-            api_obj = APIKey.objects.filter(id=api_id, is_active=True).first()
+            api_obj = APIKey.objects.filter(model_name="gemini-2.5-flash", is_active=True).first()
         else:
             api_obj = APIKey.objects.filter(is_active=True).first()
         if not api_obj:
