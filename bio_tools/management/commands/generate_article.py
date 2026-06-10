@@ -61,7 +61,7 @@ class Command(BaseCommand):
         if api_id:
             api_obj = APIKey.objects.filter(model_name="gemini-2.5-flash", is_active=True).first()
         else:
-            api_obj = APIKey.objects.filter(is_active=True).first()
+            api_obj = APIKey.objects.filter(is_active=True, model_name="gemini-2.5-flash").first()
         if not api_obj:
             raise CommandError("Aktif bir API anahtarı bulunamadı. "
                                "Admin panelinden bir APIKey ekleyin.")
