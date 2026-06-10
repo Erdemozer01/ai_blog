@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     'bio_tools.apps.BioToolsConfig',
 
     'django_plotly_dash',
-    'django_bootstrap5',
     'dash_uploader',
     'dash_apps',
     'autoslug',
