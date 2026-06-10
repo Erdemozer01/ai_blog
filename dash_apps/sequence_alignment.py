@@ -9,8 +9,6 @@ import io
 import dash_bio
 
 # YENİ: Gemini API'sini kullanmak için importlar
-import google.generativeai as genai
-from blog.models import APIKey
 
 from django.shortcuts import reverse
 
@@ -47,12 +45,7 @@ def get_alignment_interpretation(fasta_data):
         return "Yorumlanacak hizalama verisi bulunamadı."
 
     try:
-        api_key_object = APIKey.objects.filter(service_name='Google Gemini', is_active=True).first()
-        if not api_key_object:
-            return "Yorumlama için aktif bir Google Gemini API anahtarı bulunamadı."
-
-        genai.configure(api_key=api_key_object.key)
-        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+        from ai_engine.services import generate_with_pool
 
         prompt = f"""
         Sen uzman bir biyoinformatikçi ve moleküler biyologsun. Aşağıda, önceden hizalanmış bir çoklu sekans hizalama (MSA) verisi FASTA formatında verilmiştir.
@@ -70,8 +63,8 @@ def get_alignment_interpretation(fasta_data):
         Cevabını Markdown formatında, başlıklar kullanarak düzenli bir şekilde ver.
         """
 
-        response = model.generate_content(prompt)
-        return response.text
+        text, _key, _prov = generate_with_pool(prompt, service_name='Google Gemini')
+        return text
 
     except Exception as e:
         return f"Yorumlama sırasında bir hata oluştu: {e}"

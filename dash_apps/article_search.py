@@ -2,7 +2,6 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output, State, no_update, dash_table
 from django_plotly_dash import DjangoDash
 from Bio import Entrez
-import google.generativeai as genai
 
 
 # --- ÇEVİRİ FONKSİYONU ---
@@ -12,21 +11,11 @@ def translate_to_english(text_to_translate):
         return text_to_translate
 
     try:
-        # Dairesel importu engellemek için model importu burada yapılır
-        from blog.models import APIKey
+        from ai_engine.services import generate_with_pool
 
-        api_key_object = APIKey.objects.filter(service_name='Google Gemini', is_active=True).first()
-        if not api_key_object:
-            print("Hata: Aktif Gemini API anahtarı bulunamadı.")
-            return text_to_translate
-
-        genai.configure(api_key=api_key_object.key)
         prompt = f"Translate the following Turkish medical phrase to English for a PubMed search. Return only the accurately translated English text and nothing else, no quotation marks:\n\n'{text_to_translate}'"
-
-        # gemini-2.0-flash veya gemini-1.5-flash kullanılabilir
-        model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        text, _key, _prov = generate_with_pool(prompt, service_name='Google Gemini')
+        return text.strip()
 
     except Exception as e:
         print(f"Çeviri sırasında hata oluştu: {e}")
@@ -179,7 +168,6 @@ def update_search_results(n_clicks, query, max_results):
     )
 
     return table, display_text
-
 
 @app.callback(
     Output("navbar-collapse", "is_open"),

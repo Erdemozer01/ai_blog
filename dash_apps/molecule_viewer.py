@@ -18,14 +18,12 @@ from django_plotly_dash import DjangoDash
 
 # Biyoinformatik ve AI kütüphaneleri
 from Bio.PDB import PDBParser, Superimposer, PDBIO
-import google.generativeai as genai
 
 
 from django.shortcuts import reverse
 
 
 # === Django modelini içe aktar ===
-from blog.models import APIKey
 
 # --- UYGULAMA BAŞLATMA VE SABİTLER ---
 app = DjangoDash(
@@ -34,26 +32,7 @@ app = DjangoDash(
 )
 
 
-# --- API ANAHTARI YAPILANDIRMASI (VERİTABANINDAN) ---
-def get_api_key_from_db(service_name="Google Gemini"):
-    try:
-        api_key_obj = APIKey.objects.filter(service_name=service_name, is_active=True).first()
-        if api_key_obj:
-            print(f"'{service_name}' için API anahtarı veritabanından başarıyla yüklendi.")
-            return api_key_obj.key
-        else:
-            print(f"UYARI: Veritabanında '{service_name}' için aktif bir API anahtarı bulunamadı.")
-            return None
-    except Exception as e:
-        print(f"Veritabanından API anahtarı alınırken hata oluştu: {e}. Django sunucusu çalışıyor mu?")
-        return None
-
-
-GOOGLE_API_KEY = get_api_key_from_db()
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
-else:
-    print("UYARI: Google Gemini API anahtarı yüklenemedi. AI özellikleri çalışmayacak.")
+# --- API ANAHTARI: ai_engine.services üzerinden havuz/fallback ile kullanılır ---
 
 # --- SABİTLER ---
 REPRESENTATIONS = ['axes', 'axes+box', 'backbone', 'ball+stick', 'cartoon', 'helixorient',
@@ -194,38 +173,20 @@ def parse_cif_for_table(cif_content):
     return records
 
 
-def get_generative_model():
-    if not GOOGLE_API_KEY:
-        print("Hata: Google API anahtarı bulunamadı.")
-        return None, None
-    try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
-        return model, None
-    except Exception as e:
-        error_message = f"GenerativeModel oluşturulurken bir hata oluştu: {e}"
-        print(error_message)
-        return None, error_message
-
-
 def get_ai_report(protein_name, organism):
-    model, error = get_generative_model()
-    if error: return None, error
-    if not model: return None, "AI Modeli başlatılamadı."
-    if not protein_name or protein_name == "N/A": return None, "Analiz için geçerli bir protein adı bulunamadı."
+    if not protein_name or protein_name == "N/A":
+        return None, "Analiz için geçerli bir protein adı bulunamadı."
     prompt = (
         f"Lütfen '{protein_name}' ({organism}) proteini hakkında bilinen biyolojik fonksiyonlarını, hücresel konumunu ve varsa önemli mutasyonlarını özetleyen, tamamen Türkçe ve bilimsel bir rapor oluştur. Cevabını Markdown formatında, başlıklar kullanarak düzenle.")
     try:
-        response = model.generate_content(prompt)
-        return dcc.Markdown(response.text), None
+        from ai_engine.services import generate_with_pool
+        text, _key, _prov = generate_with_pool(prompt, service_name="Google Gemini")
+        return dcc.Markdown(text), None
     except Exception as e:
         return None, f"Yapay zeka analizi sırasında hata: {e}"
 
 
 def get_ai_removal_analysis(pdb_content, removed_items):
-    model, error = get_generative_model()
-    if error: return None, error
-    if not model: return None, "AI Modeli başlatılamadı."
-
     prompt = f"""
     Sen, yapısal biyoinformatik ve hesaplamalı biyoloji alanında uzman bir yapay zeka asistanısın.
     Sana bir proteinin orijinal 3D yapısı ve bu yapıdan hesaplamalı olarak çıkarılan bileşenlerin bir listesi verilecek.
@@ -254,8 +215,9 @@ def get_ai_removal_analysis(pdb_content, removed_items):
     - Analizinin kısa bir özetini sun ve bu yapısal modifikasyonun genel olarak ne anlama geldiğini belirt.
     """
     try:
-        response = model.generate_content(prompt)
-        return dcc.Markdown(response.text), None
+        from ai_engine.services import generate_with_pool
+        text, _key, _prov = generate_with_pool(prompt, service_name="Google Gemini")
+        return dcc.Markdown(text), None
     except Exception as e:
         return None, f"Yapay zeka analizi sırasında hata: {e}"
 

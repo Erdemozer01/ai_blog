@@ -5,7 +5,6 @@ import re
 import tempfile
 import platform
 import zlib
-import google.generativeai as genai
 
 
 import dash
@@ -22,7 +21,6 @@ from django.shortcuts import reverse
 from django_plotly_dash import DjangoDash
 
 # Django modelini ve veritabanı hatalarını import ediyoruz
-from blog.models import APIKey
 from django.core.exceptions import ObjectDoesNotExist
 
 # Biyoinformatik ve Makine Öğrenmesi Kütüphaneleri
@@ -443,16 +441,6 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
             alert = dbc.Alert("Lütfen sorgulanacak bir molekül seçin.", color="warning")
             return alert, *initial_outputs, current_clicks
 
-        try:
-            api_key_object = APIKey.objects.filter(is_active=True, service_name='Google Gemini').first()
-            if not api_key_object:
-                alert = dbc.Alert("Veritabanında aktif bir Gemini API anahtarı bulunamadı.", color="danger")
-                return alert, *initial_outputs, current_clicks
-            genai.configure(api_key=api_key_object.key)
-        except Exception as e:
-            alert = dbc.Alert(f"API anahtarı yüklenirken bir hata oluştu: {e}", color="danger")
-            return alert, *initial_outputs, current_clicks
-
         prompt = f"""
         Sen, protein yapıları ve bunlarla ilişkili genetik mutasyonlar konusunda uzman bir biyoinformatik asistanısın.
         Görevin, sana PDB ID'si verilen protein için literatürde ve veritabanlarında (ClinVar, HGMD vb.) bilinen **tüm** "Zararlı" (Pathogenic) veya "Muhtemelen Zararlı" (Likely Pathogenic) mutasyonları listelemektir.
@@ -472,15 +460,15 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
         Protein PDB ID: {selected_mol_id}
         """
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            from ai_engine.services import generate_with_pool
             safety_settings = [
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
-            response = model.generate_content(prompt, safety_settings=safety_settings)
-            ai_response_text = response.text
+            ai_response_text, _key, _prov = generate_with_pool(
+                prompt, service_name='Google Gemini', safety_settings=safety_settings)
         except Exception as e:
             alert = dbc.Alert(f"Gemini API'ından cevap alınırken hata oluştu: {e}", color="danger")
             return alert, *initial_outputs, current_clicks
@@ -505,14 +493,6 @@ def generate_interpretation_callback(n_clicks, analysis_data):
     if not n_clicks or not analysis_data:
         return ""
 
-    try:
-        api_key_object = APIKey.objects.filter(is_active=True, service_name='Google Gemini').first()
-        if not api_key_object:
-            return dbc.Alert("Veritabanında aktif bir Gemini API anahtarı bulunamadı.", color="danger")
-        genai.configure(api_key=api_key_object.key)
-    except Exception as e:
-        return dbc.Alert(f"API anahtarı yüklenirken bir hata oluştu: {e}", color="danger")
-
     prediction = analysis_data.get('prediction', 'Bilinmiyor')
     mutation_str = analysis_data.get('mutation_str', 'Bilinmiyor')
     features = analysis_data.get('features', [])
@@ -532,15 +512,15 @@ def generate_interpretation_callback(n_clicks, analysis_data):
     {features_text}
     """
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        from ai_engine.services import generate_with_pool
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
-        response = model.generate_content(prompt, safety_settings=safety_settings)
-        interpretation_text = response.text
+        interpretation_text, _key, _prov = generate_with_pool(
+            prompt, service_name='Google Gemini', safety_settings=safety_settings)
     except Exception as e:
         print(f"Gemini API Hatası (generate_interpretation_callback): {e}")
         return dbc.Alert(f"Gemini API'ından cevap alınırken hata oluştu: {e}", color="danger")

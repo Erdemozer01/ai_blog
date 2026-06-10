@@ -2,7 +2,6 @@
 import re
 from io import StringIO
 import pandas as pd
-import google.generativeai as genai
 
 import dash
 from dash import dcc, html, Input, Output, State
@@ -10,7 +9,6 @@ import dash_bootstrap_components as dbc
 
 # Django Entegrasyonu
 from django_plotly_dash import DjangoDash
-from blog.models import APIKey
 from django.shortcuts import reverse
 
 # --- UYGULAMA BAŞLATMA ---
@@ -30,22 +28,6 @@ PIPELINE_MODEL_NAME = 'gemini-2.5-pro'
 # ==============================================================================
 # MERKEZİ MODEL YÖNETİM FONKSİYONU
 # ==============================================================================
-def get_gemini_model(model_name: str):
-    """
-    Django veritabanından API anahtarını alır, yapılandırır ve belirtilen
-    Gemini modelini başlatır.
-    """
-    try:
-        api_key_object = APIKey.objects.filter(is_active=True, service_name='Google Gemini').first()
-        if not api_key_object:
-            return None, "Aktif 'Google Gemini' API anahtarı veritabanında bulunamadı."
-        genai.configure(api_key=api_key_object.key)
-        model = genai.GenerativeModel(model_name)
-        return model, None
-    except Exception as e:
-        return None, f"API yapılandırması veya model başlatma sırasında bir hata oluştu: {e}"
-
-
 # ==============================================================================
 # YARDIMCI PROMPT VE PARSING FONKSİYONLARI
 # ==============================================================================
@@ -201,14 +183,11 @@ def handle_pipeline_generation(n_clicks, pipeline_goal):
     if not pipeline_goal:
         return dbc.Alert("Lütfen pipeline amacını açıklayan bir metin girin.", color="warning")
 
-    model, error_msg = get_gemini_model(PIPELINE_MODEL_NAME)
-    if error_msg:
-        return dbc.Alert(error_msg, color="danger")
-
     try:
+        from ai_engine.services import generate_with_pool
         prompt = generate_pipeline_prompt(pipeline_goal)
-        response = model.generate_content(prompt)
-        mermaid_graph, steps_df, code_snippets = parse_pipeline_response(response.text)
+        response_text, _key, _prov = generate_with_pool(prompt, service_name='Google Gemini')
+        mermaid_graph, steps_df, code_snippets = parse_pipeline_response(response_text)
     except Exception as e:
         return dbc.Alert(f"Pipeline tasarımı oluşturulurken bir hata oluştu: {e}", color="danger")
 

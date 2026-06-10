@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
     'blog.apps.BlogConfig',
     'bio_tools.apps.BioToolsConfig',
+    'ai_engine.apps.AiEngineConfig',
 
     'django_plotly_dash',
     'dash_uploader',

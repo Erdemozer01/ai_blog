@@ -6,27 +6,6 @@ from django.urls import reverse
 from .utils import custom_slugify
 
 
-class APIKey(models.Model):
-    SERVICE_CHOICES = (
-        ('Google Gemini', 'Google Gemini'),
-        ('OpenAI', 'OpenAI'),
-        ('Anthropic', 'Anthropic'),
-    )
-    service_name = models.CharField(max_length=100, choices=SERVICE_CHOICES, verbose_name="Servis Adı")
-    model_name = models.CharField(max_length=100, verbose_name="Model Adı", help_text="Örn: gemini-1.5-pro, gpt-4o")
-    key = models.CharField(max_length=255, verbose_name="API Anahtarı")
-    is_active = models.BooleanField(default=True, verbose_name="Aktif mi?")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.service_name} ({self.model_name})"
-
-    class Meta:
-        verbose_name = "API Anahtarı"
-        verbose_name_plural = "API Anahtarları"
-        unique_together = ('service_name', 'model_name')
-
-
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Kategori Adı")
     created_at = models.DateTimeField(auto_now_add=True)

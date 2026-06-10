@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.contrib import messages
 
-from .models import (GeneratedArticle, APIKey, Category, ContactMessage,
+from .models import (GeneratedArticle, Category, ContactMessage,
                      Profile, WorkExperience, Education, Skill)
 
 
@@ -47,13 +47,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('category', 'owner')
 
-
-@admin.register(APIKey)
-class APIKeyAdmin(admin.ModelAdmin):
-    list_display = ('service_name', 'model_name', 'is_active', 'created_at')
-    list_filter = ('is_active', 'service_name')
-    readonly_fields = ('created_at',)
-    list_editable = ('model_name', 'is_active',)
 
 
 

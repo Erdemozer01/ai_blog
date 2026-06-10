@@ -3,11 +3,9 @@ import re
 import warnings
 
 import dash_bootstrap_components as dbc
-import google.generativeai as genai
 from dash import dcc, html, Input, Output, State, no_update, ALL
 from django_plotly_dash import DjangoDash
 
-from blog.models import APIKey
 
 warnings.filterwarnings("ignore")
 
@@ -157,21 +155,18 @@ def _parse_json(text):
 
 
 def _research(query):
-    api_key_object = APIKey.objects.filter(
-        is_active=True, service_name="Google Gemini").first()
-    if not api_key_object:
-        raise RuntimeError("Veritabanında aktif bir Gemini API anahtarı bulunamadı.")
+    from ai_engine.services import generate_with_pool
 
-    genai.configure(api_key=api_key_object.key)
-    model = genai.GenerativeModel("gemini-2.5-flash")
     safety = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
-    response = model.generate_content(_build_prompt(query), safety_settings=safety)
-    return _parse_json(response.text)
+    text, _key, _prov = generate_with_pool(
+        _build_prompt(query), service_name="Google Gemini",
+        safety_settings=safety)
+    return _parse_json(text)
 
 
 # ---------------------------------------------------------------------------

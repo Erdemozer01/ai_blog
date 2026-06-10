@@ -20,7 +20,7 @@ import base64
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 
-from .models import GeneratedArticle, Profile, APIKey
+from .models import GeneratedArticle, Profile
 from dash_apps.generate import app as generate_app
 from dash_apps.article_detail import app as article_detail_app
 from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout

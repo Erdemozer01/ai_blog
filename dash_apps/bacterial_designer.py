@@ -2,7 +2,6 @@
 import os
 import re
 import pandas as pd
-import google.generativeai as genai
 
 import dash
 from dash import dcc, html, Input, Output, State
@@ -11,7 +10,6 @@ import dash_bio
 
 # Django Entegrasyonu
 from django_plotly_dash import DjangoDash
-from blog.models import APIKey
 from django.shortcuts import reverse
 
 # --- UYGULAMA BAŞLATMA ---
@@ -27,24 +25,6 @@ app = DjangoDash(
 DESIGN_MODEL_NAME = 'gemini-2.5-pro'
 SEQUENCE_MODEL_NAME = 'gemini-2.5-pro'
 
-
-# ==============================================================================
-# MERKEZİ MODEL YÖNETİM FONKSİYONU
-# ==============================================================================
-def get_gemini_model(model_name: str):
-    """
-    Django veritabanından API anahtarını alır, yapılandırır ve belirtilen
-    Gemini modelini başlatır.
-    """
-    try:
-        api_key_object = APIKey.objects.filter(is_active=True, service_name='Google Gemini').first()
-        if not api_key_object:
-            return None, "Aktif 'Google Gemini' API anahtarı veritabanında bulunamadı."
-        genai.configure(api_key=api_key_object.key)
-        model = genai.GenerativeModel(model_name)
-        return model, None
-    except Exception as e:
-        return None, f"API yapılandırması veya model başlatma sırasında bir hata oluştu: {e}"
 
 
 # ==============================================================================
@@ -161,11 +141,12 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
     if not design_goals or not target_organism:
         return dbc.Alert("Lütfen tüm alanları doldurun.", color="warning"), dash.no_update, True, 'tab-design'
 
-    design_model, error_msg = get_gemini_model(DESIGN_MODEL_NAME)
-    if error_msg: return dbc.Alert(error_msg, color="danger"), None, True, 'tab-design'
     try:
-        design_response = design_model.generate_content(generate_design_prompt(target_organism, design_goals))
-        mermaid_graph, gene_df = parse_ai_response_for_design(design_response.text)
+        from ai_engine.services import generate_with_pool
+        design_text, _key, _prov = generate_with_pool(
+            generate_design_prompt(target_organism, design_goals),
+            service_name='Google Gemini')
+        mermaid_graph, gene_df = parse_ai_response_for_design(design_text)
     except Exception as e:
         return dbc.Alert(f"Tasarım oluşturulurken hata: {e}", color="danger"), None, True, 'tab-design'
 
@@ -173,11 +154,6 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
         dbc.Alert("Devre şeması oluşturulamadı.", color="warning")]
     if gene_df is None or gene_df.empty:
         output_components.append(dbc.Alert("Kritik genler bulunamadı.", color="info"))
-        return output_components, None, True, 'tab-design'
-
-    sequence_model, error_msg = get_gemini_model(SEQUENCE_MODEL_NAME)
-    if error_msg:
-        output_components.append(dbc.Alert(error_msg, color="danger"))
         return output_components, None, True, 'tab-design'
 
     sequences_to_store = {}
@@ -188,8 +164,10 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
         except KeyError:
             continue
         try:
-            seq_response = sequence_model.generate_content(generate_sequence_design_prompt(gene_name, organism))
-            protein_fasta, nucleotide_fasta = parse_ai_fasta_sequence(seq_response.text)
+            seq_text, _key, _prov = generate_with_pool(
+                generate_sequence_design_prompt(gene_name, organism),
+                service_name='Google Gemini')
+            protein_fasta, nucleotide_fasta = parse_ai_fasta_sequence(seq_text)
         except Exception as e:
             protein_fasta, nucleotide_fasta = f">protein|error|{gene_name}\n{e}", f">nucleotide|error|{gene_name}"
         sequences_to_store[gene_name] = {'protein': protein_fasta, 'nucleotide': nucleotide_fasta}
