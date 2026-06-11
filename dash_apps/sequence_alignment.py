@@ -63,7 +63,7 @@ def get_alignment_interpretation(fasta_data):
         Cevabını Markdown formatında, başlıklar kullanarak düzenli bir şekilde ver.
         """
 
-        text, _key, _prov = generate_with_pool(prompt, service_name='Google Gemini')
+        text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
         return text
 
     except Exception as e:

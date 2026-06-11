@@ -180,7 +180,7 @@ def get_ai_report(protein_name, organism):
         f"Lütfen '{protein_name}' ({organism}) proteini hakkında bilinen biyolojik fonksiyonlarını, hücresel konumunu ve varsa önemli mutasyonlarını özetleyen, tamamen Türkçe ve bilimsel bir rapor oluştur. Cevabını Markdown formatında, başlıklar kullanarak düzenle.")
     try:
         from ai_engine.services import generate_with_pool
-        text, _key, _prov = generate_with_pool(prompt, service_name="Google Gemini")
+        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-2.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
         return None, f"Yapay zeka analizi sırasında hata: {e}"
@@ -216,7 +216,7 @@ def get_ai_removal_analysis(pdb_content, removed_items):
     """
     try:
         from ai_engine.services import generate_with_pool
-        text, _key, _prov = generate_with_pool(prompt, service_name="Google Gemini")
+        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-2.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
         return None, f"Yapay zeka analizi sırasında hata: {e}"

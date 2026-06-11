@@ -1,15 +1,23 @@
 """
-Otomatik makale üretimi — komut satırından veya zamanlanmış görevle (PythonAnywhere Tasks) çalışır.
+Otomatik makale üretimi — komut satırından veya zamanlanmış görevle çalışır.
+
+API Anahtarı Havuzu: Belirtilen servisin tüm aktif anahtarlarını "en az
+kullanılan önce" sırasıyla dener. Bir anahtar kota/hata verirse otomatik
+olarak havuzdaki sıradaki anahtara geçer. Üretim, bir anahtar başarılı
+olana kadar devam eder.
 
 Kullanım:
-    # Rastgele konu, varsayılan API ve uzunluk
+    # Rastgele konu, Gemini havuzundan üret
     python manage.py generate_article
 
     # Belirli konu
     python manage.py generate_article --topic "Kuantum bilgisayarların geleceği"
 
-    # API ve uzunluk belirterek
-    python manage.py generate_article --api-id 1 --length 2500
+    # Uzunluk belirterek
+    python manage.py generate_article --length 2500
+
+    # Farklı servis havuzu (OpenAI / Anthropic)
+    python manage.py generate_article --service OpenAI
 
     # Sahibi belirterek (varsayılan: ilk superuser)
     python manage.py generate_article --owner admin
@@ -19,11 +27,10 @@ import random
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User
 
-from blog.models import GeneratedArticle, Category, APIKey
-from dash_apps.generate import run_ai_generation
+from blog.models import GeneratedArticle, Category
+from dash_apps.generate import run_ai_generation_with_pool
 
 
-# Otomatik üretimde rastgele seçilecek konu havuzu
 DEFAULT_TOPICS = [
     "Yapay zekanın sağlık sektöründeki dönüştürücü etkileri",
     "Kuantum bilgisayarların kriptografi üzerindeki etkisi",
@@ -39,35 +46,26 @@ DEFAULT_TOPICS = [
 
 
 class Command(BaseCommand):
-    help = "AI ile otomatik makale üretir ve veritabanına kaydeder."
+    help = "AI anahtarı havuzu ile otomatik makale üretir ve kaydeder."
 
     def add_arguments(self, parser):
         parser.add_argument('--topic', type=str, default=None,
                             help='Makale konusu (boşsa havuzdan rastgele seçilir)')
-        parser.add_argument('--api-id', type=int, default=None,
-                            help='Kullanılacak APIKey ID (boşsa ilk aktif anahtar)')
         parser.add_argument('--length', type=int, default=1500,
                             help='Makale uzunluğu (kelime). Varsayılan 1500')
         parser.add_argument('--owner', type=str, default=None,
                             help='Makale sahibi kullanıcı adı (boşsa ilk superuser)')
+        parser.add_argument('--service', type=str, default='Google Gemini',
+                            help='Kullanılacak servis havuzu (varsayılan: Google Gemini)')
+        parser.add_argument('--model', type=str, default=None,
+                            help='Model adı (boşsa sağlayıcının ilk aktif modeli)')
 
     def handle(self, *args, **options):
         # 1. Konu
         topic = options['topic'] or random.choice(DEFAULT_TOPICS)
         self.stdout.write(f"Konu: {topic}")
 
-        # 2. API anahtarı
-        api_id = options['api_id']
-        if api_id:
-            api_obj = APIKey.objects.filter(model_name="gemini-2.5-flash", is_active=True).first()
-        else:
-            api_obj = APIKey.objects.filter(is_active=True, model_name="gemini-2.5-flash").first()
-        if not api_obj:
-            raise CommandError("Aktif bir API anahtarı bulunamadı. "
-                               "Admin panelinden bir APIKey ekleyin.")
-        self.stdout.write(f"API: {api_obj.service_name} (id={api_obj.id})")
-
-        # 3. Sahip
+        # 2. Sahip
         owner_name = options['owner']
         if owner_name:
             owner = User.objects.filter(username=owner_name).first()
@@ -79,22 +77,29 @@ class Command(BaseCommand):
                 raise CommandError("Hiç superuser yok. Önce createsuperuser çalıştırın.")
         self.stdout.write(f"Sahip: {owner.username}")
 
-        # 4. Üretim
+        # 3. Üretim — API havuzu ile (fallback)
         length = options['length']
-        self.stdout.write(f"Üretiliyor ({length} kelime)... bu biraz sürebilir.")
+        service = options['service']
+        model = options['model']
+        self.stdout.write(f"Üretiliyor ({length} kelime, {service} havuzu)... "
+                          "bu biraz sürebilir.")
         try:
-            ai_data = run_ai_generation(topic, api_obj.id, length)
+            ai_data, used_key = run_ai_generation_with_pool(
+                topic, word_count=length, service_name=service, model_name=model)
         except Exception as e:
             raise CommandError(f"AI üretim hatası: {e}")
+
+        self.stdout.write(self.style.SUCCESS(
+            f"✓ Üretim başarılı — anahtar #{used_key.id}"))
 
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise CommandError("AI'dan beklenen formatta yanıt alınamadı.")
 
-        # 5. Kategori
+        # 4. Kategori
         category_name = ai_data.get("category_name", "Genel").strip().title()
         category_obj, _ = Category.objects.get_or_create(name=category_name)
 
-        # 6. Kayıt
+        # 5. Kayıt
         article = GeneratedArticle.objects.create(
             owner=owner,
             user_request=topic,
@@ -110,5 +115,6 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS(
-            f"✓ Makale üretildi: '{article.title}' (id={article.id}, kategori={category_name})"
+            f"✓ Makale üretildi: '{article.title}' "
+            f"(id={article.id}, kategori={category_name})"
         ))

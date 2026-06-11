@@ -3,16 +3,27 @@ ai_engine.services — Genel amaçlı yapay zeka motoru.
 
 Tüm site bu modülü import ederek AI çağrısı yapar.
 
-Ana giriş noktaları:
-  generate(prompt, service_name=...)             -> str
-  generate_with_pool(prompt, service_name=...)   -> (str, key, provider)
-  generate_json(prompt, ...)                      -> dict
-  generate_json_with_pool(prompt, ...)           -> (dict, key, provider)
+Mimari:
+  Provider (sağlayıcı) → API anahtarı havuzu (model'den bağımsız)
+                       → birden çok Model (gemini-2.5-flash, ...)
 
-Örnek:
+Ana giriş noktaları:
+  generate_with_pool(prompt, service_name=..., model_name=...)  -> (str, key)
+      Sağlayıcının anahtar havuzunu 'en az kullanılan önce' dener; biri
+      hata verirse (429/kota) diğerine geçer. model_name verilmezse
+      sağlayıcının ilk aktif modeli kullanılır.
+
+  generate_json_with_pool(...) -> (dict, key)
+      Yanıtı JSON olarak ayrıştırır.
+
+Örnek (bio-tool, model sabit):
     from ai_engine.services import generate_with_pool
-    text, key, prov = generate_with_pool("Kısa bir şiir yaz",
-                                         service_name="Google Gemini")
+    text, key = generate_with_pool("Özetle...", service_name="Google Gemini",
+                                   model_name="gemini-2.5-flash")
+
+Örnek (makale, kullanıcı modeli seçti):
+    text, key = generate_with_pool(prompt, service_name="Google Gemini",
+                                   model_name=secilen_model)
 """
 import json
 import re
@@ -81,71 +92,67 @@ def _call_service(service_name, model_name, api_key, prompt,
     raise ValueError(f"Bilinmeyen servis: {service_name}")
 
 
-def generate(prompt, service_name="Google Gemini", system_prompt=None,
-             max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE,
-             api_key=None, model_name=None):
+def _resolve_model_name(provider, model_name=None):
     """
-    Ham prompt çalıştırır, düz metin döndürür (havuzsuz, tek anahtar).
-
-    api_key + model_name verilirse doğrudan kullanır; verilmezse DB'den
-    ilgili servisin aktif bir anahtarını çeker.
+    model_name verilmemişse sağlayıcının ilk aktif modelini seçer.
+    Verilmişse aynen döndürür (kodda sabit kullanım için).
     """
-    if not api_key or not model_name:
-        from ai_engine.models import APIKey
-        key_obj = APIKey.get_active_key(service_name)
-        if not key_obj:
-            raise RuntimeError(
-                f"'{service_name}' için aktif bir API anahtarı bulunamadı.")
-        api_key = key_obj.key
-        model_name = key_obj.provider.model_name
-    return _call_service(service_name, model_name, api_key, prompt,
-                         system_prompt, max_tokens, temperature)
+    if model_name:
+        return model_name
+    first = provider.ai_models.filter(is_active=True).order_by('id').first()
+    if not first:
+        raise ValueError(
+            f"'{provider.service_name}' için aktif bir model tanımı yok. "
+            "Admin panelinden model ekleyin.")
+    return first.model_name
 
 
-def generate_with_pool(prompt, service_name="Google Gemini", system_prompt=None,
-                       max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE,
-                       safety_settings=None):
+def generate_with_pool(prompt, service_name="Google Gemini", model_name=None,
+                       system_prompt=None, max_tokens=DEFAULT_MAX_TOKENS,
+                       temperature=DEFAULT_TEMPERATURE, safety_settings=None):
     """
-    Havuz/fallback ile üretir. İlgili servisin aktif Provider'larını ve
-    her birinin aktif anahtarlarını 'en az kullanılan önce' sırasıyla dener.
-    Bir anahtar hata verirse (kota/429) sıradakine geçer. Başarılı olanın
-    usage_count'u artırılır.
+    Havuz/fallback ile üretir.
 
-    Döner: (text, used_key, used_provider)
+    İlgili sağlayıcının aktif anahtarlarını 'en az kullanılan önce' sırasıyla
+    dener. Bir anahtar hata verirse (kota/429) sıradakine geçer. Başarılı
+    olanın usage_count'u artırılır.
+
+    model_name verilmezse sağlayıcının ilk aktif modeli kullanılır.
+
+    Döner: (text, used_key)
     """
     from django.utils import timezone
     from ai_engine.models import Provider
 
-    providers = list(Provider.objects.filter(
-        service_name=service_name, is_active=True))
-    if not providers:
-        raise ValueError(
-            f"'{service_name}' için aktif bir sağlayıcı/model tanımı yok.")
+    try:
+        provider = Provider.objects.get(service_name=service_name, is_active=True)
+    except Provider.DoesNotExist:
+        raise ValueError(f"'{service_name}' adlı aktif bir sağlayıcı yok.")
+
+    resolved_model = _resolve_model_name(provider, model_name)
+
+    keys = list(provider.api_keys.filter(is_active=True).order_by('usage_count', 'id'))
+    if not keys:
+        raise ValueError(f"'{service_name}' sağlayıcısında hiç aktif anahtar yok.")
 
     last_error = None
-    tried = 0
-    for provider in providers:
-        keys = list(provider.api_keys.filter(is_active=True).order_by('usage_count', 'id'))
-        for key_obj in keys:
-            tried += 1
-            try:
-                text = _call_service(
-                    provider.service_name, provider.model_name, key_obj.key,
-                    prompt, system_prompt, max_tokens, temperature, safety_settings)
-                key_obj.usage_count = (key_obj.usage_count or 0) + 1
-                key_obj.last_used = timezone.now()
-                key_obj.save(update_fields=['usage_count', 'last_used'])
-                return text, key_obj, provider
-            except Exception as e:
-                last_error = e
-                print(f"[ai_engine] {provider.service_name}/{provider.model_name} "
-                      f"anahtar #{key_obj.id} başarısız: {e}")
-                continue
+    for key_obj in keys:
+        try:
+            text = _call_service(
+                service_name, resolved_model, key_obj.key,
+                prompt, system_prompt, max_tokens, temperature, safety_settings)
+            key_obj.usage_count = (key_obj.usage_count or 0) + 1
+            key_obj.last_used = timezone.now()
+            key_obj.save(update_fields=['usage_count', 'last_used'])
+            return text, key_obj
+        except Exception as e:
+            last_error = e
+            print(f"[ai_engine] {service_name}/{resolved_model} "
+                  f"anahtar #{key_obj.id} başarısız: {e}")
+            continue
 
-    if tried == 0:
-        raise ValueError(f"'{service_name}' sağlayıcısında hiç aktif anahtar yok.")
     raise RuntimeError(
-        f"Havuzdaki {tried} anahtarın tümü başarısız oldu. Son hata: {last_error}")
+        f"Havuzdaki {len(keys)} anahtarın tümü başarısız oldu. Son hata: {last_error}")
 
 
 def _parse_json(text):
@@ -159,14 +166,8 @@ def _parse_json(text):
     return json.loads(cleaned)
 
 
-def generate_json(prompt, service_name="Google Gemini", **kwargs):
-    """generate() çağırır, yanıtı JSON dict olarak döndürür."""
-    text = generate(prompt, service_name=service_name, **kwargs)
-    return _parse_json(text)
-
-
-def generate_json_with_pool(prompt, service_name="Google Gemini", **kwargs):
-    """generate_with_pool() çağırır, (dict, key, provider) döndürür."""
-    text, key_obj, provider = generate_with_pool(
-        prompt, service_name=service_name, **kwargs)
-    return _parse_json(text), key_obj, provider
+def generate_json_with_pool(prompt, service_name="Google Gemini", model_name=None, **kwargs):
+    """generate_with_pool() çağırır, (dict, key) döndürür."""
+    text, key_obj = generate_with_pool(
+        prompt, service_name=service_name, model_name=model_name, **kwargs)
+    return _parse_json(text), key_obj

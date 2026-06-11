@@ -163,8 +163,8 @@ def _research(query):
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
-    text, _key, _prov = generate_with_pool(
-        _build_prompt(query), service_name="Google Gemini",
+    text, _key = generate_with_pool(
+        _build_prompt(query), service_name="Google Gemini", model_name="gemini-2.5-flash",
         safety_settings=safety)
     return _parse_json(text)
 

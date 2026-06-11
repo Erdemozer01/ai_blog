@@ -143,9 +143,9 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
 
     try:
         from ai_engine.services import generate_with_pool
-        design_text, _key, _prov = generate_with_pool(
+        design_text, _key = generate_with_pool(
             generate_design_prompt(target_organism, design_goals),
-            service_name='Google Gemini')
+            service_name='Google Gemini', model_name='gemini-2.5-flash')
         mermaid_graph, gene_df = parse_ai_response_for_design(design_text)
     except Exception as e:
         return dbc.Alert(f"Tasarım oluşturulurken hata: {e}", color="danger"), None, True, 'tab-design'
@@ -164,9 +164,9 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
         except KeyError:
             continue
         try:
-            seq_text, _key, _prov = generate_with_pool(
+            seq_text, _key = generate_with_pool(
                 generate_sequence_design_prompt(gene_name, organism),
-                service_name='Google Gemini')
+                service_name='Google Gemini', model_name='gemini-2.5-flash')
             protein_fasta, nucleotide_fasta = parse_ai_fasta_sequence(seq_text)
         except Exception as e:
             protein_fasta, nucleotide_fasta = f">protein|error|{gene_name}\n{e}", f">nucleotide|error|{gene_name}"

@@ -1,11 +1,8 @@
 import re, json
 import dash_bootstrap_components as dbc
-import openai
 from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html
 from datetime import date
-import google.generativeai as genai
-import anthropic
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
@@ -48,65 +45,40 @@ def get_base_prompt(user_request_text, word_count=1500):
     """
 
 
-def run_ai_generation(user_request_text, api_key_id, word_count=1500):
-    """Seçilen AI servisine göre makale üretimini çalıştırır."""
-    from blog.models import APIKey
-    try:
-        api_key_object = APIKey.objects.get(id=api_key_id, is_active=True)
-    except APIKey.DoesNotExist:
-        raise ValueError("Seçilen API anahtarı bulunamadı veya aktif değil.")
+def run_ai_generation_with_pool(user_request_text, word_count=1500,
+                                service_name="Google Gemini", model_name=None):
+    """
+    Makale üretimini ai_engine havuzu ile çalıştırır.
 
-    response_text = ""
+    ai_engine.services.generate_with_pool kullanır: seçilen sağlayıcının
+    anahtar havuzunu 'en az kullanılan önce' dener, biri hata verirse
+    (429/kota) diğerine geçer. model_name verilirse o model kullanılır,
+    verilmezse sağlayıcının ilk aktif modeli.
+
+    Döner: (ai_data dict, used_key)
+    """
+    from ai_engine.services import generate_with_pool
+
     base_prompt = get_base_prompt(user_request_text, word_count)
-
-    # Kelime sayısına göre token bütçesi (~1 kelime ≈ 1.5 token + JSON/kaynakça payı)
+    system_prompt = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
+                     "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
+                     "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "
+                     "konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, "
+                     "yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen "
+                     "8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka "
+                     "hiçbir açıklama olmadan sunmalısın.")
     max_tokens = min(int(word_count * 2.2) + 2000, 16384)
 
-    if api_key_object.service_name == 'Google Gemini':
-        genai.configure(api_key=api_key_object.key)
-        generation_config = {"temperature": 0.7, "max_output_tokens": max_tokens}
-        model = genai.GenerativeModel(model_name=api_key_object.model_name, generation_config=generation_config)
+    response_text, used_key = generate_with_pool(
+        base_prompt, service_name=service_name, model_name=model_name,
+        system_prompt=system_prompt, max_tokens=max_tokens, temperature=0.7)
 
-        system_prompt = "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak."
-        full_prompt = f"{system_prompt}\n\n{base_prompt}"
+    ai_data = _parse_article_response(response_text)
+    return ai_data, used_key
 
-        response = model.generate_content(full_prompt)
-        response_text = response.text
 
-    elif api_key_object.service_name == 'OpenAI':
-        client = openai.OpenAI(api_key=api_key_object.key)
-        messages = [
-            {
-                "role": "system",
-                "content": "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen 8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka hiçbir açıklama olmadan sunmalısın."
-            },
-            {
-                "role": "user",
-                "content": base_prompt
-            }
-        ]
-        response = client.chat.completions.create(
-            model=api_key_object.model_name,
-            messages=messages,
-            max_tokens=max_tokens,
-        )
-        response_text = response.choices[0].message.content
-
-    elif api_key_object.service_name == 'Anthropic':
-        client = anthropic.Anthropic(api_key=api_key_object.key)
-        system_prompt = "Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen 8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka hiçbir açıklama olmadan sunmalısın."
-
-        response = client.messages.create(
-            model=api_key_object.model_name,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": base_prompt}
-            ],
-            max_tokens=max_tokens,
-        )
-
-        response_text = response.content[0].text
-
+def _parse_article_response(response_text):
+    """AI'dan gelen 8 bölümlü metni ayrıştırıp temizlenmiş dict döndürür."""
     parts = response_text.split('_||_SECTION_BREAK_||_')
 
     structured_data_json = None
@@ -160,7 +132,7 @@ def run_ai_generation(user_request_text, api_key_id, word_count=1500):
     State('article-length-dropdown', 'value'),  # YENİ: Makale uzunluğu
     prevent_initial_call=True
 )
-def handle_form_submission(n_clicks, request_text, user_data, selected_api_id, article_length):  # YENİ: Parametre eklendi
+def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length):
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
     if not user_data or 'user_id' not in user_data:
@@ -168,15 +140,22 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_api_id, a
     if not request_text or len(request_text.strip()) < 10:
         return dbc.Alert("Lütfen en az 10 karakterlik bir konu girin.", color="warning"), no_update
 
-    # YENİ: AI servisi seçilip seçilmediğini kontrol et
-    if not selected_api_id:
-        return dbc.Alert("Lütfen bir yapay zeka servisi seçin.", color="warning"), no_update
+    if not selected_value:
+        return dbc.Alert("Lütfen bir yapay zeka modeli seçin.", color="warning"), no_update
+
+    # Dropdown değeri "service_name|model_name" formatında
+    if '|' in selected_value:
+        selected_service, selected_model = selected_value.split('|', 1)
+    else:
+        selected_service, selected_model = selected_value, None
 
     try:
         user = User.objects.get(id=user_data['user_id'])
 
-        # Güncellenmiş fonksiyonu çağır
-        ai_data = run_ai_generation(request_text, selected_api_id, article_length or 1500)
+        # Havuz ile üret — seçilen modelin sağlayıcı anahtarlarını sırayla dener
+        ai_data, used_key = run_ai_generation_with_pool(
+            request_text, word_count=article_length or 1500,
+            service_name=selected_service, model_name=selected_model)
 
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")

@@ -65,7 +65,6 @@ def create_main_navbar(request):
 
             dbc.DropdownMenuItem(divider=True),
 
-
             # --- Hassas Tıp ---
             dbc.DropdownMenuItem("Hassas Tıp", header=True),
             dbc.DropdownMenuItem("Farmakogenomik Analiz", href=reverse('bio_tools:pharmacogenomics'),
@@ -501,18 +500,26 @@ def generate_article_view(request):
             redirect_url = reverse('admin:blog_profile_add') + f'?user={request.user.id}'
         return redirect(redirect_url)
 
-    # Aktif API anahtarlarını veritabanından çek
-    active_api_keys = APIKey.objects.filter(is_active=True)
-    if not active_api_keys:
-        messages.error(request, "Sistemde aktif bir AI Servis anahtarı bulunamadı. Lütfen admin panelinden ekleyin.")
-        # Burada anasayfaya veya başka bir uygun sayfaya yönlendirebilirsiniz
-        return redirect('blog:anasayfa')
+    # Aktif sağlayıcı + modelleri çek — her model bir dropdown seçeneği
+    from ai_engine.models import Provider
+    active_providers = Provider.objects.filter(is_active=True)
 
-    # Dropdown için seçenekleri oluştur
-    api_options = [
-        {'label': f"{key.service_name} - {key.model_name}", 'value': key.id}
-        for key in active_api_keys
-    ]
+    # Dropdown seçenekleri: yalnızca aktif anahtarı OLAN sağlayıcıların
+    # aktif modelleri. value = "service_name|model_name"
+    api_options = []
+    for p in active_providers:
+        if p.active_key_count < 1:
+            continue
+        for m in p.ai_models.filter(is_active=True).order_by('model_name'):
+            label_model = m.label or m.model_name
+            api_options.append({
+                'label': f"{p.service_name} - {label_model} ({p.active_key_count} anahtar)",
+                'value': f"{p.service_name}|{m.model_name}",
+            })
+
+    if not api_options:
+        messages.error(request, "Sistemde aktif bir sağlayıcı/model/anahtar bulunamadı. Lütfen admin panelinden ekleyin.")
+        return redirect('blog:anasayfa')
 
     main_navbar = create_main_navbar(request) # Bu fonksiyonun sizde olduğunu varsayıyorum.
 
@@ -665,3 +672,5 @@ def article_search_view(request):
 
     # 5. Dash uygulamasını içeren template'i render et
     return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
+
+

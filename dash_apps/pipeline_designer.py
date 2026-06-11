@@ -186,7 +186,7 @@ def handle_pipeline_generation(n_clicks, pipeline_goal):
     try:
         from ai_engine.services import generate_with_pool
         prompt = generate_pipeline_prompt(pipeline_goal)
-        response_text, _key, _prov = generate_with_pool(prompt, service_name='Google Gemini')
+        response_text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
         mermaid_graph, steps_df, code_snippets = parse_pipeline_response(response_text)
     except Exception as e:
         return dbc.Alert(f"Pipeline tasarımı oluşturulurken bir hata oluştu: {e}", color="danger")
