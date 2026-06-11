@@ -513,7 +513,7 @@ def generate_article_view(request):
         for m in p.ai_models.filter(is_active=True).order_by('model_name'):
             label_model = m.label or m.model_name
             api_options.append({
-                'label': f"{p.service_name} - {label_model} ({p.active_key_count} anahtar)",
+                'label': f"{p.service_name} - {label_model}",
                 'value': f"{p.service_name}|{m.model_name}",
             })
 
@@ -672,5 +672,3 @@ def article_search_view(request):
 
     # 5. Dash uygulamasını içeren template'i render et
     return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
-
-
