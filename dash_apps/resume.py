@@ -24,6 +24,23 @@ def create_resume_layout(profile):
     educations = profile.education.all().order_by('-graduation_year')
     skills = profile.skills.all().order_by('-level')
 
+    # Profil sahibinin ürettiği makaleler (en yeni önce)
+    from blog.models import GeneratedArticle
+    articles = GeneratedArticle.objects.filter(
+        owner=profile.user).order_by('-created_at')
+
+    # Makale bölümünü oluştur — başlık + tarih + makaleye link
+    article_section = [
+        html.Div([
+            html.A(art.title or "Başlıksız Makale",
+                   href=art.get_absolute_url(),
+                   className="fw-bold text-decoration-none",
+                   style={'fontSize': '1.05rem'}),
+            html.P(html.Em(art.created_at.strftime('%d.%m.%Y')),
+                   className="text-muted mb-0", style={'fontSize': '0.85rem'}),
+        ], className="mb-3 pb-2 border-bottom") for art in articles
+    ]
+
     # Deneyim bölümünü oluştur
     experience_section = [
         html.Div([
@@ -78,6 +95,8 @@ def create_resume_layout(profile):
                 html.H2("Deneyim"), experience_section if experience_section else [html.P("İş deneyimi eklenmemiş.")],
                 html.Hr(className="my-4"),
                 html.H2("Eğitim"), education_section if education_section else [html.P("Eğitim bilgisi eklenmemiş.")],
+                html.Hr(className="my-4"),
+                html.H2("Makaleler"), article_section if article_section else [html.P("Henüz makale üretilmemiş.")],
             ], md=8),
             dbc.Col([html.H2("Yetenekler"), html.Hr(className="my-4"),
                      skills_section if skills_section else [html.P("Yetenek eklenmemiş.")]], md=4),
