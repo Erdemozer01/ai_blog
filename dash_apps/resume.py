@@ -40,16 +40,23 @@ def create_resume_layout(profile):
             return f"/article/{art.id}/{slug}/"
 
     # Makale bölümünü oluştur — başlık + tarih + makaleye link
-    article_section = [
-        html.Div([
-            html.A(art.title or "Başlıksız Makale",
-                   href=_article_url(art),
-                   className="fw-bold text-decoration-none",
-                   style={'fontSize': '1.05rem'}),
-            html.P(html.Em(art.created_at.strftime('%d.%m.%Y')),
-                   className="text-muted mb-0", style={'fontSize': '0.85rem'}),
-        ], className="mb-3 pb-2 border-bottom") for art in articles
-    ]
+    article_items = []
+    for art in articles:
+        try:
+            tarih = art.created_at.strftime('%d.%m.%Y') if art.created_at else ""
+            baslik = str(art.title) if art.title else "Başlıksız Makale"
+            article_items.append(
+                html.Div([
+                    html.A(baslik, href=_article_url(art),
+                           className="fw-bold text-decoration-none",
+                           style={'fontSize': '1.05rem'}),
+                    html.Br(),
+                    html.Small(tarih, className="text-muted"),
+                ], className="mb-3 pb-2 border-bottom")
+            )
+        except Exception:
+            continue
+    article_section = html.Div(article_items) if article_items else html.P("Henüz makale üretilmemiş.")
 
     # Deneyim bölümünü oluştur
     experience_section = [
@@ -106,7 +113,7 @@ def create_resume_layout(profile):
                 html.Hr(className="my-4"),
                 html.H2("Eğitim"), education_section if education_section else [html.P("Eğitim bilgisi eklenmemiş.")],
                 html.Hr(className="my-4"),
-                html.H2("Makaleler"), article_section if article_section else [html.P("Henüz makale üretilmemiş.")],
+                html.H2("Makaleler"), article_section,
             ], md=8),
             dbc.Col([html.H2("Yetenekler"), html.Hr(className="my-4"),
                      skills_section if skills_section else [html.P("Yetenek eklenmemiş.")]], md=4),
