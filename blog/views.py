@@ -84,10 +84,12 @@ def create_main_navbar(request):
     if request.user.is_authenticated:
         # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
-        if request.user.is_superuser:
+        if request.user.is_superuser or request.user.is_staff:
             dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href=reverse('blog:generate_article'), external_link=True))
+        if request.user.is_superuser:
             dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href=reverse('blog:admin_dashboard'), external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem("Django Admin", href="/admin/", external_link=True))
+        if request.user.is_superuser or request.user.is_staff:
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
         dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
@@ -107,6 +109,7 @@ def create_main_navbar(request):
     else:
         # --- KULLANICI GİRİŞ YAPMAMIŞSA ---
         nav_items.append(dbc.NavItem(dbc.NavLink("Giriş Yap", href="/admin/login/", external_link=True)))
+        nav_items.append(dbc.NavItem(dbc.NavLink("Kayıt Ol", href=reverse('blog:register'), external_link=True)))
 
     # Navbar'ın ana yapısı
     navbar = dbc.Navbar(
@@ -483,7 +486,7 @@ def download_article_as_pdf(request, article_id):
 
 @login_required
 def generate_article_view(request):
-    if not request.user.is_superuser:
+    if not (request.user.is_superuser or request.user.is_staff):
         messages.error(request, "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
         return redirect('anasayfa')
 
@@ -625,6 +628,28 @@ def contact_view(request):
 def custom_logout_view(request):
     logout(request)
     return redirect('blog:anasayfa')
+
+
+def register_view(request):
+    """Yeni kullanıcı kaydı (e-posta + şifre). Kayıt sonrası otomatik giriş."""
+    from django.contrib.auth import login
+    from .forms import SignUpForm
+
+    # Zaten giriş yapmışsa anasayfaya
+    if request.user.is_authenticated:
+        return redirect('blog:anasayfa')
+
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, f"Hoş geldiniz, {user.username}! Kaydınız oluşturuldu.")
+            return redirect('blog:anasayfa')
+    else:
+        form = SignUpForm()
+
+    return render(request, 'registration/register.html', {'form': form})
 
 
 def robots_txt_view(request):

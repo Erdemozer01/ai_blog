@@ -19,13 +19,12 @@ urlpatterns = [
     path('contact/', views.contact_view, name='contact'),
 
     path('logout/', views.custom_logout_view, name='logout'),
+    path('register/', views.register_view, name='register'),
 
     path('robots.txt', views.robots_txt_view, name='robots_txt'),
 
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
 
     path('search-articles/', views.article_search_view, name='article_search'),
-
-    path('logout/', views.custom_logout_view, name='logout'),
 
 ]

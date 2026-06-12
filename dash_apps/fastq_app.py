@@ -36,7 +36,7 @@ CHUNK_SIZE_MB = 10
 MAX_READS_TO_PROCESS = 100_000
 PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
-MAX_FILES = 5  # Maksimum karşılaştırılabilecek dosya sayısı
+MAX_FILES = 2  # Maksimum karşılaştırılabilecek dosya sayısı
 
 # Dash uygulaması
 app = dash.Dash(
@@ -581,10 +581,10 @@ app.layout = html.Div([
                     dbc.CardBody([
                         du.Upload(
                             id="du-upload",
-                            text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya)",
+                            text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya, 5 MB)",
                             filetypes=["fastq", "fq", "fastq.gz", "fq.gz", "gz"],
-                            max_file_size=100,  # 100MB
-                            chunk_size=10,
+                            max_file_size=5,  # 5 MB
+                            chunk_size=5,
                         ),
 
                         html.Div(id="upload-status", className="mt-2"),
@@ -769,7 +769,7 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
             file_name = file_info['name']
 
             # Analiz yap
-            quality_df, distributions, gc_data, base_counts, reads_processed, read_lengths = analyze_fastq(file_path)
+            quality_df, distributions, gc_data, base_counts, reads_processed, read_lengths = analyze_fastq(file_path, 2)
 
             # Özet istatistikler
             mean_quality = quality_df["Average Quality Score"].mean()

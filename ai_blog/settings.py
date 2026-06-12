@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'billing.apps.BillingConfig',
     'blog.apps.BlogConfig',
     'bio_tools.apps.BioToolsConfig',
     'ai_engine.apps.AiEngineConfig',
@@ -194,7 +195,7 @@ LOGGING = {
 }
 
 # FASTQ analiz dosya boyutu limiti (MB)
-FASTQ_MAX_FILE_SIZE_MB = 100
+FASTQ_MAX_FILE_SIZE_MB = 5
 
 # ==============================================================================
 # CANLI ORTAM AYARLARI (PRODUCTION)
