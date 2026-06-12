@@ -26,14 +26,24 @@ def create_resume_layout(profile):
 
     # Profil sahibinin ürettiği makaleler (en yeni önce)
     from blog.models import GeneratedArticle
+    from django.urls import reverse
     articles = GeneratedArticle.objects.filter(
         owner=profile.user).order_by('-created_at')
+
+    def _article_url(art):
+        """Slug boş olsa bile çalışan güvenli makale linki."""
+        slug = art.slug or "makale"
+        try:
+            return reverse('blog:article_detail',
+                           kwargs={'article_id': art.id, 'slug': slug})
+        except Exception:
+            return f"/article/{art.id}/{slug}/"
 
     # Makale bölümünü oluştur — başlık + tarih + makaleye link
     article_section = [
         html.Div([
             html.A(art.title or "Başlıksız Makale",
-                   href=art.get_absolute_url(),
+                   href=_article_url(art),
                    className="fw-bold text-decoration-none",
                    style={'fontSize': '1.05rem'}),
             html.P(html.Em(art.created_at.strftime('%d.%m.%Y')),

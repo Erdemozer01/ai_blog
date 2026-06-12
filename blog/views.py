@@ -90,7 +90,7 @@ def create_main_navbar(request):
             dropdown_items.append(dbc.DropdownMenuItem("Django Admin", href="/admin/", external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
-        dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume'), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
         dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href=reverse('blog:logout'), external_link=True))
 
@@ -633,9 +633,17 @@ def robots_txt_view(request):
 
 
 @login_required
-def resume_view(request):
+def resume_view(request, username=None):
     main_navbar = create_main_navbar(request)
-    profile = Profile.objects.filter(user=request.user).first()
+    # username verilmişse o kullanıcının profili (açık), yoksa giriş yapanın profili
+    if username:
+        from django.contrib.auth.models import User
+        target_user = User.objects.filter(username=username).first()
+        profile = Profile.objects.filter(user=target_user).first() if target_user else None
+    elif request.user.is_authenticated:
+        profile = Profile.objects.filter(user=request.user).first()
+    else:
+        profile = None
     resume_content = create_resume_layout(profile)
     full_layout = html.Div([main_navbar, resume_content])
     _resume_layout = full_layout

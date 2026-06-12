@@ -12,6 +12,7 @@ urlpatterns = [
     re_path(r'^article/(?P<article_id>[0-9]+)/(?P<slug>[^/]+)/$', views.article_detail_view, name='article_detail'),
 
     path('resume/', views.resume_view, name='resume'),
+    path('resume/<str:username>/', views.resume_view, name='resume_user'),
 
     path('generate-article/', views.generate_article_view, name='generate_article'),
 
