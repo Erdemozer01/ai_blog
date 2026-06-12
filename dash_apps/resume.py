@@ -59,38 +59,47 @@ def create_resume_layout(profile):
     article_section = html.Div(article_items) if article_items else html.P("Henüz makale üretilmemiş.")
 
     # Deneyim bölümünü oluştur
-    experience_section = [
+    experience_items = [
         html.Div([
             html.H5(exp.job_title, className="fw-bold"),
             html.P(html.Em(
                 f"{exp.company} | {exp.start_date.strftime('%Y-%m')} - {exp.end_date.strftime('%Y-%m') if exp.end_date else 'Halen'}"),
                    className="text-muted"),
-            # Açıklamayı satırlara bölerek liste yap
             html.Ul([html.Li(item.strip()) for item in exp.description.splitlines() if item.strip()])
         ], className="mb-4") for exp in experiences
     ]
+    experience_section = html.Div(experience_items) if experience_items else html.P("İş deneyimi eklenmemiş.")
 
     # Eğitim bölümünü oluştur
-    education_section = [
+    education_items = [
         html.Div([
             html.H5(edu.degree, className="fw-bold"),
             html.P(html.Em(f"{edu.institution} | {edu.graduation_year}"), className="text-muted"),
         ], className="mb-4") for edu in educations
     ]
+    education_section = html.Div(education_items) if education_items else html.P("Eğitim bilgisi eklenmemiş.")
 
     # Yetenekler bölümünü oluştur
-    skills_section = [
+    skills_items = [
         html.Div([
             html.P(skill.name, className="mb-1"),
             dbc.Progress(value=skill.level, color="primary", className="mb-3", style={'height': '12px'}),
         ]) for skill in skills
     ]
+    skills_section = html.Div(skills_items) if skills_items else html.P("Yetenek eklenmemiş.")
+
+    # Profil resmi (yoksa placeholder yerine boş data-uri kullan)
+    try:
+        _pic = profile.profile_picture.url if profile.profile_picture else None
+    except Exception:
+        _pic = None
+    _placeholder = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='150'%20height='150'%3E%3Crect%20width='150'%20height='150'%20fill='%23dee2e6'/%3E%3C/svg%3E"
 
     # Tüm parçaları birleştirerek layout'u döndür
     return dbc.Container([
         dbc.Row(dbc.Col(html.Div([
             html.Img(
-                src=profile.profile_picture.url if profile.profile_picture else "https://via.placeholder.com/150",
+                src=_pic or _placeholder,
                 className="rounded-circle mb-4 shadow-sm",
                 style={'width': '150px', 'height': '150px', 'object-fit': 'cover'}
             ),
@@ -108,15 +117,15 @@ def create_resume_layout(profile):
 
         dbc.Row([
             dbc.Col([
-                html.H2("Özet"), html.P(profile.summary), html.Hr(className="my-4"),
-                html.H2("Deneyim"), experience_section if experience_section else [html.P("İş deneyimi eklenmemiş.")],
+                html.H2("Özet"), html.P(profile.summary or ""), html.Hr(className="my-4"),
+                html.H2("Deneyim"), experience_section,
                 html.Hr(className="my-4"),
-                html.H2("Eğitim"), education_section if education_section else [html.P("Eğitim bilgisi eklenmemiş.")],
+                html.H2("Eğitim"), education_section,
                 html.Hr(className="my-4"),
                 html.H2("Makaleler"), article_section,
             ], md=8),
             dbc.Col([html.H2("Yetenekler"), html.Hr(className="my-4"),
-                     skills_section if skills_section else [html.P("Yetenek eklenmemiş.")]], md=4),
+                     skills_section], md=4),
         ])
     ], className="mt-4")
 
