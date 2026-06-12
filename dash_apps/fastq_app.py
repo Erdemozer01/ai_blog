@@ -5,18 +5,19 @@ Django ile entegre FASTQ Analiz Dash Uygulaması
 """
 import os
 import gzip
+import glob
 import pathlib
-from collections import deque
+import logging
 import uuid
+from collections import deque
 
 import dash
-from dash import dcc, html, Input, Output, State, no_update, ALL
+from dash import dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import dash_uploader as du
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from django.conf import settings
 
 try:
@@ -26,17 +27,33 @@ try:
 except ImportError:
     NUMPY_AVAILABLE = False
 
+logger = logging.getLogger(__name__)
+
 # Upload dizini
 UPLOAD_ROOT = getattr(settings, 'FASTQ_UPLOAD_DIR',
                       os.path.join(settings.MEDIA_ROOT, 'fastq_uploads'))
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
-# Sabitler
+# Analiz sabitleri
 CHUNK_SIZE_MB = 10
 MAX_READS_TO_PROCESS = 100_000
 PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
+
+# Upload sabitleri
 MAX_FILES = 2  # Maksimum karşılaştırılabilecek dosya sayısı
+MAX_FILE_SIZE_MB = 500  # Tek dosya için maks. boyut (MB)
+UPLOAD_CHUNK_SIZE_MB = 10
+
+# Batch karşılaştırma eşikleri
+QUAL_DIFF_CRITICAL = 5
+QUAL_DIFF_WARNING = 3
+GC_DIFF_CRITICAL = 10
+GC_DIFF_WARNING = 5
+LEN_RATIO_CRITICAL = 2.0
+LEN_RATIO_WARNING = 1.5
+READS_RATIO_WARNING = 10
+CHARGAFF_DIFF_THRESHOLD = 5
 
 # Dash uygulaması
 app = dash.Dash(
@@ -77,7 +94,7 @@ def is_gzip_file(path: str) -> bool:
     try:
         with open(path, "rb") as f:
             return f.read(2) == b'\x1f\x8b'
-    except Exception:
+    except (OSError, IOError):
         return False
 
 
@@ -95,7 +112,6 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
 
     estimated_read_length = 150
 
-    # Veri yapılarını başlat
     if NUMPY_AVAILABLE:
         sums = np.zeros(estimated_read_length, dtype=np.float64)
         counts = np.zeros(estimated_read_length, dtype=np.int64)
@@ -106,14 +122,13 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
     distributions = [[0] * PHRED_SCORE_RANGE for _ in range(estimated_read_length)]
     gc_contents = deque(maxlen=MAX_GC_SAMPLES)
     base_counts = {'A': 0, 'T': 0, 'G': 0, 'C': 0, 'N': 0}
-    read_lengths = []
+    read_lengths = deque(maxlen=MAX_GC_SAMPLES)
 
     read_count = 0
 
     try:
         with opener(path, "rt", errors='ignore') as fh:
             while read_count < max_reads:
-                # FASTQ bloğunu oku (4 satır)
                 header = fh.readline()
                 if not header:
                     break
@@ -133,7 +148,6 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
                 read_lengths.append(L_qual)
 
                 if L_qual > 0:
-                    # Dizileri genişlet
                     if NUMPY_AVAILABLE:
                         if len(sums) < L_qual:
                             extend_len = L_qual - len(sums)
@@ -166,19 +180,19 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
                                 counts[i] += 1
                                 distributions[i][q] += 1
 
-                # GC ve Baz İçeriği
+                # GC ve Baz İçeriği - tek geçişte
                 sequence = seq.strip().upper()
                 L_seq = len(sequence)
 
                 if L_seq > 0:
+                    gc_count = 0
                     for base in sequence:
                         if base in base_counts:
                             base_counts[base] += 1
-
-                    gc_count = sequence.count('G') + sequence.count('C')
+                            if base == 'G' or base == 'C':
+                                gc_count += 1
                     gc_contents.append((gc_count / L_seq) * 100)
 
-        # Ortalama kaliteleri hesapla
         if NUMPY_AVAILABLE:
             means = [float(s / c) if c > 0 else None for s, c in zip(sums, counts)]
         else:
@@ -189,10 +203,11 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
             "Average Quality Score": means
         })
 
-        return quality_df, distributions, list(gc_contents), base_counts, read_count, read_lengths
+        return quality_df, distributions, list(gc_contents), base_counts, read_count, list(read_lengths)
 
-    except Exception as e:
-        raise Exception(f"FASTQ işleme hatası: {str(e)}")
+    except (OSError, IOError, ValueError) as e:
+        logger.exception("FASTQ işleme hatası: %s", path)
+        raise RuntimeError(f"FASTQ işleme hatası: {str(e)}") from e
 
 
 # ------------------------------------------------------------------------------
@@ -203,7 +218,6 @@ def create_fastqc_style_plot(distributions_data, mean_data_df, title):
     """FastQC benzeri kutu (boxplot) ve çizgi grafiği oluşturur."""
     fig = go.Figure()
 
-    # Arka plan renk bölgeleri
     fig.add_shape(
         type="rect", xref="paper", x0=0, x1=1, yref="y", y0=0, y1=20,
         fillcolor="rgba(255, 0, 0, 0.2)", layer="below", line_width=0
@@ -298,18 +312,28 @@ def detect_batch_issues(batch_results):
     if len(batch_results) < 2:
         return warnings
 
-    # Metrikleri topla
     qualities = {name: r['mean_quality'] for name, r in batch_results.items()}
     gcs = {name: r['mean_gc'] for name, r in batch_results.items()}
     lengths = {name: r['mean_length'] for name, r in batch_results.items()}
     read_counts = {name: r['reads_processed'] for name, r in batch_results.items()}
+
+    # 0. Boş dosya kontrolü - en kritik durum
+    empty_files = [name for name, c in read_counts.items() if c == 0]
+    if empty_files:
+        warnings.append({
+            'level': 'danger',
+            'icon': 'fa-times-circle',
+            'title': 'Boş veya Bozuk Dosya',
+            'message': f"Hiç okuma içermeyen dosya(lar): {', '.join(empty_files)}. "
+                       f"Dosya bozuk veya yanlış formatta olabilir."
+        })
 
     # 1. Kalite Farkı Kontrolü
     max_qual = max(qualities.values())
     min_qual = min(qualities.values())
     qual_diff = max_qual - min_qual
 
-    if qual_diff > 5:
+    if qual_diff > QUAL_DIFF_CRITICAL:
         max_file = max(qualities, key=qualities.get)
         min_file = min(qualities, key=qualities.get)
         warnings.append({
@@ -320,7 +344,7 @@ def detect_batch_issues(batch_results):
                        f"En yüksek: {max_file} ({max_qual:.1f}), "
                        f"En düşük: {min_file} ({min_qual:.1f})"
         })
-    elif qual_diff > 3:
+    elif qual_diff > QUAL_DIFF_WARNING:
         warnings.append({
             'level': 'warning',
             'icon': 'fa-exclamation-circle',
@@ -333,7 +357,7 @@ def detect_batch_issues(batch_results):
     min_gc = min(gcs.values())
     gc_diff = max_gc - min_gc
 
-    if gc_diff > 10:
+    if gc_diff > GC_DIFF_CRITICAL:
         max_file = max(gcs, key=gcs.get)
         min_file = min(gcs, key=gcs.get)
         warnings.append({
@@ -344,7 +368,7 @@ def detect_batch_issues(batch_results):
                        f"En yüksek: {max_file} ({max_gc:.1f}%), "
                        f"En düşük: {min_file} ({min_gc:.1f}%)"
         })
-    elif gc_diff > 5:
+    elif gc_diff > GC_DIFF_WARNING:
         warnings.append({
             'level': 'warning',
             'icon': 'fa-dna',
@@ -357,7 +381,7 @@ def detect_batch_issues(batch_results):
     min_len = min(lengths.values())
     len_ratio = max_len / min_len if min_len > 0 else 0
 
-    if len_ratio > 2:
+    if len_ratio > LEN_RATIO_CRITICAL:
         max_file = max(lengths, key=lengths.get)
         min_file = min(lengths, key=lengths.get)
         warnings.append({
@@ -369,7 +393,7 @@ def detect_batch_issues(batch_results):
                        f"En kısa: {min_file} ({min_len:.0f} bp). "
                        f"Farklı teknolojiler mi kullanıldı?"
         })
-    elif len_ratio > 1.5:
+    elif len_ratio > LEN_RATIO_WARNING:
         warnings.append({
             'level': 'warning',
             'icon': 'fa-ruler',
@@ -378,34 +402,32 @@ def detect_batch_issues(batch_results):
         })
 
     # 4. Okuma Sayısı Dengesizliği
-    max_reads = max(read_counts.values())
-    min_reads = min(read_counts.values())
-    reads_ratio = max_reads / min_reads if min_reads > 0 else 0
+    non_empty_counts = {n: c for n, c in read_counts.items() if c > 0}
+    if len(non_empty_counts) >= 2:
+        max_reads = max(non_empty_counts.values())
+        min_reads = min(non_empty_counts.values())
+        reads_ratio = max_reads / min_reads
 
-    if reads_ratio > 10:
-        max_file = max(read_counts, key=read_counts.get)
-        min_file = min(read_counts, key=read_counts.get)
-        warnings.append({
-            'level': 'warning',
-            'icon': 'fa-balance-scale',
-            'title': 'Dengesiz Okuma Sayısı',
-            'message': f"Okuma sayıları {reads_ratio:.1f}x farklı! "
-                       f"En fazla: {max_file} ({max_reads:,}), "
-                       f"En az: {min_file} ({min_reads:,}). "
-                       f"Multiplexing problemi olabilir."
-        })
+        if reads_ratio > READS_RATIO_WARNING:
+            max_file = max(non_empty_counts, key=non_empty_counts.get)
+            min_file = min(non_empty_counts, key=non_empty_counts.get)
+            warnings.append({
+                'level': 'warning',
+                'icon': 'fa-balance-scale',
+                'title': 'Dengesiz Okuma Sayısı',
+                'message': f"Okuma sayıları {reads_ratio:.1f}x farklı! "
+                           f"En fazla: {max_file} ({max_reads:,}), "
+                           f"En az: {min_file} ({min_reads:,}). "
+                           f"Multiplexing problemi olabilir."
+            })
 
-    # 5. AT/GC Oranı Kontrolü (Base Composition)
+    # 5. AT/GC Oranı Kontrolü (Chargaff kuralı)
     for name, result in batch_results.items():
         base_pct = result['base_pct']
-        at_content = base_pct.get('A', 0) + base_pct.get('T', 0)
-        gc_content = base_pct.get('G', 0) + base_pct.get('C', 0)
-
-        # Chargaff kuralı: A≈T ve G≈C
         a_t_diff = abs(base_pct.get('A', 0) - base_pct.get('T', 0))
         g_c_diff = abs(base_pct.get('G', 0) - base_pct.get('C', 0))
 
-        if a_t_diff > 5 or g_c_diff > 5:
+        if a_t_diff > CHARGAFF_DIFF_THRESHOLD or g_c_diff > CHARGAFF_DIFF_THRESHOLD:
             warnings.append({
                 'level': 'warning',
                 'icon': 'fa-dna',
@@ -420,7 +442,7 @@ def detect_batch_issues(batch_results):
             'level': 'success',
             'icon': 'fa-check-circle',
             'title': 'Batchler Uyumlu',
-            'message': 'Tüm batchler benzer kalite ve kompozisyon gösteriyor.Birleştirilebilir.'
+            'message': 'Tüm batchler benzer kalite ve kompozisyon gösteriyor. Birleştirilebilir.'
         })
 
     return warnings
@@ -431,8 +453,8 @@ def create_batch_comparison_plots(batch_results):
 
     # 1. Kalite Karşılaştırma
     fig_quality = go.Figure()
-
     colors = px.colors.qualitative.Plotly
+
     for i, (file_name, result) in enumerate(batch_results.items()):
         quality_df = result['quality_df']
         fig_quality.add_trace(go.Scatter(
@@ -454,11 +476,9 @@ def create_batch_comparison_plots(batch_results):
 
     # 2. GC İçerik Karşılaştırma
     fig_gc = go.Figure()
-
-    for i, (file_name, result) in enumerate(batch_results.items()):
-        gc_data = result['gc_data']
+    for file_name, result in batch_results.items():
         fig_gc.add_trace(go.Histogram(
-            x=gc_data,
+            x=result['gc_data'],
             name=file_name,
             opacity=0.6,
             nbinsx=50
@@ -475,11 +495,9 @@ def create_batch_comparison_plots(batch_results):
 
     # 3. Read Length Karşılaştırma
     fig_length = go.Figure()
-
-    for i, (file_name, result) in enumerate(batch_results.items()):
-        read_lengths = result['read_lengths']
+    for file_name, result in batch_results.items():
         fig_length.add_trace(go.Violin(
-            y=read_lengths,
+            y=result['read_lengths'],
             name=file_name,
             box_visible=True,
             meanline_visible=True
@@ -570,8 +588,8 @@ app.layout = html.Div([
     create_static_navbar(),
 
     dbc.Container([
-        dcc.Store(id="files-store", data={}),  # {file_id: {path, name}}
-        dcc.Store(id="analysis-results-store", data={}),  # {file_name: analysis_result}
+        dcc.Store(id="files-store", data={}),
+        dcc.Store(id="analysis-results-store", data={}),
 
         dbc.Row([
             # Sol panel
@@ -581,10 +599,10 @@ app.layout = html.Div([
                     dbc.CardBody([
                         du.Upload(
                             id="du-upload",
-                            text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya, 5 MB)",
+                            text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya, {MAX_FILE_SIZE_MB} MB)",
                             filetypes=["fastq", "fq", "fastq.gz", "fq.gz", "gz"],
-                            max_file_size=5,  # 5 MB
-                            chunk_size=5,
+                            max_file_size=MAX_FILE_SIZE_MB,
+                            chunk_size=UPLOAD_CHUNK_SIZE_MB,
                         ),
 
                         html.Div(id="upload-status", className="mt-2"),
@@ -678,7 +696,7 @@ app.layout = html.Div([
     Input("navbar-toggler", "n_clicks"),
     State("navbar-collapse", "is_open"),
 )
-def toggle_navbar(n, is_open, **kwargs):
+def toggle_navbar(n, is_open):
     if n:
         return not is_open
     return is_open
@@ -698,21 +716,35 @@ def toggle_navbar(n, is_open, **kwargs):
         State("files-store", "data"),
     ],
 )
-def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
-    """MİNİMAL VERSİYON - En hızlı"""
+def handle_upload(is_completed, file_names, upload_id, current_files):
+    """Yüklenen dosyaları kaydet ve listele."""
     if current_files is None:
         current_files = {}
 
     if not is_completed or not file_names or not upload_id:
         return "Bekliyor...", current_files, [], True
 
-    folder = os.path.join(UPLOAD_ROOT, upload_id)
+    # MAX_FILES sınırı
+    if len(current_files) >= MAX_FILES:
+        files_list = dbc.ListGroup([
+            dbc.ListGroupItem(f"{info['name']} ({info['size_mb']:.1f} MB)")
+            for info in current_files.values()
+        ])
+        return (
+            dbc.Alert(
+                f"Maks. {MAX_FILES} dosya yüklenebilir. Yeni dosyalar reddedildi.",
+                color="warning"
+            ),
+            current_files,
+            files_list,
+            False,
+        )
 
-    # Hızlı yol: glob ile tek seferde
-    import glob
+    folder = os.path.join(UPLOAD_ROOT, upload_id)
     all_files = {os.path.basename(f): f for f in glob.glob(os.path.join(folder, '*'))}
 
     uploaded_count = 0
+    rejected_count = 0
     for file_name in file_names:
         if file_name not in all_files:
             continue
@@ -721,8 +753,17 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
         if any(f['name'] == file_name for f in current_files.values()):
             continue
 
+        # MAX_FILES tekrar kontrol (döngü içinde)
+        if len(current_files) >= MAX_FILES:
+            rejected_count += 1
+            continue
+
         file_path = all_files[file_name]
-        file_size = os.path.getsize(file_path)  # Tek stat call
+        try:
+            file_size = os.path.getsize(file_path)
+        except OSError as e:
+            logger.warning("Dosya boyutu okunamadı %s: %s", file_path, e)
+            continue
 
         current_files[str(uuid.uuid4())] = {
             'path': file_path,
@@ -731,16 +772,21 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
         }
         uploaded_count += 1
 
-    # Basit UI
     files_list = dbc.ListGroup([
         dbc.ListGroupItem(f"{info['name']} ({info['size_mb']:.1f} MB)")
         for info in current_files.values()
     ])
 
-    status = dbc.Alert(
-        f"✓ {uploaded_count} dosya yüklendi (Toplam: {len(current_files)})",
-        color="success" if uploaded_count > 0 else "info"
-    )
+    if rejected_count > 0:
+        status = dbc.Alert(
+            f"✓ {uploaded_count} dosya yüklendi, {rejected_count} dosya reddedildi (limit: {MAX_FILES}).",
+            color="warning"
+        )
+    else:
+        status = dbc.Alert(
+            f"✓ {uploaded_count} dosya yüklendi (Toplam: {len(current_files)})",
+            color="success" if uploaded_count > 0 else "info"
+        )
 
     return status, current_files, files_list, len(current_files) == 0
 
@@ -756,22 +802,22 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
     State("files-store", "data"),
     prevent_initial_call=True
 )
-def analyze_all_files(n_clicks, files_data, **kwargs):
-    """Tüm dosyaları analiz et"""
+def analyze_all_files(n_clicks, files_data):
+    """Tüm dosyaları analiz et."""
     if not n_clicks or not files_data:
         return {}, "", True, ""
 
-    try:
-        results = {}
+    results = {}
+    processed_paths = []
 
+    try:
         for file_id, file_info in files_data.items():
             file_path = file_info['path']
             file_name = file_info['name']
 
-            # Analiz yap
-            quality_df, distributions, gc_data, base_counts, reads_processed, read_lengths = analyze_fastq(file_path, 2)
+            quality_df, distributions, gc_data, base_counts, reads_processed, read_lengths = \
+                analyze_fastq(file_path)
 
-            # Özet istatistikler
             mean_quality = quality_df["Average Quality Score"].mean()
             mean_gc = sum(gc_data) / len(gc_data) if gc_data else 0
             mean_length = sum(read_lengths) / len(read_lengths) if read_lengths else 0
@@ -792,20 +838,13 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
                 'mean_length': mean_length,
                 'base_pct': base_pct,
             }
-
-            # Dosyayı sil
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f"Dosya silinirken hata: {e}")
+            processed_paths.append(file_path)
 
         status = dbc.Alert(
             f"✓ {len(results)} dosya analiz edildi!",
             color="success"
         )
 
-        # Tek dosya seçici
         file_selector = dbc.Select(
             id="single-file-select",
             options=[{"label": name, "value": name} for name in results.keys()],
@@ -814,9 +853,19 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
 
         return results, status, False, file_selector
 
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
+        logger.exception("Analiz hatası")
         error_status = dbc.Alert(f"Hata: {str(e)}", color="danger")
         return {}, error_status, True, ""
+
+    finally:
+        # Analiz başarılı veya hatalı olsun, işlenmiş dosyaları temizle
+        for path in processed_paths:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError as e:
+                logger.warning("Dosya silinirken hata %s: %s", path, e)
 
 
 @app.callback(
@@ -827,15 +876,15 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
     ],
     Input("single-file-select", "value"),
     State("analysis-results-store", "data"),
+    prevent_initial_call=True,
 )
-def update_single_file_plots(selected_file, results, **kwargs):
-    """Seçili dosyanın grafiklerini güncelle"""
+def update_single_file_plots(selected_file, results):
+    """Seçili dosyanın grafiklerini güncelle."""
     if not selected_file or not results or selected_file not in results:
         return no_update, no_update, no_update
 
     result = results[selected_file]
 
-    # Quality plot
     quality_df = pd.DataFrame(result['quality_df'])
     fig_quality = create_fastqc_style_plot(
         result['distributions'],
@@ -843,7 +892,6 @@ def update_single_file_plots(selected_file, results, **kwargs):
         f"Kalite Skoru - {selected_file}"
     )
 
-    # GC histogram
     df_gc = pd.DataFrame({"GC Content (%)": result['gc_data']})
     fig_gc = px.histogram(
         df_gc,
@@ -853,7 +901,6 @@ def update_single_file_plots(selected_file, results, **kwargs):
     )
     fig_gc.update_layout(template="plotly_white", height=400)
 
-    # Base content
     df_bases = pd.DataFrame(
         list(result['base_counts'].items()),
         columns=["Baz", "Sayı"]
@@ -881,13 +928,12 @@ def update_single_file_plots(selected_file, results, **kwargs):
     State("analysis-results-store", "data"),
     prevent_initial_call=True
 )
-def compare_batches(n_clicks, results, **kwargs):
-    """Batch karşılaştırma grafiklerini oluştur"""
+def compare_batches(n_clicks, results):
+    """Batch karşılaştırma grafiklerini oluştur."""
     if not n_clicks or not results or len(results) < 2:
         return no_update, no_update, no_update, no_update
 
     try:
-        # DataFrame'leri yeniden oluştur
         batch_results = {}
         for file_name, result in results.items():
             batch_results[file_name] = {
@@ -901,13 +947,9 @@ def compare_batches(n_clicks, results, **kwargs):
                 'base_pct': result['base_pct'],
             }
 
-        # Karşılaştırma grafiklerini oluştur
         fig_quality, fig_gc, fig_length, df_stats = create_batch_comparison_plots(batch_results)
-
-        # Otomatik uyarı sistemi
         warnings = detect_batch_issues(batch_results)
 
-        # Uyarı kartları
         warning_cards = []
         for warning in warnings:
             color_map = {
@@ -924,7 +966,6 @@ def compare_batches(n_clicks, results, **kwargs):
                 ], color=color_map.get(warning['level'], 'info'), className="mb-2")
             )
 
-        # İstatistik tablosu
         table_content = html.Div([
             html.H5("Otomatik Kalite Kontrol", className="mt-3 mb-3"),
             html.Div(warning_cards),
@@ -941,7 +982,8 @@ def compare_batches(n_clicks, results, **kwargs):
 
         return fig_quality, fig_gc, fig_length, table_content
 
-    except Exception as e:
+    except (ValueError, KeyError, TypeError) as e:
+        logger.exception("Batch karşılaştırma hatası")
         error_fig = go.Figure().update_layout(
             title_text=f"Hata: {str(e)}",
             template="plotly_white"
