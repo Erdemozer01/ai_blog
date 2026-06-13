@@ -36,7 +36,7 @@ CHUNK_SIZE_MB = 10
 MAX_READS_TO_PROCESS = 100_000
 PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
-MAX_FILES = 1  # Maksimum dosya sayısı (2 dosya, her biri 5 MB)
+MAX_FILES = 2  # Maksimum dosya sayısı (2 dosya, her biri 5 MB)
 
 # Dash uygulaması
 app = dash.Dash(
@@ -539,13 +539,26 @@ def create_static_navbar():
         in_navbar=True,
     )
 
+    # Ana navbar'daki "kullanıcı menüsü" dropdown'ını taklit et
+    user_dropdown = dbc.DropdownMenu(
+        label="Hesabım",
+        children=[
+            dbc.DropdownMenuItem("Profil / Özgeçmiş", href="/resume/", external_link=True),
+            dbc.DropdownMenuItem("Kredilerim", href="/billing/credits/", external_link=True),
+            dbc.DropdownMenuItem(divider=True),
+            dbc.DropdownMenuItem("Çıkış Yap", href="/logout/", external_link=True),
+        ],
+        nav=True,
+        in_navbar=True,
+        align_end=True,
+    )
+
     nav_items = [
         dbc.NavItem(dbc.NavLink("Blog", href="/", active="exact", external_link=True)),
         dbc.NavItem(dbc.NavLink("Makale Arama", href="/article-search/", active="exact", external_link=True)),
         bio_tools_dropdown,
         dbc.NavItem(dbc.NavLink("İletişim", href="/contact/", external_link=True, active="exact")),
-        dbc.NavItem(dbc.NavLink("Kredilerim", href="/billing/credits/", external_link=True)),
-        dbc.NavItem(dbc.NavLink("Çıkış Yap", href="/logout/", external_link=True)),
+        user_dropdown,
     ]
 
     return dbc.Navbar(
