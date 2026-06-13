@@ -36,7 +36,7 @@ CHUNK_SIZE_MB = 10
 MAX_READS_TO_PROCESS = 100_000
 PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
-MAX_FILES = 1  # Maksimum dosya sayısı (tek dosya, 5 MB)
+MAX_FILES = 1  # Maksimum dosya sayısı (2 dosya, her biri 5 MB)
 
 # Dash uygulaması
 app = dash.Dash(
@@ -517,10 +517,11 @@ def create_batch_comparison_plots(batch_results):
 # ------------------------------------------------------------------------------
 
 def create_static_navbar():
-    """Statik navbar oluştur"""
+    """Statik navbar — ana navbar (create_main_navbar) ile görsel uyumlu."""
     bio_tools_dropdown = dbc.DropdownMenu(
         label="Biyoinformatik Araçları",
         children=[
+            dbc.DropdownMenuItem("Temel Araçlar", header=True),
             dbc.DropdownMenuItem("Sekans Analiz Aracı", href="/bio-tools/sequence-analyzer/", external_link=True),
             dbc.DropdownMenuItem("Sekans Hizalama Aracı", href="/bio-tools/sequence-alignment/", external_link=True),
             dbc.DropdownMenuItem("3D Molekül Görüntüleyici", href="/bio-tools/molecule-viewer/", external_link=True),
@@ -528,6 +529,11 @@ def create_static_navbar():
             dbc.DropdownMenuItem("Bakteri Tasarımcısı", href="/bio-tools/bacterial-designer/", external_link=True),
             dbc.DropdownMenuItem("Pipeline Tasarımcısı", href="/bio-tools/pipeline-designer/", external_link=True),
             dbc.DropdownMenuItem("FASTQ Analizi", href="/bio-tools/fastq-analyzer/", external_link=True),
+            dbc.DropdownMenuItem(divider=True),
+            dbc.DropdownMenuItem("Hassas Tıp", header=True),
+            dbc.DropdownMenuItem("Farmakogenomik Analiz", href="/bio-tools/pharmacogenomics/", external_link=True),
+            dbc.DropdownMenuItem("Varyant Önceliklendirme", href="/bio-tools/variant-prioritization/", external_link=True),
+            dbc.DropdownMenuItem("Birleşik Öğrenme (FL)", href="/bio-tools/federated-learning/", external_link=True),
         ],
         nav=True,
         in_navbar=True,
@@ -538,7 +544,8 @@ def create_static_navbar():
         dbc.NavItem(dbc.NavLink("Makale Arama", href="/article-search/", active="exact", external_link=True)),
         bio_tools_dropdown,
         dbc.NavItem(dbc.NavLink("İletişim", href="/contact/", external_link=True, active="exact")),
-        dbc.NavItem(dbc.NavLink("Giriş Yap", href="/admin/login/", external_link=True))
+        dbc.NavItem(dbc.NavLink("Kredilerim", href="/billing/credits/", external_link=True)),
+        dbc.NavItem(dbc.NavLink("Çıkış Yap", href="/logout/", external_link=True)),
     ]
 
     return dbc.Navbar(
@@ -584,7 +591,8 @@ app.layout = html.Div([
                             text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya, 5 MB)",
                             filetypes=["fastq", "fq", "fastq.gz", "fq.gz", "gz"],
                             max_file_size=5,  # 5 MB
-                            chunk_size=5,
+
+                            max_files=MAX_FILES,
                         ),
 
                         html.Div(id="upload-status", className="mt-2"),
@@ -713,12 +721,23 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
     all_files = {os.path.basename(f): f for f in glob.glob(os.path.join(folder, '*'))}
 
     uploaded_count = 0
+    limit_reached = False
     for file_name in file_names:
         if file_name not in all_files:
             continue
 
         # Duplicate kontrolü
         if any(f['name'] == file_name for f in current_files.values()):
+            continue
+
+        # Dosya sayısı limiti (sunucu tarafı — arayüz limiti güvenilmez)
+        if len(current_files) >= MAX_FILES:
+            limit_reached = True
+            # Limiti aşan dosyayı diskten sil
+            try:
+                os.remove(all_files[file_name])
+            except OSError:
+                pass
             continue
 
         file_path = all_files[file_name]
@@ -737,10 +756,16 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
         for info in current_files.values()
     ])
 
-    status = dbc.Alert(
-        f"✓ {uploaded_count} dosya yüklendi (Toplam: {len(current_files)})",
-        color="success" if uploaded_count > 0 else "info"
-    )
+    if limit_reached:
+        status = dbc.Alert(
+            f"En fazla {MAX_FILES} dosya yükleyebilirsiniz. Fazla dosyalar atlandı.",
+            color="warning"
+        )
+    else:
+        status = dbc.Alert(
+            f"✓ {uploaded_count} dosya yüklendi (Toplam: {len(current_files)})",
+            color="success" if uploaded_count > 0 else "info"
+        )
 
     return status, current_files, files_list, len(current_files) == 0
 

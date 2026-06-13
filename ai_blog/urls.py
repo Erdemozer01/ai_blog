@@ -36,6 +36,7 @@ urlpatterns = [
 
     path('django_plotly_dash/', include('django_plotly_dash.urls')),
     path('', include('blog.urls')),
+    path('billing/', include('billing.urls')),
     path('bio-tools/', include('bio_tools.urls')),
 
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
