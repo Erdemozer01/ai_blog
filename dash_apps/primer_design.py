@@ -13,8 +13,7 @@ from django_plotly_dash import DjangoDash
 from dash import html, dcc, dash_table, Input, Output, State
 
 app = DjangoDash('PrimerDesignApp',
-                 external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
-                 suppress_callback_exceptions=True)
+                 external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME])
 
 
 # ----------------------------- Çekirdek mantık -----------------------------
@@ -143,7 +142,6 @@ def create_primer_layout():
                 dcc.Loading(html.Div(id="primer-fetch-status", className="mb-2")),
                 dcc.Loading(html.Div(id="primer-results")),
                 html.Div(id="primer-ai-section", className="mt-3"),
-                html.Div(id="primer-ai-result", className="mt-3"),
                 dcc.Store(id="primer-seq-store"),
                 dcc.Store(id="primer-results-store"),
             ], md=8),
@@ -174,8 +172,7 @@ def fetch_sequence(n_clicks, accession):
     [Output("primer-results", "children"),
      Output("primer-results-store", "data"),
      Output("primer-seq-store", "data"),
-     Output("primer-ai-section", "children"),
-     Output("primer-ai-result", "children")],
+     Output("primer-ai-section", "children")],
     Input("primer-design-btn", "n_clicks"),
     [State("primer-seq-input", "value"),
      State("primer-prod-min", "value"),
@@ -184,12 +181,12 @@ def fetch_sequence(n_clicks, accession):
 )
 def run_design(n_clicks, sequence, pmin, pmax):
     if not sequence:
-        return dbc.Alert("Lütfen bir DNA dizisi girin veya çekin.", color="warning"), None, None, "", ""
+        return dbc.Alert("Lütfen bir DNA dizisi girin veya çekin.", color="warning"), None, None, ""
 
     result = design_primers_core(sequence, product_min=int(pmin or 100),
                                  product_max=int(pmax or 300))
     if 'error' in result:
-        return dbc.Alert(result['error'], color="danger"), None, None, "", ""
+        return dbc.Alert(result['error'], color="danger"), None, None, ""
 
     pairs = result['pairs']
     table = dash_table.DataTable(
@@ -216,18 +213,18 @@ def run_design(n_clicks, sequence, pmin, pmax):
                    id="primer-ai-btn", color="info", outline=True, n_clicks=0),
     ]), className="shadow-sm")
 
-    return results_card, pairs, clean_sequence(sequence), ai_button, ""
+    return results_card, pairs, clean_sequence(sequence), ai_button
 
 
 @app.callback(
-    Output("primer-ai-result", "children"),
+    Output("primer-ai-section", "children", allow_duplicate=True),
     Input("primer-ai-btn", "n_clicks"),
     [State("primer-results-store", "data"),
      State("primer-seq-store", "data")],
     prevent_initial_call=True,
 )
 def ai_comment(n_clicks, pairs, seq):
-    if not n_clicks or not pairs:
+    if not pairs:
         return ""
     summary_lines = []
     for p in pairs[:3]:
@@ -250,7 +247,7 @@ def ai_comment(n_clicks, pairs, seq):
         from ai_engine.services import generate_with_pool
         text, _key = generate_with_pool(
             prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
-            max_tokens=800, temperature=0.4)
+            max_tokens=800, temperature=0.5)
     except Exception as e:
         return dbc.Alert(f"AI yorumu alınamadı: {e}", color="warning")
 
