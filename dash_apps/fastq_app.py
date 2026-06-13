@@ -528,6 +528,7 @@ def create_static_navbar():
             dbc.DropdownMenuItem("Mutasyon Etki Tahmincisi", href="/bio-tools/mutation-predictor/", external_link=True),
             dbc.DropdownMenuItem("Bakteri Tasarımcısı", href="/bio-tools/bacterial-designer/", external_link=True),
             dbc.DropdownMenuItem("Pipeline Tasarımcısı", href="/bio-tools/pipeline-designer/", external_link=True),
+            dbc.DropdownMenuItem("Primer Tasarımı", href="/bio-tools/primer-design/", external_link=True),
             dbc.DropdownMenuItem("FASTQ Analizi", href="/bio-tools/fastq-analyzer/", external_link=True),
             dbc.DropdownMenuItem(divider=True),
             dbc.DropdownMenuItem("Hassas Tıp", header=True),

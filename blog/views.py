@@ -61,6 +61,8 @@ def create_main_navbar(request):
                                  external_link=True, id="bacterial_designer"),
             dbc.DropdownMenuItem("Pipeline Tasarımcısı", href=reverse('bio_tools:pipline_designer_view'),
                                  external_link=True, id="pipline_designer_view"),
+            dbc.DropdownMenuItem("Primer Tasarımı", href=reverse('bio_tools:primer_design'),
+                                 external_link=True, id="primer_design"),
             dbc.DropdownMenuItem("FASTQ Analizi", href="/bio-tools/fastq-analyzer/",
                                  external_link=True),
 

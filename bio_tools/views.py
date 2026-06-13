@@ -32,6 +32,7 @@ from dash_apps.molecule_viewer import app as molecule_viewer_app, create_molecul
 from dash_apps.mutation_predictor import app as mutation_predictor_app, mutation_create_layout
 from dash_apps.bacterial_designer import app as bacterial_designer_app, bacterial_create_layout
 from dash_apps.pipeline_designer import app as pipeline_designer_app, create_pipeline_layout
+from dash_apps.primer_design import app as primer_design_app, create_primer_layout
 from dash_apps.fastq_app import app as fastq_app
 
 # --- Constants and Setup ---
@@ -341,6 +342,23 @@ def pipline_designer_view(request):
 
     return render(request, 'bio_tools/pipline_designer.html', {
         'meta_title': "Pipeline Tasarımcısı - AI Blog"
+    })
+
+
+@require_credits('bio_primer_design', default_cost=5)
+def primer_design_view(request):
+    """Primer Tasarım Aracı (Primer3)"""
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+
+    main_navbar = create_main_navbar(request)
+    content = create_primer_layout()
+    _layout = html.Div([main_navbar, content])
+    primer_design_app.layout = lambda: _layout
+
+    return render(request, 'bio_tools/primer_design.html', {
+        'meta_title': "Primer Tasarım Aracı - AI Blog"
     })
 
 
