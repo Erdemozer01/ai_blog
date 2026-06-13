@@ -9,6 +9,7 @@ import logging
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpRequest, HttpResponse
+from billing.decorators import require_credits
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.views import View
@@ -241,6 +242,7 @@ class FastqDashAppView(View):
 
 # --- OTHER DASH APP VIEWS ---
 
+@require_credits('bio_sequence_analyzer', default_cost=5)
 def sequence_analyzer_view(request):
     """Sekans Analiz Aracı"""
     if not request.user.is_authenticated:
@@ -257,6 +259,7 @@ def sequence_analyzer_view(request):
     })
 
 
+@require_credits('bio_sequence_alignment', default_cost=5)
 def sequence_alignment_view(request):
     """Sekans Hizalama Aracı"""
     if not request.user.is_authenticated:
@@ -273,6 +276,7 @@ def sequence_alignment_view(request):
     })
 
 
+@require_credits('bio_molecule_viewer', default_cost=5)
 def molecule_viewer_view(request):
     """3D Molekül Görüntüleyici"""
     if not request.user.is_authenticated:
@@ -289,6 +293,7 @@ def molecule_viewer_view(request):
     })
 
 
+@require_credits('bio_mutation_predictor', default_cost=5)
 def mutation_predictor_view(request):
     """Mutasyon Etki Tahmincisi"""
     if not request.user.is_authenticated:
@@ -305,6 +310,7 @@ def mutation_predictor_view(request):
     })
 
 
+@require_credits('bio_bacterial_designer', default_cost=5)
 def bacterial_designer_view(request):
     """Sentetik Biyoloji Bakteri Tasarımcısı"""
     if not request.user.is_authenticated:
@@ -321,6 +327,7 @@ def bacterial_designer_view(request):
     })
 
 
+@require_credits('bio_pipeline_designer', default_cost=5)
 def pipline_designer_view(request):
     """Biyoinformatik Pipeline Tasarımcısı"""
     if not request.user.is_authenticated:
@@ -615,6 +622,7 @@ from dash_apps.pharmacogenomics import create_pharmacogenomics_layout
 from dash_apps.variant_prioritization import create_variant_layout
 
 
+@require_credits('bio_federated', default_cost=5)
 def federated_view(request):
     if not request.user.is_authenticated:
         messages.error(request, 'Lütfen giriş yapınız.')
@@ -625,6 +633,7 @@ def federated_view(request):
     return render(request, 'bio_tools/federated_learning.html', {'meta_title': "Federated Learning - AI Blog"})
 
 
+@require_credits('bio_pharmacogenomics', default_cost=5)
 def pharmacogenomics_view(request):
     if not request.user.is_authenticated:
         messages.error(request, 'Lütfen giriş yapınız.')
@@ -635,6 +644,7 @@ def pharmacogenomics_view(request):
     return render(request, 'bio_tools/pharmacogenomics.html', {'meta_title': "Farmakogenomik Analiz - AI Blog"})
 
 
+@require_credits('bio_variant', default_cost=5)
 def variant_view(request):
     if not request.user.is_authenticated:
         messages.error(request, 'Lütfen giriş yapınız.')

@@ -36,7 +36,7 @@ CHUNK_SIZE_MB = 10
 MAX_READS_TO_PROCESS = 100_000
 PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
-MAX_FILES = 2  # Maksimum karşılaştırılabilecek dosya sayısı
+MAX_FILES = 1  # Maksimum dosya sayısı (tek dosya, 5 MB)
 
 # Dash uygulaması
 app = dash.Dash(

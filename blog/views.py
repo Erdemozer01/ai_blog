@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
+from billing.decorators import require_credits
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
@@ -93,6 +94,7 @@ def create_main_navbar(request):
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
         dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem("Kredilerim", href=reverse('billing:credits'), external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
         dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href=reverse('blog:logout'), external_link=True))
 
@@ -485,11 +487,8 @@ def download_article_as_pdf(request, article_id):
 
 
 @login_required
+@require_credits('makale_uretim', default_cost=10)
 def generate_article_view(request):
-    if not (request.user.is_superuser or request.user.is_staff):
-        messages.error(request, "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
-        return redirect('anasayfa')
-
     try:
         profile = request.user.profile
         if not profile.first_name or not profile.last_name:
