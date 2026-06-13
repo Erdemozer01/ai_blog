@@ -13,8 +13,7 @@ from django_plotly_dash import DjangoDash
 from dash import html, dcc, dash_table, Input, Output, State
 
 app = DjangoDash('PrimerDesignApp',
-                 external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
-                 suppress_callback_exceptions=True)
+                 external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME])
 
 
 # ----------------------------- Çekirdek mantık -----------------------------
@@ -28,11 +27,7 @@ def clean_sequence(sequence):
 
 def design_primers_core(sequence, product_min=100, product_max=300, num_return=5):
     """Primer3 ile primer çiftleri tasarlar. Hata durumunda {'error': ...} döner."""
-    try:
-        import primer3
-    except ImportError:
-        return {'error': 'Primer3 kütüphanesi sunucuda kurulu değil. '
-                         'Yöneticiye bildirin (pip install primer3-py).'}
+    import primer3
     seq = clean_sequence(sequence)
     if len(seq) < 50:
         return {'error': 'Dizi çok kısa. En az 50 baz gerekli.'}
@@ -144,16 +139,9 @@ def create_primer_layout():
             ], md=4),
 
             dbc.Col([
-                html.Div(id="primer-fetch-status", className="mb-2"),
-                dcc.Loading(
-                    html.Div(id="primer-results"),
-                    type="default",
-                ),
+                dcc.Loading(html.Div(id="primer-fetch-status", className="mb-2")),
+                dcc.Loading(html.Div(id="primer-results")),
                 html.Div(id="primer-ai-section", className="mt-3"),
-                dcc.Loading(
-                    html.Div(id="primer-ai-result", className="mt-3"),
-                    type="default",
-                ),
                 dcc.Store(id="primer-seq-store"),
                 dcc.Store(id="primer-results-store"),
             ], md=8),
@@ -201,33 +189,9 @@ def run_design(n_clicks, sequence, pmin, pmax):
         return dbc.Alert(result['error'], color="danger"), None, None, ""
 
     pairs = result['pairs']
-    # DataTable için: id'ler basit (ASCII), name'ler güzel görünüm
-    col_defs = [
-        {'name': 'No', 'id': 'no'},
-        {'name': 'Forward (5→3)', 'id': 'fwd'},
-        {'name': 'Fwd Tm', 'id': 'fwd_tm'},
-        {'name': 'Fwd GC%', 'id': 'fwd_gc'},
-        {'name': 'Reverse (5→3)', 'id': 'rev'},
-        {'name': 'Rev Tm', 'id': 'rev_tm'},
-        {'name': 'Rev GC%', 'id': 'rev_gc'},
-        {'name': 'Ürün (bp)', 'id': 'product'},
-    ]
-    table_data = [
-        {
-            'no': p['No'],
-            'fwd': p['Forward (5→3)'],
-            'fwd_tm': p['Forward Tm'],
-            'fwd_gc': p['Forward GC%'],
-            'rev': p['Reverse (5→3)'],
-            'rev_tm': p['Reverse Tm'],
-            'rev_gc': p['Reverse GC%'],
-            'product': p['Ürün (bp)'],
-        }
-        for p in pairs
-    ]
     table = dash_table.DataTable(
-        data=table_data,
-        columns=col_defs,
+        data=pairs,
+        columns=[{'name': k, 'id': k} for k in pairs[0].keys()],
         style_cell={'fontFamily': 'monospace', 'fontSize': '13px',
                     'textAlign': 'center', 'padding': '6px'},
         style_header={'fontWeight': 'bold', 'backgroundColor': '#f8f9fa'},
@@ -253,17 +217,17 @@ def run_design(n_clicks, sequence, pmin, pmax):
 
 
 @app.callback(
-    Output("primer-ai-result", "children"),
+    Output("primer-ai-section", "children", allow_duplicate=True),
     Input("primer-ai-btn", "n_clicks"),
     [State("primer-results-store", "data"),
      State("primer-seq-store", "data")],
     prevent_initial_call=True,
 )
 def ai_comment(n_clicks, pairs, seq):
-    if not n_clicks or not pairs:
+    if not pairs:
         return ""
     summary_lines = []
-    for p in pairs:
+    for p in pairs[:3]:
         summary_lines.append(
             f"Çift {p['No']}: F={p['Forward (5→3)']} (Tm {p['Forward Tm']}, "
             f"GC {p['Forward GC%']}%), R={p['Reverse (5→3)']} "
@@ -271,18 +235,10 @@ def ai_comment(n_clicks, pairs, seq):
     summary = "\n".join(summary_lines)
 
     prompt = (
-        "Aşağıda PCR primer tasarım sonuçları var. Deneyimli bir moleküler biyolog "
-        "gözüyle KAPSAMLI bir değerlendirme yap (Türkçe). Şu başlıkları ayrı ayrı ele al:\n\n"
-        "1. **Genel Değerlendirme:** Primerlerin kalitesi hakkında genel görüş.\n"
-        "2. **Tm Analizi:** Forward/Reverse Tm değerlerinin uyumu, çift içi ve çiftler "
-        "arası farklar, PCR için uygunluğu.\n"
-        "3. **GC İçeriği:** GC% değerlerinin değerlendirmesi, 3' uç stabilitesi.\n"
-        "4. **Primer-Dimer / Hairpin Riski:** Olası ikincil yapı riskleri.\n"
-        "5. **Spesifiklik:** Primerlerin hedefe özgüllüğü hakkında genel uyarılar.\n"
-        "6. **Öneriler:** Hangi primer çiftini önerirsin ve neden? Laboratuvarda "
-        "dikkat edilmesi gerekenler (annealing sıcaklığı önerisi dahil).\n\n"
-        "Her başlığı 2-4 cümleyle, somut ve pratik biçimde açıkla. "
-        "Markdown başlıkları ve maddeler kullan.\n\n"
+        "Aşağıda PCR primer tasarım sonuçları var. Bir moleküler biyolog gözüyle "
+        "kısa ve pratik bir değerlendirme yap (Türkçe): primerlerin Tm uyumu, GC içeriği, "
+        "olası primer-dimer/hairpin riski ve laboratuvarda dikkat edilmesi gerekenler. "
+        "Maddeler halinde, öz ve net ol.\n\n"
         f"Primer çiftleri:\n{summary}\n\n"
         f"Hedef dizi uzunluğu: {len(seq)} baz."
     )
@@ -291,7 +247,7 @@ def ai_comment(n_clicks, pairs, seq):
         from ai_engine.services import generate_with_pool
         text, _key = generate_with_pool(
             prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
-            max_tokens=2500, temperature=0.5)
+            max_tokens=800, temperature=0.5)
     except Exception as e:
         return dbc.Alert(f"AI yorumu alınamadı: {e}", color="warning")
 
