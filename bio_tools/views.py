@@ -270,7 +270,8 @@ def sequence_alignment_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = create_sequence_alignment_layout()
+    from dash_apps.i18n_helper import get_lang
+    content = create_sequence_alignment_layout(get_lang(request))
     _layout = html.Div([main_navbar, content])
     sequence_alignment_app.layout = lambda: _layout
 
