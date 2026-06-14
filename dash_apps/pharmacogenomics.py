@@ -40,6 +40,7 @@ def _card(title, icon, children):
 
 def create_pharmacogenomics_layout():
     return dbc.Container([
+        dcc.Location(id='url', refresh=False),
         html.H2([html.I(className="fas fa-pills me-2"), "Farmakogenomik Araştırma"],
                 style={"color": "#7c3aed"}, className="my-4 fw-bold"),
         html.P(
@@ -375,3 +376,12 @@ def do_research(n_clicks, n_submit, query):
 )
 def toggle_navbar(n, is_open):
     return not is_open
+
+
+@app.callback(Output("pharmacogenomics", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:pharmacogenomics')
+    except Exception:
+        return False

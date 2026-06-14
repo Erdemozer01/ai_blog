@@ -20,6 +20,7 @@ urlpatterns = [
 
     path('logout/', views.custom_logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
+    path('set-language/<str:lang_code>/', views.set_language_view, name='set_language'),
 
     path('robots.txt', views.robots_txt_view, name='robots_txt'),
 

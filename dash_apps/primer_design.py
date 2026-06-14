@@ -105,6 +105,7 @@ def fetch_sequence_from_ebi(accession):
 def create_primer_layout(lang='en'):
     from dash_apps.i18n_helper import t
     return dbc.Container([
+        dcc.Location(id='url', refresh=False),
         # Dil bilgisini callback'lerin görmesi için store'da tut
         dcc.Store(id="primer-lang-store", data=lang),
         html.H2([html.I(className="fas fa-dna me-2"), t('primer_title', lang)],
@@ -357,6 +358,15 @@ def ai_comment(n_clicks, pairs, seq, lang):
         dbc.CardHeader([html.I(className="fas fa-robot me-2"), t('primer_ai_title', lang)]),
         dbc.CardBody(dcc.Markdown(text)),
     ], className="shadow-sm")
+
+
+@app.callback(Output("primer_design", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:primer_design')
+    except Exception:
+        return False
 
 
 app.layout = html.Div()

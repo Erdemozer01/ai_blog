@@ -74,6 +74,7 @@ def _card(title, icon, children):
 
 def create_variant_layout():
     return dbc.Container([
+        dcc.Location(id='url', refresh=False),
         html.H2([html.I(className="fas fa-dna me-2 text-primary"),
                  "Varyant Önceliklendirme (Variant Prioritization)"],
                 className="my-4 fw-bold"),
@@ -395,3 +396,12 @@ def update_table(filter_val, data):
 )
 def toggle_navbar(n_clicks, is_open):
     return not is_open
+
+
+@app.callback(Output("variant_prioritization", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:variant_prioritization')
+    except Exception:
+        return False

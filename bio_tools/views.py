@@ -251,7 +251,9 @@ def sequence_analyzer_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = create_sequence_analyzer_layout()
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    content = create_sequence_analyzer_layout(lang)
     _layout = html.Div([main_navbar, content])
     sequence_analyzer_app.layout = lambda: _layout
 

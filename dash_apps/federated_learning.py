@@ -26,6 +26,7 @@ def _card(title, icon, children):
 
 def create_federated_layout():
     return dbc.Container([
+        dcc.Location(id='url', refresh=False),
         html.H2([html.I(className="fas fa-network-wired me-2 text-success"),
                  "Birleşik Öğrenme (Federated Learning) Simülatörü"],
                 className="my-4 fw-bold"),
@@ -330,3 +331,12 @@ def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epoch
 )
 def toggle_navbar(n_clicks, is_open):
     return not is_open
+
+
+@app.callback(Output("federated_learning", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:federated_learning')
+    except Exception:
+        return False

@@ -38,44 +38,47 @@ def create_main_navbar(request):
     Tüm sayfalarda tutarlı, dinamik ve mobil uyumlu bir Navbar oluşturur.
     Tüm linkler sağa yaslanmış ve harici link olarak ayarlanmıştır.
     """
+    from dash_apps.i18n_helper import get_lang, t
+    lang = get_lang(request)
+
     # Tüm navigasyon öğelerini tutacak tek bir liste oluştur
     nav_items = []
 
     # Herkesin görebileceği ana linkleri listeye ekle
-    nav_items.append(dbc.NavItem(dbc.NavLink("Blog", href=reverse('blog:anasayfa'), active="exact", external_link=True)))
-    nav_items.append(dbc.NavItem(dbc.NavLink("Makale Arama", href=reverse('blog:article_search'), active="exact", external_link=True)))
+    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:anasayfa'), active="exact", external_link=True)))
+    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_article_search', lang), href=reverse('blog:article_search'), active="exact", external_link=True)))
     bio_tools_dropdown = dbc.DropdownMenu(
-        label="Biyoinformatik Araçları",
+        label=t('nav_biotools', lang),
         children=[
             # --- Temel Araçlar ---
-            dbc.DropdownMenuItem("Temel Araçlar", header=True),
-            dbc.DropdownMenuItem("Sekans Analiz Aracı", href=reverse('bio_tools:sequence_analyzer'),
+            dbc.DropdownMenuItem(t('nav_basic_tools', lang), header=True),
+            dbc.DropdownMenuItem(t('nav_seq_analyzer', lang), href=reverse('bio_tools:sequence_analyzer'),
                                  external_link=True, id="sequence_analyzer"),
-            dbc.DropdownMenuItem("Sekans Hizalama Aracı", href=reverse('bio_tools:sequence_alignment'),
+            dbc.DropdownMenuItem(t('nav_seq_alignment', lang), href=reverse('bio_tools:sequence_alignment'),
                                  external_link=True, id="sequence_alignment"),
-            dbc.DropdownMenuItem("3D Molekül Görüntüleyici", href=reverse('bio_tools:molecule_viewer'),
+            dbc.DropdownMenuItem(t('nav_molecule_viewer', lang), href=reverse('bio_tools:molecule_viewer'),
                                  external_link=True, id="molecule_viewer"),
-            dbc.DropdownMenuItem("Mutasyon Etki Tahmincisi", href=reverse('bio_tools:mutation_predictor'),
+            dbc.DropdownMenuItem(t('nav_mutation', lang), href=reverse('bio_tools:mutation_predictor'),
                                  external_link=True, id="mutation_predictor"),
-            dbc.DropdownMenuItem("Bakteri Tasarımcısı", href=reverse('bio_tools:bacterial_designer'),
+            dbc.DropdownMenuItem(t('nav_bacterial', lang), href=reverse('bio_tools:bacterial_designer'),
                                  external_link=True, id="bacterial_designer"),
-            dbc.DropdownMenuItem("Pipeline Tasarımcısı", href=reverse('bio_tools:pipline_designer_view'),
+            dbc.DropdownMenuItem(t('nav_pipeline', lang), href=reverse('bio_tools:pipline_designer_view'),
                                  external_link=True, id="pipline_designer_view"),
-            dbc.DropdownMenuItem("Primer Tasarımı", href=reverse('bio_tools:primer_design'),
+            dbc.DropdownMenuItem(t('nav_primer', lang), href=reverse('bio_tools:primer_design'),
                                  external_link=True, id="primer_design"),
-            dbc.DropdownMenuItem("FASTQ Analizi", href="/bio-tools/fastq-analyzer/",
+            dbc.DropdownMenuItem(t('nav_fastq', lang), href="/bio-tools/fastq-analyzer/",
                                  external_link=True),
 
             dbc.DropdownMenuItem(divider=True),
 
             # --- Hassas Tıp ---
-            dbc.DropdownMenuItem("Hassas Tıp", header=True),
-            dbc.DropdownMenuItem("Farmakogenomik Analiz", href=reverse('bio_tools:pharmacogenomics'),
-                                 external_link=True),
-            dbc.DropdownMenuItem("Varyant Önceliklendirme", href=reverse('bio_tools:variant_prioritization'),
-                                 external_link=True),
-            dbc.DropdownMenuItem("Birleşik Öğrenme (FL)", href=reverse('bio_tools:federated_learning'),
-                                 external_link=True),
+            dbc.DropdownMenuItem(t('nav_precision_med', lang), header=True),
+            dbc.DropdownMenuItem(t('nav_pharma', lang), href=reverse('bio_tools:pharmacogenomics'),
+                                 external_link=True, id="pharmacogenomics"),
+            dbc.DropdownMenuItem(t('nav_variant', lang), href=reverse('bio_tools:variant_prioritization'),
+                                 external_link=True, id="variant_prioritization"),
+            dbc.DropdownMenuItem(t('nav_federated', lang), href=reverse('bio_tools:federated_learning'),
+                                 external_link=True, id="federated_learning"),
         ],
         nav=True,
         in_navbar=True,
@@ -88,17 +91,17 @@ def create_main_navbar(request):
         # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
         if request.user.is_superuser or request.user.is_staff:
-            dropdown_items.append(dbc.DropdownMenuItem("Yeni Makale Üret", href=reverse('blog:generate_article'), external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem(t('nav_generate', lang), href=reverse('blog:generate_article'), external_link=True))
         if request.user.is_superuser:
-            dropdown_items.append(dbc.DropdownMenuItem("Admin Dashboard", href=reverse('blog:admin_dashboard'), external_link=True))
-            dropdown_items.append(dbc.DropdownMenuItem("Django Admin", href="/admin/", external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem(t('nav_admin_dash', lang), href=reverse('blog:admin_dashboard'), external_link=True))
+            dropdown_items.append(dbc.DropdownMenuItem(t('nav_django_admin', lang), href="/admin/", external_link=True))
         if request.user.is_superuser or request.user.is_staff:
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
-        dropdown_items.append(dbc.DropdownMenuItem("Profil / Özgeçmiş", href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Kredilerim", href=reverse('billing:credits'), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_profile', lang), href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_credits', lang), href=reverse('billing:credits'), external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-        dropdown_items.append(dbc.DropdownMenuItem("Çıkış Yap", href=reverse('blog:logout'), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_logout', lang), href=reverse('blog:logout'), external_link=True))
 
         user_menu = dbc.DropdownMenu(
             label=request.user.username,
@@ -108,12 +111,27 @@ def create_main_navbar(request):
             align_end=True,
         )
         nav_items.append(user_menu)
-        nav_items.append(dbc.NavItem(dbc.NavLink("İletişim", href=reverse('blog:contact'), external_link=True, active="exact")))
+        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_contact', lang), href=reverse('blog:contact'), external_link=True, active="exact")))
 
     else:
         # --- KULLANICI GİRİŞ YAPMAMIŞSA ---
-        nav_items.append(dbc.NavItem(dbc.NavLink("Giriş Yap", href="/admin/login/", external_link=True)))
-        nav_items.append(dbc.NavItem(dbc.NavLink("Kayıt Ol", href=reverse('blog:register'), external_link=True)))
+        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_login', lang), href="/admin/login/", external_link=True)))
+        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_register', lang), href=reverse('blog:register'), external_link=True)))
+
+    # --- DİL SEÇİMİ (herkes görür) ---
+    current_lang = lang
+    lang_label = "🌐 TR" if current_lang == 'tr' else "🌐 EN"
+    lang_dropdown = dbc.DropdownMenu(
+        label=lang_label,
+        children=[
+            dbc.DropdownMenuItem("Türkçe", href="/set-language/tr/", external_link=True),
+            dbc.DropdownMenuItem("English", href="/set-language/en/", external_link=True),
+        ],
+        nav=True,
+        in_navbar=True,
+        align_end=True,
+    )
+    nav_items.append(lang_dropdown)
 
     # Navbar'ın ana yapısı
     navbar = dbc.Navbar(
@@ -629,6 +647,19 @@ def contact_view(request):
 def custom_logout_view(request):
     logout(request)
     return redirect('blog:anasayfa')
+
+
+def set_language_view(request, lang_code):
+    """Kullanıcının dil tercihini cookie'ye yazar ve geldiği sayfaya döner."""
+    from dash_apps.i18n_helper import SUPPORTED
+    if lang_code not in SUPPORTED:
+        lang_code = 'tr'
+    # Geldiği sayfaya geri dön (yoksa anasayfa)
+    next_url = request.META.get('HTTP_REFERER') or '/'
+    response = redirect(next_url)
+    # 1 yıl geçerli cookie
+    response.set_cookie('site_lang', lang_code, max_age=365 * 24 * 60 * 60)
+    return response
 
 
 def register_view(request):
