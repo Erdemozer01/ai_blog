@@ -8,11 +8,9 @@ from .models import (GeneratedArticle, Category, ContactMessage,
 
 @admin.register(GeneratedArticle)
 class GeneratedArticleAdmin(admin.ModelAdmin):
-    # --- GÜNCELLENDİ: 'cover_image_preview' eklendi ---
     list_display = ('title', 'owner', 'category', 'status', 'view_count', 'cover_image_preview')
-    list_filter = ('status', 'owner', 'category', 'created_at')
+    list_filter = ('status', 'category', 'created_at')
     search_fields = ('title', 'user_request', 'full_content')
-    # --- GÜNCELLENDİ: 'cover_image_preview' eklendi ---
     readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview')
     list_per_page = 25
     date_hierarchy = 'created_at'
@@ -20,7 +18,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Temel Bilgiler', {
-            # --- GÜNCELLENDİ: 'cover_image' ve önizlemesi eklendi ---
             'fields': ('title', 'category', 'owner', 'status', 'slug', 'cover_image', 'cover_image_preview')
         }),
         ('İçerik', {
@@ -34,7 +31,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         }),
     )
 
-    # --- YENİ FONKSİYON EKLENDİ ---
     def cover_image_preview(self, obj):
         if obj.cover_image:
             return format_html('<img src="{}" width="150" />', obj.cover_image.url)
@@ -42,10 +38,46 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
 
     cover_image_preview.short_description = 'Kapak Fotoğrafı Önizlemesi'
 
-    # --- EKLEME BİTTİ ---
-
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('category', 'owner')
+        """Superuser tüm makaleleri görür; normal staff yalnızca kendi makalelerini."""
+        qs = super().get_queryset(request).select_related('category', 'owner')
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(owner=request.user)
+
+    def get_list_filter(self, request):
+        """Superuser owner'a göre filtreleyebilir; normal kullanıcıya owner filtresi gösterme."""
+        if request.user.is_superuser:
+            return ('status', 'owner', 'category', 'created_at')
+        return ('status', 'category', 'created_at')
+
+    def get_readonly_fields(self, request, obj=None):
+        """Normal kullanıcı 'owner' alanını değiştiremesin (otomatik kendisi)."""
+        ro = list(self.readonly_fields)
+        if not request.user.is_superuser:
+            ro.append('owner')
+        return ro
+
+    def save_model(self, request, obj, form, change):
+        """Yeni makale oluştururken sahibi otomatik olarak mevcut kullanıcı olsun."""
+        if not change and not obj.owner_id:
+            obj.owner = request.user
+        # Normal kullanıcı başkasının makalesini kendi üstüne geçiremez
+        if not request.user.is_superuser:
+            obj.owner = request.user
+        super().save_model(request, obj, form, change)
+
+    def has_change_permission(self, request, obj=None):
+        """Normal kullanıcı yalnızca kendi makalesini düzenleyebilir."""
+        if obj is None or request.user.is_superuser:
+            return super().has_change_permission(request, obj)
+        return obj.owner_id == request.user.id
+
+    def has_delete_permission(self, request, obj=None):
+        """Normal kullanıcı yalnızca kendi makalesini silebilir."""
+        if obj is None or request.user.is_superuser:
+            return super().has_delete_permission(request, obj)
+        return obj.owner_id == request.user.id
 
 
 
