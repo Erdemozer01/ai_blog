@@ -262,13 +262,10 @@ def toggle_navbar_collapse(n, is_open):
         return not is_open
     return is_open
 
-@app.callback(Output("pipeline_designer", "active"), Input("url", "pathname"))
+@app.callback(Output("pipline_designer_view", "active"), Input("url", "pathname"))
 def toggle_active_link(pathname):
-    # Bu kısmı kendi Django URL yapınıza göre düzenlemeniz gerekir.
-    # Örneğin: 'bio_tools' uygulamanızın adı ve 'pipeline_designer' URL name'iniz ise:
-    # return pathname == reverse('bio_tools:pipeline_designer')
+    from django.shortcuts import reverse
     try:
-        # Kendi projenizdeki app_name ve url name ile değiştirin
-        return pathname == reverse('your_app_name:pipeline_designer_url_name')
-    except:
+        return pathname == reverse('bio_tools:pipline_designer_view')
+    except Exception:
         return False

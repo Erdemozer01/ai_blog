@@ -67,7 +67,7 @@ def create_main_navbar(request):
             dbc.DropdownMenuItem(t('nav_primer', lang), href=reverse('bio_tools:primer_design'),
                                  external_link=True, id="primer_design"),
             dbc.DropdownMenuItem(t('nav_fastq', lang), href="/bio-tools/fastq-analyzer/",
-                                 external_link=True),
+                                 external_link=True, id="fastq_analyzer"),
 
             dbc.DropdownMenuItem(divider=True),
 

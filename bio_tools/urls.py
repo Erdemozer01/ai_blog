@@ -15,9 +15,9 @@ urlpatterns = [
 
     path('mutation-predictor/', views.mutation_predictor_view, name='mutation_predictor'),
 
-    path('bacterial-designer-tools/', views.bacterial_designer_view, name='bacterial_designer'),
+    path('bacterial-designer/', views.bacterial_designer_view, name='bacterial_designer'),
 
-    path('pipline-designer-tools/', views.pipline_designer_view, name='pipline_designer_view'),
+    path('pipeline-designer/', views.pipline_designer_view, name='pipline_designer_view'),
     path('primer-design/', views.primer_design_view, name='primer_design'),
 
     path('api/start-analysis/', views.start_analysis_view, name='start_analysis'),

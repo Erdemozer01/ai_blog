@@ -360,6 +360,15 @@ def ai_comment(n_clicks, pairs, seq, lang):
     ], className="shadow-sm")
 
 
+
+@app.callback(Output("navbar-collapse", "is_open"), [Input("navbar-toggler", "n_clicks")],
+              [State("navbar-collapse", "is_open")])
+def toggle_navbar_collapse(n, is_open):
+    if n: return not is_open
+    return is_open
+
+
+
 @app.callback(Output("primer_design", "active"), Input("url", "pathname"))
 def toggle_active_link(pathname):
     from django.shortcuts import reverse
