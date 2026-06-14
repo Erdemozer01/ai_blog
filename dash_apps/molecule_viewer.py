@@ -173,17 +173,26 @@ def parse_cif_for_table(cif_content):
     return records
 
 
-def get_ai_report(protein_name, organism):
+def get_ai_report(protein_name, organism, lang='en'):
+    from dash_apps.i18n_helper import t
     if not protein_name or protein_name == "N/A":
-        return None, "Analiz için geçerli bir protein adı bulunamadı."
-    prompt = (
-        f"Lütfen '{protein_name}' ({organism}) proteini hakkında bilinen biyolojik fonksiyonlarını, hücresel konumunu ve varsa önemli mutasyonlarını özetleyen, tamamen Türkçe ve bilimsel bir rapor oluştur. Cevabını Markdown formatında, başlıklar kullanarak düzenle.")
+        return None, t('mv_no_protein', lang)
+    if lang == 'tr':
+        prompt = (
+            f"Lütfen '{protein_name}' ({organism}) proteini hakkında bilinen biyolojik fonksiyonlarını, "
+            f"hücresel konumunu ve varsa önemli mutasyonlarını özetleyen, tamamen Türkçe ve bilimsel bir "
+            f"rapor oluştur. Cevabını Markdown formatında, başlıklar kullanarak düzenle.")
+    else:
+        prompt = (
+            f"Please create a scientific report in English about the protein '{protein_name}' ({organism}), "
+            f"summarizing its known biological functions, cellular localization and important mutations if any. "
+            f"Format your answer in Markdown using headings.")
     try:
         from ai_engine.services import generate_with_pool
         text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-2.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
-        return None, f"Yapay zeka analizi sırasında hata: {e}"
+        return None, f"{t('mv_ai_error', lang)}: {e}"
 
 
 def get_ai_removal_analysis(pdb_content, removed_items):
@@ -346,87 +355,89 @@ def get_unique_chains_from_content(content, ext):
 
 
 # --- UYGULAMA YERLEŞİMİ (LAYOUT) ---
-def create_molecule_viewer_layout():
+def create_molecule_viewer_layout(lang='en'):
+    from dash_apps.i18n_helper import t
     data_tab = dbc.CardBody([
-        dbc.Label("PDB ID ile Yükle:", html_for="pdb-id-input", className="fw-bold"),
-        dbc.InputGroup([dbc.Input(id="pdb-id-input", placeholder="örn: 1CRN", type="text"),
-                        dbc.Button("Yükle", id="btn-load-pdb", n_clicks=0)]),
+        dbc.Label(t('mv_pdb_label', lang), html_for="pdb-id-input", className="fw-bold"),
+        dbc.InputGroup([dbc.Input(id="pdb-id-input", placeholder=t('mv_pdb_placeholder', lang), type="text"),
+                        dbc.Button(t('mv_load', lang), id="btn-load-pdb", n_clicks=0)]),
         html.Hr(),
-        dbc.Label("Dosya Yükle (.pdb, .cif, .gz):", html_for="upload-data", className="fw-bold"),
-        dcc.Upload(id='upload-data', multiple=True, children=html.Div(['Dosyaları Sürükle-Bırak veya Seç'],
+        dbc.Label(t('mv_file_label', lang), html_for="upload-data", className="fw-bold"),
+        dcc.Upload(id='upload-data', multiple=True, children=html.Div([t('mv_drag_drop', lang)],
                                                                       style={'textAlign': 'center', 'padding': '20px',
                                                                              'border': '2px dashed #ccc',
                                                                              'borderRadius': '5px'})),
         html.Div(id="upload-status", className="mt-2", style={'maxHeight': '100px', 'overflowY': 'auto'}),
     ])
     view_tab = dbc.CardBody([
-        dbc.Label("Gösterim Stili:", html_for="representation-style", className="fw-bold"),
+        dbc.Label(t('mv_style', lang), html_for="representation-style", className="fw-bold"),
         dcc.Dropdown(id="representation-style", options=REPRESENTATIONS, value=['cartoon'], multi=True),
         html.Hr(),
-        dbc.Label("Arka Plan Rengi:", html_for="bg-color", className="fw-bold"),
+        dbc.Label(t('mv_bg_color', lang), html_for="bg-color", className="fw-bold"),
         dcc.Dropdown(id="bg-color", options=['black', 'white'], value='white'), html.Br(),
-        dbc.Label("Kamera Tipi:", html_for="camera-type", className="fw-bold"),
+        dbc.Label(t('mv_camera', lang), html_for="camera-type", className="fw-bold"),
         dcc.Dropdown(id="camera-type", options=['perspective', 'orthographic'], value='perspective'), html.Br(),
-        dbc.Label("Görüntü Kalitesi:", html_for="quality-type", className="fw-bold"),
+        dbc.Label(t('mv_quality', lang), html_for="quality-type", className="fw-bold"),
         dcc.Dropdown(id="quality-type", options=['low', 'medium', 'high'], value='medium'),
     ])
     analysis_tab = dbc.CardBody([
-        dbc.Label("Yapı Hizalama (Superposition):", className="fw-bold"),
-        dcc.Dropdown(id='fixed-mol-dropdown', placeholder="Referans (Sabit) Molekül", className="mb-2"),
-        dcc.Dropdown(id='moving-mol-dropdown', placeholder="Hizalanacak Molekül"),
-        dbc.Button("Molekülleri Hizala", id="btn-superpose", n_clicks=0, className="w-100 mt-2"),
+        dbc.Label(t('mv_superpose', lang), className="fw-bold"),
+        dcc.Dropdown(id='fixed-mol-dropdown', placeholder=t('mv_ref_mol', lang), className="mb-2"),
+        dcc.Dropdown(id='moving-mol-dropdown', placeholder=t('mv_moving_mol', lang)),
+        dbc.Button(t('mv_align_btn', lang), id="btn-superpose", n_clicks=0, className="w-100 mt-2"),
         html.Hr(),
-        dbc.Label("Molekül İçi Temizleme:", className="fw-bold"),
-        dcc.Dropdown(id='mol-to-clean-dropdown', placeholder="Filtrelenecek molekülü seçin...", className="mt-3 mb-2"),
-        dcc.Dropdown(id='residues-to-remove-dropdown', multi=True, placeholder="Kaldırılacak Kalıntıları Seçin",
+        dbc.Label(t('mv_clean', lang), className="fw-bold"),
+        dcc.Dropdown(id='mol-to-clean-dropdown', placeholder=t('mv_select_filter_mol', lang), className="mt-3 mb-2"),
+        dcc.Dropdown(id='residues-to-remove-dropdown', multi=True, placeholder=t('mv_remove_residues', lang),
                      className="mb-2"),
-        dcc.Dropdown(id='chains-to-remove-dropdown', multi=True, placeholder="Kaldırılacak Zincirleri Seçin"),
-        dbc.Button("Filtreleri Uygula", id="btn-apply-filters", color="primary", className="w-100 mt-2"),
+        dcc.Dropdown(id='chains-to-remove-dropdown', multi=True, placeholder=t('mv_remove_chains', lang)),
+        dbc.Button(t('mv_apply_filters', lang), id="btn-apply-filters", color="primary", className="w-100 mt-2"),
         html.Hr(),
-        dbc.Label("AI Destekli Rapor Oluştur:", className="fw-bold"),
-        dcc.Dropdown(id='ai-mol-dropdown', placeholder="Rapor için Molekül Seç"),
-        dbc.Button("Rapor Oluştur", id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
+        dbc.Label(t('mv_ai_report_label', lang), className="fw-bold"),
+        dcc.Dropdown(id='ai-mol-dropdown', placeholder=t('mv_select_report_mol', lang)),
+        dbc.Button(t('mv_generate_report', lang), id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
         html.Hr(),
         dcc.Loading(html.Div(id="main-status-output", className="mt-2 text-center")),
     ])
     interaction_tab = dbc.CardBody([
-        dbc.Label("Görüntüyü İndir:", html_for="btn-download-image", className="fw-bold"),
-        dbc.Button("Mevcut Görünümü İndir", id="btn-download-image", n_clicks=0, className="w-100")
+        dbc.Label(t('mv_download_image_label', lang), html_for="btn-download-image", className="fw-bold"),
+        dbc.Button(t('mv_download_current', lang), id="btn-download-image", n_clicks=0, className="w-100")
     ])
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        dcc.Store(id='mv-lang-store', data=lang),
         dcc.Store(id='original-molecules-store', storage_type='memory'),
         dcc.Store(id='processed-molecules-store', storage_type='memory'),
         dcc.Store(id='table-data-store', storage_type='memory'),
         dcc.Store(id='removed-components-store', storage_type='memory'),
         html.Div(id='dummy-clear-output', style={'display': 'none'}),
         dbc.Row(className="mb-3", align="center", children=[
-            dbc.Col(html.H2("Molekül Görüntüleyici ve Analiz Aracı"), width="auto"),
-            dbc.Col(dbc.Button("Tüm verileri temizle", id="btn-clear-all", color="danger"), width="auto",
+            dbc.Col(html.H2(t('mv_title', lang)), width="auto"),
+            dbc.Col(dbc.Button(t('mv_clear_all', lang), id="btn-clear-all", color="danger"), width="auto",
                     className="ms-auto")
         ]),
         dbc.Row([
             dbc.Col(width=12, lg=4, children=[dbc.Card(dbc.Tabs([
-                dbc.Tab(data_tab, label="Veri Yükle"), dbc.Tab(view_tab, label="Görünüm Ayarları"),
-                dbc.Tab(analysis_tab, label="Analiz Araçları"), dbc.Tab(interaction_tab, label="Etkileşim & İndir")
+                dbc.Tab(data_tab, label=t('mv_tab_data', lang)), dbc.Tab(view_tab, label=t('mv_tab_view', lang)),
+                dbc.Tab(analysis_tab, label=t('mv_tab_analysis', lang)), dbc.Tab(interaction_tab, label=t('mv_tab_interaction', lang))
             ]))]),
             dbc.Col(dcc.Loading(id="loading-viewer", children=html.Div(id='ngl-viewer-container', children=[
                 dash_bio.NglMoleculeViewer(id=COMPONENT_ID, data=[DATA_PLACEHOLDER])
             ])), width=12, lg=8, style={'minHeight': '600px'})
         ]),
         dbc.Row(className="mt-4", children=[dbc.Col(dbc.Card([
-            dbc.CardHeader(html.H4("Analiz Sonuçları ve Veri Detayları")),
+            dbc.CardHeader(html.H4(t('mv_results_title', lang))),
             dbc.CardBody([
                 dcc.Loading(html.Div(id="ai-report-output", className="mb-4")),
                 html.Hr(),
-                html.H5("Atom Veri Tablosu"),
+                html.H5(t('mv_atom_table', lang)),
                 html.Div(id='table-selector-container', style={'display': 'none'}, children=[
-                    dbc.Label("Tabloda Görüntülenecek Molekülü Seçin:"),
+                    dbc.Label(t('mv_select_table_mol', lang)),
                     dcc.Dropdown(id='table-molecule-selector')
                 ]),
                 dbc.ButtonGroup([
-                    dbc.Button("CSV İndir", id="btn-download-csv", outline=True, color="primary", size="sm"),
-                    dbc.Button("XLSX İndir", id="btn-download-xlsx", outline=True, color="primary", size="sm")
+                    dbc.Button(t('mv_download_csv', lang), id="btn-download-csv", outline=True, color="primary", size="sm"),
+                    dbc.Button(t('mv_download_xlsx', lang), id="btn-download-xlsx", outline=True, color="primary", size="sm")
                 ], className="mt-2"),
                 dcc.Download(id="download-csv"), dcc.Download(id="download-xlsx"),
                 dcc.Loading(id="loading-table", children=html.Div(id="table-container", className="mt-2")),
@@ -714,11 +725,13 @@ def update_cleaning_options_on_select(selected_mol_id, original_mols, processed_
     [
         State('ai-mol-dropdown', 'value'),
         State('original-molecules-store', 'data'),
-        State('removed-components-store', 'data')
+        State('removed-components-store', 'data'),
+        State('mv-lang-store', 'data')
     ],
     prevent_initial_call=True
 )
-def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, removed_items):
+def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, removed_items, lang):
+    lang = lang or 'en'
     if not selected_mol_id:
         return dbc.Alert("Lütfen rapor oluşturmak için bir molekül seçin.", color="warning")
 
@@ -751,7 +764,7 @@ def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, remove
         protein_name = extract_info_from_content(content, ext, 'protein_name')
         organism = extract_info_from_content(content, ext, 'organism')
 
-        report, error = get_ai_report(protein_name, organism)
+        report, error = get_ai_report(protein_name, organism, lang=lang)
         if error:
             return dbc.Alert(f"AI Raporu oluşturulurken hata: {error}", color="danger")
         return report

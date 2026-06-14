@@ -288,7 +288,8 @@ def molecule_viewer_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = create_molecule_viewer_layout()
+    from dash_apps.i18n_helper import get_lang
+    content = create_molecule_viewer_layout(get_lang(request))
     _layout = html.Div([main_navbar, content])
     molecule_viewer_app.layout = lambda: _layout
 
