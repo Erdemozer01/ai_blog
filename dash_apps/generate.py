@@ -8,6 +8,71 @@ external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
 
 
+def validate_topic_rules(text):
+    """
+    Hızlı kural bazlı konu ön kontrolü (bedava, anında).
+    (bool gecerli, str sebep) döner.
+    """
+    t = text.strip().lower()
+
+    if len(t) < 10:
+        return False, "Konu çok kısa. Lütfen en az 10 karakterlik açıklayıcı bir konu girin."
+
+    words = t.split()
+    if len(words) < 2:
+        return False, "Lütfen daha açıklayıcı bir konu girin (en az 2 kelime)."
+
+    # Selamlaşma / sohbet kalıpları
+    chat_patterns = [
+        'merhaba', 'selam', 'nasılsın', 'naber', 'günaydın', 'iyi misin',
+        'teşekkür', 'sağol', 'görüşürüz', 'hoşçakal', 'kimsin', 'adın ne',
+        'şiir yaz', 'fıkra', 'şaka yap', 'hikaye anlat', 'masal anlat',
+        'hello', 'how are you', 'thanks', 'tell me a joke', 'write a poem',
+    ]
+    for p in chat_patterns:
+        if p in t:
+            return False, ("Bu bir sohbet ifadesi gibi görünüyor. Lütfen akademik veya "
+                           "bilgilendirici bir KONU girin. Örnek: 'Kuantum bilgisayarların "
+                           "kriptografiye etkisi'")
+
+    # Anlamsız tekrar (asdasd, aaaaa)
+    if re.match(r'^(.)\1{4,}$', t.replace(' ', '')):
+        return False, "Anlamsız metin tespit edildi. Lütfen gerçek bir konu girin."
+
+    # Tek-iki harflik kelime grupları (asdf qwer)
+    if all(len(w) <= 2 for w in words) and len(words) < 5:
+        return False, "Lütfen anlamlı bir konu girin."
+
+    return True, ""
+
+
+def validate_topic_ai(text):
+    """
+    AI ile konu doğrulama: 'bu geçerli akademik/bilgi konusu mu?'
+    (bool gecerli, str sebep) döner. Hata olursa geçerli kabul eder (engellemez).
+    """
+    try:
+        from ai_engine.services import generate_with_pool
+        prompt = (
+            "Aşağıdaki metin, akademik/bilgilendirici bir makale için GEÇERLİ bir KONU mu? "
+            "Sohbet, selamlaşma, şaka, anlamsız metin, kişisel istek veya makale konusu "
+            "olmayan şeyler GEÇERSİZDİR. Sadece tek kelimeyle cevap ver: "
+            "'GECERLI' veya 'GECERSIZ'.\n\n"
+            f"Metin: \"{text}\""
+        )
+        result, _key = generate_with_pool(
+            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
+            max_tokens=10, temperature=0.0)
+        answer = (result or "").strip().upper()
+        if "GECERSIZ" in answer or "GEÇERSIZ" in answer or "INVALID" in answer:
+            return False, ("Girdiğiniz metin geçerli bir makale konusu olarak "
+                           "değerlendirilmedi. Lütfen akademik veya bilgilendirici bir konu girin.")
+        return True, ""
+    except Exception:
+        # AI doğrulanamazsa engelleme (kullanıcıyı mağdur etme)
+        return True, ""
+
+
 def get_base_prompt(user_request_text, word_count=1500):
     """Tüm modeller için ortak olan prompt metnini oluşturur."""
     current_year = date.today().year
@@ -143,6 +208,14 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
     if not selected_value:
         return dbc.Alert("Lütfen bir yapay zeka modeli seçin.", color="warning"), no_update
 
+    # --- KONU DOĞRULAMA (kural + AI) — saçma/sohbet konuları engelle ---
+    valid, reason = validate_topic_rules(request_text)
+    if not valid:
+        return dbc.Alert(reason, color="warning"), no_update
+    valid_ai, reason_ai = validate_topic_ai(request_text)
+    if not valid_ai:
+        return dbc.Alert(reason_ai, color="warning"), no_update
+
     # Dropdown değeri "service_name|model_name" formatında
     if '|' in selected_value:
         selected_service, selected_model = selected_value.split('|', 1)
@@ -176,8 +249,22 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
             structured_data=ai_data.get("structured_data"),
             status='tamamlandi'
         )
+
+        # --- Makale başarıyla üretildi → şimdi krediyi düş ---
+        # (Sayfa girişinde değil, ÜRETİM başarılı olunca. Superuser muaf.)
+        remaining_note = ""
+        if not user.is_superuser:
+            try:
+                from billing.services import charge
+                remaining = charge(user, 'makale_uretim', default_cost=10,
+                                   description=f"Makale üretimi: {ai_data.get('title', '')[:50]}")
+                if remaining is not None:
+                    remaining_note = f" (Kalan krediniz: {remaining})"
+            except Exception:
+                pass
+
         success_message = dbc.Alert(
-            ["Makale başarıyla üretildi! ",
+            ["Makale başarıyla üretildi!" + remaining_note + " ",
              html.A("Görüntülemek için tıklayın.", href=new_article.get_absolute_url(), className="alert-link")],
             color="success"
         )

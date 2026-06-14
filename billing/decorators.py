@@ -49,3 +49,31 @@ def require_credits(service_key, default_cost=1):
             return view_func(request, *args, **kwargs)
         return _wrapped
     return decorator
+
+
+def check_credits(service_key, default_cost=1):
+    """
+    require_credits gibi ama krediyi DÜŞÜRMEZ — sadece yeterli mi diye bakar.
+    Krediyi gerçekte düşürmek (charge) işlemin başarılı olduğu yerde
+    (örn. makale üretimi tamamlanınca) manuel yapılır.
+
+    Kullanım: konu doğrulama/üretim başarısız olursa kredi boşa gitmesin diye.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        @login_required
+        def _wrapped(request, *args, **kwargs):
+            user = request.user
+
+            if user.is_superuser:
+                return view_func(request, *args, **kwargs)
+
+            ok, msg = can_use(user, service_key, default_cost=default_cost)
+            if not ok:
+                messages.error(request, msg)
+                return redirect('billing:credits')
+
+            # Krediyi DÜŞÜRME — sadece geçişe izin ver
+            return view_func(request, *args, **kwargs)
+        return _wrapped
+    return decorator

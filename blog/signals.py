@@ -15,6 +15,30 @@ def handle_user_save(sender, instance, created, **kwargs):
         profile.last_name = instance.last_name
         profile.save()
 
+    # --- Yeni üyeye SADECE kendi makalesini yönetme yetkisi ver ---
+    # Üye admin paneline girer ama yalnızca "Makale" modülünü görür ve
+    # (admin.py'deki yetki kuralları sayesinde) sadece kendi makalesini düzenler.
+    if created and not instance.is_superuser:
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        try:
+            ct = ContentType.objects.get(app_label='blog', model='generatedarticle')
+            perms = Permission.objects.filter(
+                content_type=ct,
+                codename__in=['add_generatedarticle', 'change_generatedarticle',
+                              'delete_generatedarticle', 'view_generatedarticle'])
+            # Admin paneline girebilmesi için staff yap
+            if not instance.is_staff:
+                instance.is_staff = True
+                # Sonsuz döngüyü önle
+                post_save.disconnect(handle_user_save, sender=User)
+                instance.save(update_fields=['is_staff'])
+                post_save.connect(handle_user_save, sender=User)
+            # Sadece makale izinlerini ata (başka modül görünmez)
+            instance.user_permissions.add(*perms)
+        except ContentType.DoesNotExist:
+            pass
+
 
 @receiver(post_save, sender=Profile)
 def update_user_from_profile(sender, instance, **kwargs):

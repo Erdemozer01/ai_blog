@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from billing.decorators import require_credits
+from billing.decorators import require_credits, check_credits
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
@@ -508,7 +508,7 @@ def download_article_as_pdf(request, article_id):
 
 
 @login_required
-@require_credits('makale_uretim', default_cost=10)
+@check_credits('makale_uretim', default_cost=10)
 def generate_article_view(request):
     try:
         profile = request.user.profile
