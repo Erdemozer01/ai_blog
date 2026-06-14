@@ -222,6 +222,33 @@ TRANSLATIONS = {
     'sal_show': {'tr': 'Göster', 'en': 'Show'},
     'sal_hide': {'tr': 'Gizle', 'en': 'Hide'},
     'sal_none': {'tr': 'Yok', 'en': 'None'},
+    'sal_ai_btn': {'tr': 'AI ile Yorumla', 'en': 'Interpret with AI'},
+    'sal_ai_prompt_hint': {'tr': 'Hizalama verisini yapay zeka ile yorumlatmak için butona basın.',
+                           'en': 'Click the button to interpret the alignment data with AI.'},
+
+    # ---- Blog Anasayfa (statik_anasayfa) ----
+    'home_no_article': {'tr': 'Makale Bulunamadı', 'en': 'No Articles Found'},
+    'home_no_article_hint': {'tr': 'Filtre kriterlerinize uygun makale bulunamadı. Lütfen arama terimlerinizi değiştirin.',
+                             'en': 'No articles match your filter criteria. Please change your search terms.'},
+    'home_unknown_author': {'tr': 'Yazar Bilinmiyor', 'en': 'Unknown Author'},
+    'home_uncategorized': {'tr': 'Kategorisiz', 'en': 'Uncategorized'},
+    'home_no_summary': {'tr': 'Özet mevcut değil.', 'en': 'No summary available.'},
+    'home_read_more': {'tr': 'Devamını Oku', 'en': 'Read More'},
+    'home_advanced_search': {'tr': 'Gelişmiş Arama', 'en': 'Advanced Search'},
+    'home_search_placeholder': {'tr': 'Başlık, içerik veya özette ara...',
+                                'en': 'Search in title, content or summary...'},
+    'home_min_chars': {'tr': 'En az 3 karakter girin', 'en': 'Enter at least 3 characters'},
+    'home_sorting': {'tr': 'Sıralama', 'en': 'Sorting'},
+    'home_sort_newest': {'tr': '📅 En Yeni', 'en': '📅 Newest'},
+    'home_sort_views': {'tr': '👁️ En Çok Okunan', 'en': '👁️ Most Viewed'},
+    'home_sort_likes': {'tr': '👍 En Faydalı', 'en': '👍 Most Liked'},
+    'home_sort_oldest': {'tr': '📅 En Eski', 'en': '📅 Oldest'},
+    'home_categories': {'tr': 'Kategoriler', 'en': 'Categories'},
+    'home_all_categories': {'tr': 'Tüm Kategoriler', 'en': 'All Categories'},
+    'home_statistics': {'tr': 'İstatistikler', 'en': 'Statistics'},
+    'home_total_articles': {'tr': 'Toplam Makale', 'en': 'Total Articles'},
+    'home_total_views': {'tr': 'Toplam Okunma', 'en': 'Total Views'},
+    'home_active_categories': {'tr': 'Aktif Kategori', 'en': 'Active Categories'},
 }
 
 

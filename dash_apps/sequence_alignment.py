@@ -166,6 +166,12 @@ def create_sequence_alignment_layout(lang='en'):
             html.P(t('sal_result_placeholder', lang),
                    className="text-muted mt-4")
         ])),
+        html.Div([
+            dbc.Button([html.I(className="fas fa-robot me-2"),
+                        f"{t('sal_ai_btn', lang)} (5 {t('credits_required', lang)})"],
+                       id="alignment-ai-btn", color="info", outline=True, className="mt-3"),
+            dbc.FormText(t('sal_ai_prompt_hint', lang), className="d-block text-muted mt-1"),
+        ]),
         dcc.Loading(id="loading-alignment-interpretation",
                     children=html.Div(id="alignment-ai-interpretation-container", className="mt-4"))
     ], md=8, className="p-4")
@@ -233,16 +239,17 @@ def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, 
 
 @app.callback(
     Output("alignment-ai-interpretation-container", "children"),
-    Input("alignment-data-textarea", "value"),
+    Input("alignment-ai-btn", "n_clicks"),
+    State("alignment-data-textarea", "value"),
     State('sal-lang-store', 'data'),
     prevent_initial_call=True
 )
-def update_alignment_ai_interpretation(alignment_data, lang):
-    """Veri girildiğinde hizalamayı otomatik olarak yorumlar."""
+def update_alignment_ai_interpretation(n_clicks, alignment_data, lang):
+    """AI butonuna basıldığında hizalamayı yorumlar."""
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
-    if not alignment_data:
-        return None  # Veri yoksa yorum alanını temizle
+    if not n_clicks or not alignment_data:
+        return None
 
     interpretation = get_alignment_interpretation(alignment_data, lang=lang)
     ai_card = dbc.Card([
