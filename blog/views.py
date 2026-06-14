@@ -166,7 +166,8 @@ def admin_dashboard_view(request):
 
 def anasayfa_view(request):
     main_navbar = create_main_navbar(request)
-    dash_content = create_anasayfa_content_layout()
+    from dash_apps.i18n_helper import get_lang
+    dash_content = create_anasayfa_content_layout(get_lang(request))
     _anasayfa_layout = html.Div([main_navbar, dash_content])
 
     def serve_anasayfa_layout():

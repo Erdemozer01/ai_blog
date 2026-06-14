@@ -13,8 +13,9 @@ external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('Anasayfa', external_stylesheets=external_stylesheets)
 
 
-def create_post_cards(article_queryset):
+def create_post_cards(article_queryset, lang='en'):
     """Enhanced post cards with better styling and info"""
+    from dash_apps.i18n_helper import t
 
     if not article_queryset:
         return [
@@ -22,8 +23,8 @@ def create_post_cards(article_queryset):
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-search fa-3x text-muted mb-3"),
-                        html.H4("Makale Bulunamadı", className="text-muted"),
-                        html.P("Filtre kriterlerinize uygun makale bulunamadı. Lütfen arama terimlerinizi değiştirin.")
+                        html.H4(t('home_no_article', lang), className="text-muted"),
+                        html.P(t('home_no_article_hint', lang))
                     ], className="text-center py-5")
                 ])
             ], className="mb-4")
@@ -36,7 +37,7 @@ def create_post_cards(article_queryset):
         word_count = len(article.full_content.split()) if article.full_content else 0
         reading_time = max(1, word_count // 200)
 
-        author_name = "Yazar Bilinmiyor"
+        author_name = t('home_unknown_author', lang)
         if hasattr(article.owner, 'profile') and article.owner.profile.first_name:
             author_name = f"{article.owner.profile.first_name} {article.owner.profile.last_name}"
         else:
@@ -46,14 +47,14 @@ def create_post_cards(article_queryset):
             dbc.CardBody([
                 html.Div([
                     dbc.Badge(
-                        article.category.name if article.category else "Kategorisiz",
+                        article.category.name if article.category else t('home_uncategorized', lang),
                         color="primary",
                         pill=True,
                         className="mb-2"
                     ),
                     html.Div([
                         html.I(className="fas fa-clock me-1"),
-                        f"{reading_time} dk okuma"
+                        f"{reading_time} {t('home_min_read', lang)}"
                     ], className="text-muted small float-end")
                 ], className="clearfix"),
                 html.H4(
@@ -67,7 +68,7 @@ def create_post_cards(article_queryset):
                 html.P(
                     article.turkish_abstract[:200] + "..." if article.turkish_abstract and len(
                         article.turkish_abstract) > 200
-                    else article.turkish_abstract or "Özet mevcut değil.",
+                    else article.turkish_abstract or t('home_no_summary', lang),
                     className="text-muted"
                 ),
                 html.Div([
@@ -81,15 +82,15 @@ def create_post_cards(article_queryset):
                     ], className="text-muted me-3"),
                     html.Small([
                         html.I(className="fas fa-eye me-1"),
-                        f"{article.view_count} okunma"
+                        f"{article.view_count} {t('home_views_label', lang)}"
                     ], className="text-muted me-3"),
                     html.Small([
                         html.I(className="fas fa-thumbs-up me-1"),
-                        f"{article.likes} beğeni"
+                        f"{article.likes} {t('home_likes_label', lang)}"
                     ], className="text-muted")
                 ], className="mb-3"),
                 dbc.Button(
-                    [html.I(className="fas fa-arrow-right me-2"), "Devamını Oku"],
+                    [html.I(className="fas fa-arrow-right me-2"), t('home_read_more', lang)],
                     color="primary",
                     outline=True,
                     size="sm",
@@ -104,8 +105,9 @@ def create_post_cards(article_queryset):
     return cards
 
 
-def get_sidebar():
+def get_sidebar(lang='en'):
     """Enhanced sidebar with better filters"""
+    from dash_apps.i18n_helper import t
     categories = Category.objects.annotate(
         article_count=Count('generatedarticle')
     ).filter(article_count__gt=0)
@@ -116,24 +118,24 @@ def get_sidebar():
     ]
 
     search_card = dbc.Card([
-        dbc.CardHeader([html.I(className="fas fa-search me-2"), "Gelişmiş Arama"]),
+        dbc.CardHeader([html.I(className="fas fa-search me-2"), t('home_advanced_search', lang)]),
         dbc.CardBody([
-            dbc.Input(id='search-input', placeholder="Başlık, içerik veya özette ara...", type="search",
+            dbc.Input(id='search-input', placeholder=t('home_search_placeholder', lang), type="search",
                       className="mb-3"),
-            dbc.FormText("En az 3 karakter girin", className="text-muted")
+            dbc.FormText(t('home_min_chars', lang), className="text-muted")
         ])
     ], className="mb-4")
 
     sort_card = dbc.Card([
-        dbc.CardHeader([html.I(className="fas fa-sort me-2"), "Sıralama"]),
+        dbc.CardHeader([html.I(className="fas fa-sort me-2"), t('home_sorting', lang)]),
         dbc.CardBody([
             dcc.Dropdown(
                 id='sort-by-dropdown',
                 options=[
-                    {'label': '📅 En Yeni', 'value': 'newest'},
-                    {'label': '👁️ En Çok Okunan', 'value': 'views'},
-                    {'label': '👍 En Faydalı', 'value': 'likes'},
-                    {'label': '📅 En Eski', 'value': 'oldest'},
+                    {'label': t('home_sort_newest', lang), 'value': 'newest'},
+                    {'label': t('home_sort_views', lang), 'value': 'views'},
+                    {'label': t('home_sort_likes', lang), 'value': 'likes'},
+                    {'label': t('home_sort_oldest', lang), 'value': 'oldest'},
                 ],
                 value='newest',
                 clearable=False,
@@ -143,9 +145,9 @@ def get_sidebar():
     ], className="mb-4")
 
     category_card = dbc.Card([
-        dbc.CardHeader([html.I(className="fas fa-list me-2"), "Kategoriler"]),
+        dbc.CardHeader([html.I(className="fas fa-list me-2"), t('home_categories', lang)]),
         dbc.CardBody([
-            dcc.Dropdown(id='category-dropdown', options=category_options, placeholder="Tüm Kategoriler",
+            dcc.Dropdown(id='category-dropdown', options=category_options, placeholder=t('home_all_categories', lang),
                          clearable=True, className="custom-dropdown")
         ])
     ], className="mb-4")
@@ -161,26 +163,27 @@ def get_sidebar():
         cache.set('homepage_stats', stats, 60)
 
     stats_card = dbc.Card([
-        dbc.CardHeader([html.I(className="fas fa-chart-bar me-2"), "İstatistikler"]),
+        dbc.CardHeader([html.I(className="fas fa-chart-bar me-2"), t('home_statistics', lang)]),
         dbc.CardBody([
             html.Div([html.H5(stats['total_articles'], className="text-primary mb-1"),
-                      html.Small("Toplam Makale", className="text-muted")], className="text-center mb-2"),
+                      html.Small(t('home_total_articles', lang), className="text-muted")], className="text-center mb-2"),
             html.Hr(),
             html.Div([html.H5(f"{stats['total_views']:,}", className="text-success mb-1"),
-                      html.Small("Toplam Okunma", className="text-muted")], className="text-center mb-2"),
+                      html.Small(t('home_total_views', lang), className="text-muted")], className="text-center mb-2"),
             html.Hr(),
             html.Div([html.H5(stats['categories_count'], className="text-info mb-1"),
-                      html.Small("Aktif Kategori", className="text-muted")], className="text-center")
+                      html.Small(t('home_active_categories', lang), className="text-muted")], className="text-center")
         ])
     ], className="mb-4")
 
     return html.Div([search_card, sort_card, category_card, stats_card])
 
 
-def create_anasayfa_content_layout():
+def create_anasayfa_content_layout(lang='en'):
     """Anasayfanın Dash ile kontrol edilen içeriğini (sidebar, postlar) döndürür."""
     return html.Div([
         dcc.Store(id='filter-state-store'),
+        dcc.Store(id='home-lang-store', data=lang),
         dbc.Container([
             dbc.Row([
                 dbc.Col([
@@ -189,7 +192,7 @@ def create_anasayfa_content_layout():
                         dbc.Pagination(id='pagination-ui', max_value=1, active_page=1, className="d-none")
                     ], className="mt-4")
                 ], md=8),
-                dbc.Col(get_sidebar(), md=4),
+                dbc.Col(get_sidebar(lang), md=4),
             ])
         ], className="mt-4")
     ])
@@ -206,9 +209,11 @@ def create_anasayfa_content_layout():
     Input('sort-by-dropdown', 'value'),
     Input('pagination-ui', 'active_page'),
     State('filter-state-store', 'data'),
+    State('home-lang-store', 'data'),
     prevent_initial_call=False
 )
-def master_filter_and_paginate(search_term, category_id, sort_by, active_page, stored_filters):
+def master_filter_and_paginate(search_term, category_id, sort_by, active_page, stored_filters, lang):
+    lang = lang or 'en'
     current_filters = {'search': search_term, 'category': category_id, 'sort': sort_by}
     page = 1 if (stored_filters or {}) != current_filters else (active_page or 1)
 
@@ -233,7 +238,7 @@ def master_filter_and_paginate(search_term, category_id, sort_by, active_page, s
 
     paginator = Paginator(queryset, 5)
     page_obj = paginator.get_page(page)
-    new_cards = create_post_cards(page_obj)
+    new_cards = create_post_cards(page_obj, lang)
     pagination_classname = "pagination justify-content-center" if paginator.num_pages > 1 else "d-none"
 
     return new_cards, current_filters, paginator.num_pages, page, pagination_classname

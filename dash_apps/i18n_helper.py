@@ -249,6 +249,9 @@ TRANSLATIONS = {
     'home_total_articles': {'tr': 'Toplam Makale', 'en': 'Total Articles'},
     'home_total_views': {'tr': 'Toplam Okunma', 'en': 'Total Views'},
     'home_active_categories': {'tr': 'Aktif Kategori', 'en': 'Active Categories'},
+    'home_min_read': {'tr': 'dk okuma', 'en': 'min read'},
+    'home_views_label': {'tr': 'okunma', 'en': 'views'},
+    'home_likes_label': {'tr': 'beğeni', 'en': 'likes'},
 }
 
 
