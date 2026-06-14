@@ -353,7 +353,9 @@ def primer_design_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = create_primer_layout()
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    content = create_primer_layout(lang)
     _layout = html.Div([main_navbar, content])
     primer_design_app.layout = lambda: _layout
 

@@ -26,24 +26,27 @@ def clean_sequence(sequence):
     return re.sub(r'[^ATGCatgc]', '', joined).upper()
 
 
-def design_primers_core(sequence, product_min=100, product_max=300, num_return=5):
+def design_primers_core(sequence, product_min=100, product_max=300,
+                        len_min=18, len_max=25, num_return=5, lang='en'):
     """Primer3 ile primer çiftleri tasarlar. Hata durumunda {'error': ...} döner."""
+    from dash_apps.i18n_helper import t
     try:
         import primer3
     except ImportError:
-        return {'error': 'Primer3 kütüphanesi sunucuda kurulu değil. '
-                         'Yöneticiye bildirin (pip install primer3-py).'}
+        return {'error': t('primer_not_installed', lang)}
     seq = clean_sequence(sequence)
     if len(seq) < 50:
-        return {'error': 'Dizi çok kısa. En az 50 baz gerekli.'}
+        return {'error': t('primer_too_short', lang)}
     if len(seq) > 10000:
-        return {'error': 'Dizi çok uzun (maks. 10.000 baz). Daha kısa bir bölge seçin.'}
+        return {'error': t('primer_too_long', lang)}
+    opt_size = max(len_min, min(len_max, round((len_min + len_max) / 2)))
     try:
         res = primer3.design_primers(
             {'SEQUENCE_ID': 'user_seq', 'SEQUENCE_TEMPLATE': seq},
             {
                 'PRIMER_NUM_RETURN': num_return,
-                'PRIMER_OPT_SIZE': 20, 'PRIMER_MIN_SIZE': 18, 'PRIMER_MAX_SIZE': 25,
+                'PRIMER_OPT_SIZE': opt_size,
+                'PRIMER_MIN_SIZE': len_min, 'PRIMER_MAX_SIZE': len_max,
                 'PRIMER_OPT_TM': 60.0, 'PRIMER_MIN_TM': 57.0, 'PRIMER_MAX_TM': 63.0,
                 'PRIMER_MIN_GC': 40.0, 'PRIMER_MAX_GC': 60.0,
                 'PRIMER_PRODUCT_SIZE_RANGE': [[product_min, product_max]],
@@ -54,16 +57,20 @@ def design_primers_core(sequence, product_min=100, product_max=300, num_return=5
 
     n = res.get('PRIMER_PAIR_NUM_RETURNED', 0)
     if n == 0:
-        return {'error': 'Uygun primer bulunamadı. Ürün boyu aralığını genişletmeyi deneyin.'}
+        return {'error': t('primer_not_found', lang)}
 
     pairs = []
     for i in range(n):
+        f_seq = res[f'PRIMER_LEFT_{i}_SEQUENCE']
+        r_seq = res[f'PRIMER_RIGHT_{i}_SEQUENCE']
         pairs.append({
             'No': i + 1,
-            'Forward (5→3)': res[f'PRIMER_LEFT_{i}_SEQUENCE'],
+            'Forward (5→3)': f_seq,
+            'Forward Uzunluk': len(f_seq),
             'Forward Tm': round(res[f'PRIMER_LEFT_{i}_TM'], 1),
             'Forward GC%': round(res[f'PRIMER_LEFT_{i}_GC_PERCENT'], 1),
-            'Reverse (5→3)': res[f'PRIMER_RIGHT_{i}_SEQUENCE'],
+            'Reverse (5→3)': r_seq,
+            'Reverse Uzunluk': len(r_seq),
             'Reverse Tm': round(res[f'PRIMER_RIGHT_{i}_TM'], 1),
             'Reverse GC%': round(res[f'PRIMER_RIGHT_{i}_GC_PERCENT'], 1),
             'Ürün (bp)': res[f'PRIMER_PAIR_{i}_PRODUCT_SIZE'],
@@ -95,48 +102,62 @@ def fetch_sequence_from_ebi(accession):
 
 # ----------------------------- Layout -----------------------------
 
-def create_primer_layout():
+def create_primer_layout(lang='en'):
+    from dash_apps.i18n_helper import t
     return dbc.Container([
-        html.H2([html.I(className="fas fa-dna me-2"), "Primer Tasarım Aracı"],
+        # Dil bilgisini callback'lerin görmesi için store'da tut
+        dcc.Store(id="primer-lang-store", data=lang),
+        html.H2([html.I(className="fas fa-dna me-2"), t('primer_title', lang)],
                 className="my-4"),
-        html.P("PCR primer tasarımı (Primer3 motoru). DNA dizinizi yapıştırın "
-               "veya gen accession numarası girin.", className="text-muted"),
+        html.P(t('primer_subtitle', lang), className="text-muted"),
 
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader("Giriş"),
+                    dbc.CardHeader(t('input', lang)),
                     dbc.CardBody([
-                        dbc.Label("DNA Dizisi (yapıştır)"),
+                        dbc.Label(t('primer_seq_label', lang)),
                         dbc.Textarea(id="primer-seq-input", rows=6,
-                                     placeholder="5'-ATGC... dizinizi buraya yapıştırın "
-                                                 "(FASTA da olur)",
+                                     placeholder=t('primer_seq_placeholder', lang),
                                      className="mb-2", style={'fontFamily': 'monospace'}),
 
-                        html.Div("— veya —", className="text-center text-muted my-2"),
+                        html.Div(t('primer_or', lang), className="text-center text-muted my-2"),
 
-                        dbc.Label("Gen Accession / ID (EBI ENA)"),
+                        dbc.Label(t('primer_acc_label', lang)),
                         dbc.InputGroup([
                             dbc.Input(id="primer-acc-input",
                                       placeholder="örn: BC003596, NM_000546"),
-                            dbc.Button("Diziyi Çek", id="primer-fetch-btn",
+                            dbc.Button(t('primer_fetch_btn', lang), id="primer-fetch-btn",
                                        color="secondary", n_clicks=0),
                         ], className="mb-3"),
 
                         dbc.Row([
                             dbc.Col([
-                                dbc.Label("Ürün boyu (min)"),
+                                dbc.Label(t('primer_prod_min', lang)),
                                 dbc.Input(id="primer-prod-min", type="number",
                                           value=100, min=50, max=2000),
                             ], width=6),
                             dbc.Col([
-                                dbc.Label("Ürün boyu (max)"),
+                                dbc.Label(t('primer_prod_max', lang)),
                                 dbc.Input(id="primer-prod-max", type="number",
                                           value=300, min=60, max=3000),
                             ], width=6),
                         ], className="mb-3"),
 
-                        dbc.Button([html.I(className="fas fa-cogs me-2"), "Primer Tasarla"],
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label(t('primer_len_min', lang)),
+                                dbc.Input(id="primer-len-min", type="number",
+                                          value=18, min=15, max=35),
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Label(t('primer_len_max', lang)),
+                                dbc.Input(id="primer-len-max", type="number",
+                                          value=25, min=16, max=36),
+                            ], width=6),
+                        ], className="mb-3"),
+
+                        dbc.Button([html.I(className="fas fa-cogs me-2"), t('primer_design_btn', lang)],
                                    id="primer-design-btn", color="primary",
                                    className="w-100", n_clicks=0),
                     ]),
@@ -167,16 +188,19 @@ def create_primer_layout():
     [Output("primer-seq-input", "value"),
      Output("primer-fetch-status", "children")],
     Input("primer-fetch-btn", "n_clicks"),
-    State("primer-acc-input", "value"),
+    [State("primer-acc-input", "value"),
+     State("primer-lang-store", "data")],
     prevent_initial_call=True,
 )
-def fetch_sequence(n_clicks, accession):
+def fetch_sequence(n_clicks, accession, lang):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not accession:
-        return "", dbc.Alert("Lütfen bir accession/ID girin.", color="warning")
+        return "", dbc.Alert(t('primer_acc_empty', lang), color="warning")
     seq, err = fetch_sequence_from_ebi(accession)
     if err:
         return "", dbc.Alert(err, color="danger")
-    return seq, dbc.Alert(f"✓ Dizi çekildi ({len(seq)} baz). Şimdi 'Primer Tasarla'ya basın.",
+    return seq, dbc.Alert(f"✓ {t('primer_fetched', lang)} ({len(seq)} {t('primer_fetch_then', lang)}",
                           color="success")
 
 
@@ -188,37 +212,48 @@ def fetch_sequence(n_clicks, accession):
     Input("primer-design-btn", "n_clicks"),
     [State("primer-seq-input", "value"),
      State("primer-prod-min", "value"),
-     State("primer-prod-max", "value")],
+     State("primer-prod-max", "value"),
+     State("primer-len-min", "value"),
+     State("primer-len-max", "value"),
+     State("primer-lang-store", "data")],
     prevent_initial_call=True,
 )
-def run_design(n_clicks, sequence, pmin, pmax):
+def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not sequence:
-        return dbc.Alert("Lütfen bir DNA dizisi girin veya çekin.", color="warning"), None, None, ""
+        return dbc.Alert(t('primer_no_seq', lang), color="warning"), None, None, ""
 
     result = design_primers_core(sequence, product_min=int(pmin or 100),
-                                 product_max=int(pmax or 300))
+                                 product_max=int(pmax or 300),
+                                 len_min=int(lmin or 18), len_max=int(lmax or 25),
+                                 lang=lang)
     if 'error' in result:
         return dbc.Alert(result['error'], color="danger"), None, None, ""
 
     pairs = result['pairs']
-    # DataTable için: id'ler basit (ASCII), name'ler güzel görünüm
+    # DataTable için: id'ler basit (ASCII), name'ler çeviriden
     col_defs = [
-        {'name': 'No', 'id': 'no'},
-        {'name': 'Forward (5→3)', 'id': 'fwd'},
-        {'name': 'Fwd Tm', 'id': 'fwd_tm'},
-        {'name': 'Fwd GC%', 'id': 'fwd_gc'},
-        {'name': 'Reverse (5→3)', 'id': 'rev'},
-        {'name': 'Rev Tm', 'id': 'rev_tm'},
-        {'name': 'Rev GC%', 'id': 'rev_gc'},
-        {'name': 'Ürün (bp)', 'id': 'product'},
+        {'name': t('primer_no', lang), 'id': 'no'},
+        {'name': t('primer_fwd', lang), 'id': 'fwd'},
+        {'name': t('primer_fwd_len', lang), 'id': 'fwd_len'},
+        {'name': t('primer_fwd_tm', lang), 'id': 'fwd_tm'},
+        {'name': t('primer_fwd_gc', lang), 'id': 'fwd_gc'},
+        {'name': t('primer_rev', lang), 'id': 'rev'},
+        {'name': t('primer_rev_len', lang), 'id': 'rev_len'},
+        {'name': t('primer_rev_tm', lang), 'id': 'rev_tm'},
+        {'name': t('primer_rev_gc', lang), 'id': 'rev_gc'},
+        {'name': t('primer_product', lang), 'id': 'product'},
     ]
     table_data = [
         {
             'no': p['No'],
             'fwd': p['Forward (5→3)'],
+            'fwd_len': p['Forward Uzunluk'],
             'fwd_tm': p['Forward Tm'],
             'fwd_gc': p['Forward GC%'],
             'rev': p['Reverse (5→3)'],
+            'rev_len': p['Reverse Uzunluk'],
             'rev_tm': p['Reverse Tm'],
             'rev_gc': p['Reverse GC%'],
             'product': p['Ürün (bp)'],
@@ -236,16 +271,17 @@ def run_design(n_clicks, sequence, pmin, pmax):
 
     results_card = dbc.Card([
         dbc.CardHeader([html.I(className="fas fa-check-circle text-success me-2"),
-                        f"{len(pairs)} primer çifti bulundu "
-                        f"(dizi: {result['seq_length']} baz)"]),
+                        f"{len(pairs)} {t('primer_found', lang)} "
+                        f"({t('primer_seq_len', lang)}: {result['seq_length']} "
+                        f"{'baz' if lang == 'tr' else 'bases'})"]),
         dbc.CardBody(table),
     ], className="shadow-sm")
 
+    credits_word = t('credits_required', lang)
     ai_button = dbc.Card(dbc.CardBody([
-        html.P("Primer sonuçlarını yapay zeka ile yorumlatmak ister misiniz? "
-               "(spesifiklik, dimer riski, öneriler)", className="mb-2 text-muted"),
+        html.P(t('primer_ai_prompt', lang), className="mb-2 text-muted"),
         dbc.Button([html.I(className="fas fa-robot me-2"),
-                    "AI ile Yorumla (5 kredi)"],
+                    f"{t('primer_ai_btn', lang)} (5 {credits_word})"],
                    id="primer-ai-btn", color="info", outline=True, n_clicks=0),
     ]), className="shadow-sm")
 
@@ -256,36 +292,58 @@ def run_design(n_clicks, sequence, pmin, pmax):
     Output("primer-ai-result", "children"),
     Input("primer-ai-btn", "n_clicks"),
     [State("primer-results-store", "data"),
-     State("primer-seq-store", "data")],
+     State("primer-seq-store", "data"),
+     State("primer-lang-store", "data")],
     prevent_initial_call=True,
 )
-def ai_comment(n_clicks, pairs, seq):
+def ai_comment(n_clicks, pairs, seq, lang):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not n_clicks or not pairs:
         return ""
     summary_lines = []
     for p in pairs:
         summary_lines.append(
-            f"Çift {p['No']}: F={p['Forward (5→3)']} (Tm {p['Forward Tm']}, "
+            f"Pair {p['No']}: F={p['Forward (5→3)']} (Tm {p['Forward Tm']}, "
             f"GC {p['Forward GC%']}%), R={p['Reverse (5→3)']} "
-            f"(Tm {p['Reverse Tm']}, GC {p['Reverse GC%']}%), ürün {p['Ürün (bp)']} bp")
+            f"(Tm {p['Reverse Tm']}, GC {p['Reverse GC%']}%), product {p['Ürün (bp)']} bp")
     summary = "\n".join(summary_lines)
 
-    prompt = (
-        "Aşağıda PCR primer tasarım sonuçları var. Deneyimli bir moleküler biyolog "
-        "gözüyle KAPSAMLI bir değerlendirme yap (Türkçe). Şu başlıkları ayrı ayrı ele al:\n\n"
-        "1. **Genel Değerlendirme:** Primerlerin kalitesi hakkında genel görüş.\n"
-        "2. **Tm Analizi:** Forward/Reverse Tm değerlerinin uyumu, çift içi ve çiftler "
-        "arası farklar, PCR için uygunluğu.\n"
-        "3. **GC İçeriği:** GC% değerlerinin değerlendirmesi, 3' uç stabilitesi.\n"
-        "4. **Primer-Dimer / Hairpin Riski:** Olası ikincil yapı riskleri.\n"
-        "5. **Spesifiklik:** Primerlerin hedefe özgüllüğü hakkında genel uyarılar.\n"
-        "6. **Öneriler:** Hangi primer çiftini önerirsin ve neden? Laboratuvarda "
-        "dikkat edilmesi gerekenler (annealing sıcaklığı önerisi dahil).\n\n"
-        "Her başlığı 2-4 cümleyle, somut ve pratik biçimde açıkla. "
-        "Markdown başlıkları ve maddeler kullan.\n\n"
-        f"Primer çiftleri:\n{summary}\n\n"
-        f"Hedef dizi uzunluğu: {len(seq)} baz."
-    )
+    if lang == 'tr':
+        prompt = (
+            "Aşağıda PCR primer tasarım sonuçları var. Deneyimli bir moleküler biyolog "
+            "gözüyle KAPSAMLI bir değerlendirme yap (Türkçe). Şu başlıkları ayrı ayrı ele al:\n\n"
+            "1. **Genel Değerlendirme:** Primerlerin kalitesi hakkında genel görüş.\n"
+            "2. **Tm Analizi:** Forward/Reverse Tm değerlerinin uyumu, çift içi ve çiftler "
+            "arası farklar, PCR için uygunluğu.\n"
+            "3. **GC İçeriği:** GC% değerlerinin değerlendirmesi, 3' uç stabilitesi.\n"
+            "4. **Primer-Dimer / Hairpin Riski:** Olası ikincil yapı riskleri.\n"
+            "5. **Spesifiklik:** Primerlerin hedefe özgüllüğü hakkında genel uyarılar.\n"
+            "6. **Öneriler:** Hangi primer çiftini önerirsin ve neden? Laboratuvarda "
+            "dikkat edilmesi gerekenler (annealing sıcaklığı önerisi dahil).\n\n"
+            "Her başlığı 2-4 cümleyle, somut ve pratik biçimde açıkla. "
+            "Markdown başlıkları ve maddeler kullan.\n\n"
+            f"Primer çiftleri:\n{summary}\n\n"
+            f"Hedef dizi uzunluğu: {len(seq)} baz."
+        )
+    else:
+        prompt = (
+            "Below are PCR primer design results. Provide a COMPREHENSIVE assessment "
+            "from the perspective of an experienced molecular biologist (in English). "
+            "Address each of the following sections separately:\n\n"
+            "1. **General Assessment:** Overall view on primer quality.\n"
+            "2. **Tm Analysis:** Compatibility of Forward/Reverse Tm values, within-pair "
+            "and between-pair differences, suitability for PCR.\n"
+            "3. **GC Content:** Evaluation of GC% values, 3' end stability.\n"
+            "4. **Primer-Dimer / Hairpin Risk:** Possible secondary structure risks.\n"
+            "5. **Specificity:** General warnings about target specificity.\n"
+            "6. **Recommendations:** Which primer pair do you recommend and why? "
+            "Practical lab considerations (including annealing temperature suggestion).\n\n"
+            "Explain each section in 2-4 sentences, concrete and practical. "
+            "Use Markdown headings and bullet points.\n\n"
+            f"Primer pairs:\n{summary}\n\n"
+            f"Target sequence length: {len(seq)} bases."
+        )
 
     try:
         from ai_engine.services import generate_with_pool
@@ -293,10 +351,10 @@ def ai_comment(n_clicks, pairs, seq):
             prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
             max_tokens=2500, temperature=0.5)
     except Exception as e:
-        return dbc.Alert(f"AI yorumu alınamadı: {e}", color="warning")
+        return dbc.Alert(f"{t('primer_ai_failed', lang)}: {e}", color="warning")
 
     return dbc.Card([
-        dbc.CardHeader([html.I(className="fas fa-robot me-2"), "AI Değerlendirmesi"]),
+        dbc.CardHeader([html.I(className="fas fa-robot me-2"), t('primer_ai_title', lang)]),
         dbc.CardBody(dcc.Markdown(text)),
     ], className="shadow-sm")
 
