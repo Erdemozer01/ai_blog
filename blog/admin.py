@@ -191,3 +191,28 @@ class ProfileAdmin(admin.ModelAdmin):
         return "Resim Yok"
 
     image_preview.short_description = 'Resim Önizleme'
+
+    def get_queryset(self, request):
+        """Superuser tüm profilleri görür; normal kullanıcı yalnızca kendi profilini."""
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(user=request.user)
+
+    def has_change_permission(self, request, obj=None):
+        """Normal kullanıcı yalnızca kendi profilini düzenleyebilir."""
+        if obj is None or request.user.is_superuser:
+            return super().has_change_permission(request, obj)
+        return obj.user_id == request.user.id
+
+    def has_view_permission(self, request, obj=None):
+        if obj is None or request.user.is_superuser:
+            return super().has_view_permission(request, obj)
+        return obj.user_id == request.user.id
+
+    def get_readonly_fields(self, request, obj=None):
+        """Normal kullanıcı 'user' alanını değiştiremesin."""
+        ro = list(self.readonly_fields)
+        if not request.user.is_superuser:
+            ro.append('user')
+        return ro

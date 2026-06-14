@@ -22,19 +22,23 @@ def handle_user_save(sender, instance, created, **kwargs):
         from django.contrib.auth.models import Permission
         from django.contrib.contenttypes.models import ContentType
         try:
-            ct = ContentType.objects.get(app_label='blog', model='generatedarticle')
-            perms = Permission.objects.filter(
-                content_type=ct,
+            # Makale izinleri
+            ct_article = ContentType.objects.get(app_label='blog', model='generatedarticle')
+            perms = list(Permission.objects.filter(
+                content_type=ct_article,
                 codename__in=['add_generatedarticle', 'change_generatedarticle',
-                              'delete_generatedarticle', 'view_generatedarticle'])
+                              'delete_generatedarticle', 'view_generatedarticle']))
+            # Profil izinleri (makale üretimi için Ad/Soyad doldurması gerekiyor)
+            ct_profile = ContentType.objects.get(app_label='blog', model='profile')
+            perms += list(Permission.objects.filter(
+                content_type=ct_profile,
+                codename__in=['change_profile', 'view_profile']))
             # Admin paneline girebilmesi için staff yap
             if not instance.is_staff:
                 instance.is_staff = True
-                # Sonsuz döngüyü önle
                 post_save.disconnect(handle_user_save, sender=User)
                 instance.save(update_fields=['is_staff'])
                 post_save.connect(handle_user_save, sender=User)
-            # Sadece makale izinlerini ata (başka modül görünmez)
             instance.user_permissions.add(*perms)
         except ContentType.DoesNotExist:
             pass
