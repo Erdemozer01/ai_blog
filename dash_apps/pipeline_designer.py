@@ -179,9 +179,15 @@ app.layout = create_pipeline_layout()
     State('pipeline-goal-input', 'value'),
     prevent_initial_call=True
 )
-def handle_pipeline_generation(n_clicks, pipeline_goal):
+def handle_pipeline_generation(n_clicks, pipeline_goal, **kwargs):
     if not pipeline_goal:
         return dbc.Alert("Lütfen pipeline amacını açıklayan bir metin girin.", color="warning")
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_pipeline_designer', cost=5,
+                             description="Pipeline tasarımı")
+    if not ok:
+        return msg
 
     try:
         from ai_engine.services import generate_with_pool

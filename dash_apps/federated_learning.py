@@ -265,7 +265,36 @@ def _simulate_fl(n_clients, n_rounds, heterogeneity, lr, local_epochs, compare):
     State("fl-compare", "value"),
     prevent_initial_call=True,
 )
-def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epochs, compare):
+def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epochs, compare, **kwargs):
+    from billing.dash_helpers import try_charge, get_request_user
+    user = get_request_user(kwargs)
+    # Önce kredi yeterli mi bak (düşürmeden)
+    if user is not None and not getattr(user, 'is_superuser', False):
+        try:
+            from billing.services import can_use
+            _ok, _ = can_use(user, 'bio_federated', default_cost=5)
+        except Exception:
+            _ok = True
+        if not _ok:
+            # Yetersiz kredi: simülasyonu çalıştırma, uyarıyı göster
+            import plotly.graph_objects as _go
+            from billing.dash_helpers import insufficient_alert
+            from billing.services import get_balance
+            _empty = _go.Figure()
+            _alert_fig = _go.Figure()
+            _alert_fig.add_annotation(text="Yetersiz kredi", showarrow=False,
+                                      font=dict(size=20, color="orange"))
+            _alert_fig.update_layout(xaxis={'visible': False}, yaxis={'visible': False})
+            return ({"display": "block"}, "—", "—", "—", _alert_fig, _empty, _empty, {})
+
+    # Krediyi düş
+    ok, msg, _u = try_charge(kwargs, 'bio_federated', cost=5,
+                             description="Federated learning simülasyonu")
+    if not ok:
+        import plotly.graph_objects as _go
+        _empty = _go.Figure()
+        return ({"display": "none"}, "—", "—", "—", _empty, _empty, _empty, {})
+
     results = _simulate_fl(
         int(n_clients or 5), int(n_rounds or 20),
         float(heterogeneity or 0.3), float(lr or 0.01),

@@ -281,7 +281,7 @@ def _build_outputs(df):
     State("click-memory-store", "data"),
     prevent_initial_call=True,
 )
-def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, click_memory):
+def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, click_memory, **kwargs):
     # Initialize state store if empty
     click_memory = click_memory or {"manual": None, "demo": None, "upload": None}
 
@@ -315,6 +315,13 @@ def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, c
             return (None, {"display": "none"}, "—", "—", "—", "—", {}, {}, click_memory)
     else:
         return (None, {"display": "none"}, "—", "—", "—", "—", {}, {}, click_memory)
+
+    # Geçerli veri var, analiz başlayacak — kredi düş
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_variant', cost=5,
+                             description="Varyant önceliklendirme")
+    if not ok:
+        return (msg, {"display": "none"}, "—", "—", "—", "—", {}, {}, click_memory)
 
     df_enriched, n_total, n_path, n_action, n_drug, fig_dist, fig_pie = _build_outputs(df)
 

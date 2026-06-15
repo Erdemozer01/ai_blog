@@ -352,10 +352,16 @@ def fill_example(n_clicks):
     State("pgx-query-input", "value"),
     prevent_initial_call=True,
 )
-def do_research(n_clicks, n_submit, query):
+def do_research(n_clicks, n_submit, query, **kwargs):
     if not query or not query.strip():
         return dbc.Alert("Lütfen bir enzim, gen veya ilaç adı girin.",
                          color="warning"), no_update
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_pharmacogenomics', cost=5,
+                             description="Farmakogenomik araştırma")
+    if not ok:
+        return msg, no_update
 
     try:
         data = _research(query.strip())

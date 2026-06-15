@@ -137,9 +137,15 @@ app.layout = bacterial_create_layout()
     State('target-organism-input', 'value'),
     prevent_initial_call=True
 )
-def handle_design_and_sequence_generation(n_clicks, design_goals, target_organism):
+def handle_design_and_sequence_generation(n_clicks, design_goals, target_organism, **kwargs):
     if not design_goals or not target_organism:
         return dbc.Alert("Lütfen tüm alanları doldurun.", color="warning"), dash.no_update, True, 'tab-design'
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_bacterial_designer', cost=5,
+                             description="Bakteri tasarımı")
+    if not ok:
+        return msg, dash.no_update, True, 'tab-design'
 
     try:
         from ai_engine.services import generate_with_pool

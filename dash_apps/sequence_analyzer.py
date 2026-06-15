@@ -188,11 +188,17 @@ def update_file_content(contents, filename):
     State("sa-lang-store", "data"),
     prevent_initial_call=True
 )
-def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lang):
+def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lang, **kwargs):
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not sequence_content:
         return dbc.Alert(t('sa_no_input', lang), color="warning")
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_sequence_analyzer', cost=5, lang=lang,
+                             description="Sekans analizi")
+    if not ok:
+        return msg
 
     results = parse_and_analyze_sequence(sequence_content, file_type, seq_type, lang=lang)
 

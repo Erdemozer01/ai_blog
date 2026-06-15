@@ -244,12 +244,18 @@ def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, 
     State('sal-lang-store', 'data'),
     prevent_initial_call=True
 )
-def update_alignment_ai_interpretation(n_clicks, alignment_data, lang):
+def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs):
     """AI butonuna basıldığında hizalamayı yorumlar."""
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not n_clicks or not alignment_data:
         return None
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_sequence_alignment', cost=5, lang=lang,
+                             description="Hizalama AI yorumu")
+    if not ok:
+        return msg
 
     interpretation = get_alignment_interpretation(alignment_data, lang=lang)
     ai_card = dbc.Card([

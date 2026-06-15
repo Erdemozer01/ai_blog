@@ -730,10 +730,16 @@ def update_cleaning_options_on_select(selected_mol_id, original_mols, processed_
     ],
     prevent_initial_call=True
 )
-def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, removed_items, lang):
+def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, removed_items, lang, **kwargs):
     lang = lang or 'en'
     if not selected_mol_id:
         return dbc.Alert("Lütfen rapor oluşturmak için bir molekül seçin.", color="warning")
+
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_molecule_viewer', cost=5, lang=lang,
+                             description="Molekül AI raporu")
+    if not ok:
+        return msg
 
     # Öncelik 1: Eğer bir temizleme işlemi yapıldıysa, odaklı analiz yap
     if removed_items and selected_mol_id.endswith('_cleaned'):

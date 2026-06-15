@@ -219,11 +219,18 @@ def fetch_sequence(n_clicks, accession, lang):
      State("primer-lang-store", "data")],
     prevent_initial_call=True,
 )
-def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang):
+def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang, **kwargs):
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not sequence:
         return dbc.Alert(t('primer_no_seq', lang), color="warning"), None, None, ""
+
+    # Kredi kontrol + düşür (her tasarım işlemi 5 kredi)
+    from billing.dash_helpers import try_charge
+    ok, msg, _user = try_charge(kwargs, 'bio_primer_design', cost=5, lang=lang,
+                                description="Primer tasarımı")
+    if not ok:
+        return msg, None, None, ""
 
     result = design_primers_core(sequence, product_min=int(pmin or 100),
                                  product_max=int(pmax or 300),
@@ -297,11 +304,19 @@ def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang):
      State("primer-lang-store", "data")],
     prevent_initial_call=True,
 )
-def ai_comment(n_clicks, pairs, seq, lang):
+def ai_comment(n_clicks, pairs, seq, lang, **kwargs):
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not n_clicks or not pairs:
         return ""
+
+    # AI yorumu ayrı işlem — 5 kredi
+    from billing.dash_helpers import try_charge
+    ok, msg, _user = try_charge(kwargs, 'bio_primer_design', cost=5, lang=lang,
+                                description="Primer AI yorumu")
+    if not ok:
+        return msg
+
     summary_lines = []
     for p in pairs:
         summary_lines.append(
@@ -358,15 +373,6 @@ def ai_comment(n_clicks, pairs, seq, lang):
         dbc.CardHeader([html.I(className="fas fa-robot me-2"), t('primer_ai_title', lang)]),
         dbc.CardBody(dcc.Markdown(text)),
     ], className="shadow-sm")
-
-
-
-@app.callback(Output("navbar-collapse", "is_open"), [Input("navbar-toggler", "n_clicks")],
-              [State("navbar-collapse", "is_open")])
-def toggle_navbar_collapse(n, is_open):
-    if n: return not is_open
-    return is_open
-
 
 
 @app.callback(Output("primer_design", "active"), Input("url", "pathname"))

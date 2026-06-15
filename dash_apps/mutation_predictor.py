@@ -350,7 +350,7 @@ def update_molecule_selector(all_mols):
     State('button-clicks-store', 'data'),
     prevent_initial_call=True
 )
-def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks):
+def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks, **kwargs):
     calc_clicks = calc_clicks or 0
     ai_clicks = ai_clicks or 0
     if prev_clicks is None:
@@ -365,6 +365,13 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
     current_clicks = {'calc': calc_clicks, 'ai': ai_clicks}
     if triggered_button is None:
         return dash.no_update, dash.no_update, dash.no_update, current_clicks
+
+    # Her işlem (hesaplama veya AI) 5 kredi
+    from billing.dash_helpers import try_charge
+    _desc = "Mutasyon hesaplama" if triggered_button == 'calculate' else "Mutasyon AI yorumu"
+    ok, msg, _u = try_charge(kwargs, 'bio_mutation_predictor', cost=5, description=_desc)
+    if not ok:
+        return msg, dash.no_update, dash.no_update, current_clicks
 
     if triggered_button == 'calculate':
         initial_outputs = (None, {'display': 'none'})
