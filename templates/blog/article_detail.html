@@ -10,4 +10,34 @@
     <div data-refresh-on-navigation="true">
         {% plotly_direct name="ArticleDetailApp" %}
     </div>
+
+    {# --- Yayın talep onay modalı (yalnızca sahip + talep edilebilir durumda) --- #}
+    {% if user.is_authenticated and article.owner_id == user.id and not user.is_superuser and not article.is_published and not article.yayin_talebi %}
+    <div class="modal fade" id="publishModal" tabindex="-1" aria-labelledby="publishModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="publishModalLabel">
+                        <i class="fas fa-paper-plane text-primary me-2"></i>Yayın Talebi Gönder
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <strong>"{{ article.title }}"</strong> başlıklı makalenizin anasayfada yayınlanması için
+                    talep göndermek üzeresiniz. Yöneticiler makalenizi inceledikten sonra uygunsa anasayfada
+                    yayınlanacaktır.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+                    <form method="post" action="{% url 'blog:request_publish' article.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i> Talebi Gönder
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}

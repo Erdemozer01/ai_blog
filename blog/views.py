@@ -205,15 +205,8 @@ def request_publish_view(request, article_id):
                                       "uygunsa makaleniz anasayfada yayınlanacaktır.")
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    # GET → onay sayfası göster
-    if article.is_published:
-        messages.info(request, "Makaleniz zaten yayında.")
-        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-    if article.yayin_talebi:
-        messages.info(request, "Yayın talebiniz zaten alındı, inceleniyor.")
-        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-
-    return render(request, 'blog/request_publish_confirm.html', {'article': article})
+    # GET ile gelinirse (modal yerine doğrudan link) makaleye dön
+    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
 def article_detail_view(request, article_id, slug):
@@ -385,12 +378,13 @@ def article_detail_view(request, article_id, slug):
                           className="text-info fs-5", title="Yayın talebiniz inceleniyor")
             )
         else:
-            # Talep gönderme linki (uçak ikonu) — onay sayfasına gider
+            # Talep gönderme — Bootstrap modal'ı açar (template'teki #publishModal)
             action_icons.append(
                 html.A([html.I(className="fas fa-paper-plane")],
-                       href=reverse('blog:request_publish', args=[article.id]),
+                       href="#",
                        className="text-primary fs-5",
-                       title="Yayınlanması için talep gönder")
+                       title="Yayınlanması için talep gönder",
+                       **{"data-bs-toggle": "modal", "data-bs-target": "#publishModal"})
             )
 
     edit_button = html.Div(action_icons, className="float-end") if action_icons else None
