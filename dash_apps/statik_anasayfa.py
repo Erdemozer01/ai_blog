@@ -155,10 +155,10 @@ def get_sidebar(lang='en'):
     stats = cache.get('homepage_stats')
     if stats is None:
         stats = {
-            'total_articles': GeneratedArticle.objects.filter(status='tamamlandi').count(),
-            'total_views': GeneratedArticle.objects.filter(status='tamamlandi').aggregate(total=Sum('view_count'))[
+            'total_articles': GeneratedArticle.objects.filter(status='tamamlandi', is_published=True).count(),
+            'total_views': GeneratedArticle.objects.filter(status='tamamlandi', is_published=True).aggregate(total=Sum('view_count'))[
                                'total'] or 0,
-            'categories_count': Category.objects.filter(generatedarticle__status='tamamlandi').distinct().count()
+            'categories_count': Category.objects.filter(generatedarticle__status='tamamlandi', generatedarticle__is_published=True).distinct().count()
         }
         cache.set('homepage_stats', stats, 60)
 
@@ -217,7 +217,7 @@ def master_filter_and_paginate(search_term, category_id, sort_by, active_page, s
     current_filters = {'search': search_term, 'category': category_id, 'sort': sort_by}
     page = 1 if (stored_filters or {}) != current_filters else (active_page or 1)
 
-    queryset = GeneratedArticle.objects.select_related('category', 'owner__profile').filter(status='tamamlandi')
+    queryset = GeneratedArticle.objects.select_related('category', 'owner__profile').filter(status='tamamlandi', is_published=True)
 
     if category_id:
         queryset = queryset.filter(category_id=category_id)

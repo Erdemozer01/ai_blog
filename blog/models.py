@@ -41,6 +41,18 @@ class GeneratedArticle(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Sahibi")
     view_count = models.PositiveIntegerField(default=0, verbose_name="Okunma Sayısı")
 
+    # --- Yayın onay sistemi ---
+    yayin_talebi = models.BooleanField(
+        default=False,
+        verbose_name="Yayın için başvuruldu",
+        help_text="Makalenizin anasayfada yayınlanması için başvurmak istiyorsanız işaretleyin."
+    )
+    is_published = models.BooleanField(
+        default=False,
+        verbose_name="Anasayfada Yayında",
+        help_text="Yalnızca yöneticiler değiştirebilir. İşaretliyse makale anasayfada görünür."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")

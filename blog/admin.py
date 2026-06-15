@@ -8,7 +8,7 @@ from .models import (GeneratedArticle, Category, ContactMessage,
 
 @admin.register(GeneratedArticle)
 class GeneratedArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'owner', 'category', 'status', 'view_count', 'cover_image_preview')
+    list_display = ('title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published', 'view_count', 'cover_image_preview')
     list_filter = ('status', 'category', 'created_at')
     search_fields = ('title', 'user_request', 'full_content')
     readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview')
@@ -19,6 +19,11 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Temel Bilgiler', {
             'fields': ('title', 'category', 'owner', 'status', 'slug', 'cover_image', 'cover_image_preview')
+        }),
+        ('Yayın Durumu', {
+            'fields': ('yayin_talebi', 'is_published'),
+            'description': "Makalenizin anasayfada yayınlanması için 'Yayın için başvuruldu' kutusunu işaretleyin. "
+                           "Yöneticiler başvurunuzu inceleyip onayladığında makaleniz anasayfada görünür."
         }),
         ('İçerik', {
             'fields': ('user_request', 'keywords', 'english_abstract', 'turkish_abstract', 'full_content',
@@ -52,10 +57,13 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return ('status', 'category', 'created_at')
 
     def get_readonly_fields(self, request, obj=None):
-        """Normal kullanıcı 'owner' alanını değiştiremesin (otomatik kendisi)."""
+        """Normal kullanıcı 'owner' ve 'is_published' alanlarını değiştiremesin.
+        Kullanıcı yalnızca 'yayin_talebi' (başvuru) kutusunu işaretleyebilir;
+        'is_published' (onay) yalnızca superuser tarafından değiştirilebilir."""
         ro = list(self.readonly_fields)
         if not request.user.is_superuser:
             ro.append('owner')
+            ro.append('is_published')  # onayı sadece yönetici verir
         return ro
 
     def save_model(self, request, obj, form, change):
@@ -78,6 +86,33 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         if obj is None or request.user.is_superuser:
             return super().has_delete_permission(request, obj)
         return obj.owner_id == request.user.id
+
+    # --- Toplu onay aksiyonları (yalnızca superuser) ---
+    actions = ['yayinla', 'yayindan_kaldir']
+
+    @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
+    def yayinla(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        updated = queryset.update(is_published=True)
+        self.message_user(request, f"{updated} makale yayınlandı (anasayfada görünür).")
+
+    @admin.action(description="Seçili makaleleri YAYINDAN KALDIR")
+    def yayindan_kaldir(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        updated = queryset.update(is_published=False)
+        self.message_user(request, f"{updated} makale yayından kaldırıldı.")
+
+    def get_actions(self, request):
+        """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            actions.pop('yayinla', None)
+            actions.pop('yayindan_kaldir', None)
+        return actions
 
 
 

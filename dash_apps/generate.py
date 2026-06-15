@@ -43,6 +43,21 @@ def validate_topic_rules(text):
     if all(len(w) <= 2 for w in words) and len(words) < 5:
         return False, "Lütfen anlamlı bir konu girin."
 
+    # Argo / müstehcen / küfür içeren konular
+    # (kelime sınırlarıyla eşleştir ki normal kelimeleri yanlış yakalamasın)
+    profanity = [
+        'amcık', 'amcik', 'yarrak', 'yarak', 'sik', 'sikiş', 'sikis', 'siktir',
+        'piç', 'pic', 'orospu', 'kahpe', 'göt', 'got ', 'gavat', 'pezevenk',
+        'meme', 'penis', 'vajina', 'porno', 'seks', 'pussy', 'dick', 'fuck',
+        'shit', 'sex', 'porn', 'bitch', 'whore',
+    ]
+    import re as _re
+    for p in profanity:
+        # kelime sınırı ile ara (Türkçe karakterleri de hesaba kat)
+        if _re.search(r'(^|[\s.,;:!?-])' + _re.escape(p) + r'($|[\s.,;:!?-])', t):
+            return False, ("Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya "
+                           "bilgilendirici bir konu girin.")
+
     return True, ""
 
 
@@ -55,8 +70,9 @@ def validate_topic_ai(text):
         from ai_engine.services import generate_with_pool
         prompt = (
             "Aşağıdaki metin, akademik/bilgilendirici bir makale için GEÇERLİ bir KONU mu? "
-            "Sohbet, selamlaşma, şaka, anlamsız metin, kişisel istek veya makale konusu "
-            "olmayan şeyler GEÇERSİZDİR. Sadece tek kelimeyle cevap ver: "
+            "Şu durumlar GEÇERSİZDİR: sohbet, selamlaşma, şaka, anlamsız metin, kişisel istek, "
+            "makale konusu olmayan şeyler, VE müstehcen/cinsel/argo/küfür içeren veya "
+            "uygunsuz çağrışım yapan ifadeler. Sadece tek kelimeyle cevap ver: "
             "'GECERLI' veya 'GECERSIZ'.\n\n"
             f"Metin: \"{text}\""
         )
@@ -247,7 +263,9 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
             full_content=ai_data.get("content"),
             bibliography=ai_data.get("bibliography"),
             structured_data=ai_data.get("structured_data"),
-            status='tamamlandi'
+            status='tamamlandi',
+            # Superuser üretirse otomatik yayında; normal kullanıcı onay bekler
+            is_published=bool(user.is_superuser),
         )
 
         # --- Makale başarıyla üretildi → şimdi krediyi düş ---
