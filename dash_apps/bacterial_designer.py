@@ -76,34 +76,35 @@ def get_about_text():
         """**Sentetik Biyoloji Bakteri Tasarım Asistanı'na Hoş Geldiniz!**\n\nBu araç, Google Gemini yapay zeka modelini kullanarak sentetik biyoloji iş akışınızı hızlandırmak için tasarlanmıştır.\n\n**Nasıl Çalışır?**\n1. **Tasarım Girişi:** Hedef organizma ve tasarım amacınızı girin.\n2. **AI Destekli Sonuçlar:** Yapay zeka, bir genetik devre şeması, kritik genler listesi ve bu genler için varsayımsal sekanslar üretir.\n3. **Analiz:** Üretilen sekansları toplu olarak indirebilir veya **Sekans Hizalama (MSA)** sekmesinde karşılaştırabilirsiniz.""")
 
 
-def bacterial_create_layout():
+def bacterial_create_layout(lang='en'):
+    from dash_apps.i18n_helper import t
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
-        dbc.Tab(label="Hakkında", tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
-        dbc.Tab(label="Tasarım Girişi", tab_id="tab-input", children=html.Div(className="p-3", children=[
-            dbc.Label("Hedef Organizma:", className="fw-bold mt-3"),
+        dbc.Tab(label=t('bd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
+        dbc.Tab(label=t('bd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[
+            dbc.Label(t('bd_target_organism', lang), className="fw-bold mt-3"),
             dbc.Input(id="target-organism-input", value="Escherichia coli", type="text"),
-            dbc.Label("Tasarım Gereksinimleri:", className="fw-bold mt-3"),
-            dcc.Textarea(id='design-goals-input', placeholder="Örn: Çevresel strese dayanıklı likopen üreten devre...",
+            dbc.Label(t('bd_design_reqs', lang), className="fw-bold mt-3"),
+            dcc.Textarea(id='design-goals-input', placeholder="...",
                          style={'width': '100%', 'height': 150}),
             html.Hr(),
-            dbc.Button("Tasarımı ve Sekansları Oluştur", id="btn-generate-design", color="primary", className="w-100"),
+            dbc.Button(t('bd_generate', lang), id="btn-generate-design", color="primary", className="w-100"),
         ])),
     ])))
 
     result_panel = dbc.Card([
-        dbc.CardHeader("Sonuçlar"),
+        dbc.CardHeader(t('bd_results', lang)),
         dbc.CardBody(dcc.Loading(id="loading-results-spinner",
                                  children=dbc.Tabs(id="results-tabs", active_tab="tab-design", children=[
-                                     dbc.Tab(label="Tasarım ve Sekanslar", tab_id="tab-design",
+                                     dbc.Tab(label=t('bd_design_sequences', lang), tab_id="tab-design",
                                              children=html.Div(id="design-and-sequence-output", className="p-3",
                                                                children=html.P(
-                                                                   "Başlamak için bilgileri girip butona tıklayın.",
+                                                                   t('bd_start_hint', lang),
                                                                    className="text-muted"))),
-                                     dbc.Tab(label="Sekans Hizalama (MSA)", tab_id="tab-msa", id="tab-msa-component",
+                                     dbc.Tab(label=t('bd_msa', lang), tab_id="tab-msa", id="tab-msa-component",
                                              disabled=True, children=html.Div(className="p-3", children=[
                                              dcc.Dropdown(id='msa-sequence-type-select',
-                                                          options=[{'label': 'Protein Sekansları', 'value': 'protein'},
-                                                                   {'label': 'Nükleotit Sekansları',
+                                                          options=[{'label': 'Protein', 'value': 'protein'},
+                                                                   {'label': 'Nucleotide',
                                                                     'value': 'nucleotide'}], value='protein',
                                                           clearable=False, className="mb-3"),
                                              html.Div(id="alignment-chart-container")
@@ -112,7 +113,9 @@ def bacterial_create_layout():
     ])
 
     return dbc.Container(fluid=True, className="py-3", children=[
-        dcc.Location(id='url', refresh=False), html.H2("Bakteri Tasarım"), html.Hr(),
+        dcc.Location(id='url', refresh=False),
+        dcc.Store(id='bd-lang-store', data=lang),
+        html.H2(t('bd_title', lang)), html.Hr(),
         dcc.Store(id='sequence-data-store'),
         dcc.Download(id='download-fasta'),
         dcc.Store(id='protein-clicks-store', data=0),
@@ -135,14 +138,17 @@ app.layout = bacterial_create_layout()
     Input('btn-generate-design', 'n_clicks'),
     State('design-goals-input', 'value'),
     State('target-organism-input', 'value'),
+    State('bd-lang-store', 'data'),
     prevent_initial_call=True
 )
-def handle_design_and_sequence_generation(n_clicks, design_goals, target_organism, **kwargs):
+def handle_design_and_sequence_generation(n_clicks, design_goals, target_organism, lang=None, **kwargs):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not design_goals or not target_organism:
-        return dbc.Alert("Lütfen tüm alanları doldurun.", color="warning"), dash.no_update, True, 'tab-design'
+        return dbc.Alert(t('bd_fill_all', lang), color="warning"), dash.no_update, True, 'tab-design'
 
     from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_bacterial_designer', cost=5,
+    ok, msg, _u = try_charge(kwargs, 'bio_bacterial_designer', cost=5, lang=lang,
                              description="Bakteri tasarımı")
     if not ok:
         return msg, dash.no_update, True, 'tab-design'
@@ -154,12 +160,12 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
             service_name='Google Gemini', model_name='gemini-2.5-flash')
         mermaid_graph, gene_df = parse_ai_response_for_design(design_text)
     except Exception as e:
-        return dbc.Alert(f"Tasarım oluşturulurken hata: {e}", color="danger"), None, True, 'tab-design'
+        return dbc.Alert(f"{t('bd_design_error', lang)}: {e}", color="danger"), None, True, 'tab-design'
 
-    output_components = [html.H4("Genetik Devre Şeması"), dcc.Markdown(mermaid_graph)] if mermaid_graph else [
-        dbc.Alert("Devre şeması oluşturulamadı.", color="warning")]
+    output_components = [html.H4(t('bd_circuit_diagram', lang)), dcc.Markdown(mermaid_graph)] if mermaid_graph else [
+        dbc.Alert(t('bd_no_circuit', lang), color="warning")]
     if gene_df is None or gene_df.empty:
-        output_components.append(dbc.Alert("Kritik genler bulunamadı.", color="info"))
+        output_components.append(dbc.Alert(t('bd_no_genes', lang), color="info"))
         return output_components, None, True, 'tab-design'
 
     sequences_to_store = {}
@@ -180,12 +186,12 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
 
     if sequences_to_store:
         output_components.extend([
-            html.Hr(), html.H4("Oluşturulan Sekansları İndir"),
-            html.P("Tüm genler için üretilen sekansları FASTA formatında indirin."),
+            html.Hr(), html.H4(t('bd_download_sequences', lang)),
+            html.P(t('bd_download_hint', lang)),
             dbc.Row([
-                dbc.Col(dbc.Button("Protein Sekanslarını İndir (.fasta)", id="btn-download-protein", color="primary",
+                dbc.Col(dbc.Button(t('bd_download_protein', lang), id="btn-download-protein", color="primary",
                                    outline=True, className="w-100"), width=6),
-                dbc.Col(dbc.Button("Nükleotit Sekanslarını İndir (.fasta)", id="btn-download-nucleotide", color="info",
+                dbc.Col(dbc.Button(t('bd_download_nucleotide', lang), id="btn-download-nucleotide", color="info",
                                    outline=True, className="w-100"), width=6),
             ])
         ])

@@ -325,7 +325,8 @@ def bacterial_designer_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = bacterial_create_layout()
+    from dash_apps.i18n_helper import get_lang
+    content = bacterial_create_layout(get_lang(request))
     _layout = html.Div([main_navbar, content])
     bacterial_designer_app.layout = lambda: _layout
 
