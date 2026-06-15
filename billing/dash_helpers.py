@@ -56,12 +56,25 @@ def insufficient_alert(balance, cost, lang='tr'):
     ], color="warning", className="mt-3")
 
 
-def try_charge(kwargs, service_key, cost=5, description=None, lang='tr'):
+def try_charge(kwargs, service_key, cost=5, description=None, lang=None):
     """
     Kredi kontrol + düşürme. (ok: bool, mesaj_veya_alert, user) döner.
     İşlem başarılıysa kredi düşülmüştür.
     Yetersiz kredide mesaj yerine zengin bir uyarı bileşeni (Kredi Yükle butonlu) döner.
+
+    lang verilmezse, request cookie'sinden (site_lang) otomatik belirlenir.
     """
+    # Dil: parametre > request cookie > 'en'
+    if lang is None:
+        lang = 'en'
+        request = kwargs.get('request') if kwargs else None
+        if request is not None:
+            try:
+                from dash_apps.i18n_helper import get_lang
+                lang = get_lang(request)
+            except Exception:
+                lang = (getattr(request, 'COOKIES', {}) or {}).get('site_lang', 'en')
+
     user = get_request_user(kwargs)
 
     if user is None:
