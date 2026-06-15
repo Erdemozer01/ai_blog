@@ -134,31 +134,33 @@ def get_about_text():
         3.  **İnceleyin ve Kullanın:** Oluşturulan tasarımı inceleyebilir ve kod parçacıklarını projelerinizde başlangıç noktası olarak kullanabilirsiniz.
     """)
 
-def create_pipeline_layout():
+def create_pipeline_layout(lang='en'):
+    from dash_apps.i18n_helper import t
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
-        dbc.Tab(label="Hakkında", tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
-        dbc.Tab(label="Tasarım Girişi", tab_id="tab-input", children=html.Div(className="p-3", children=[
-            dbc.Label("Pipeline Amacı / Tanımı:", className="fw-bold mt-3"),
+        dbc.Tab(label=t('pd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
+        dbc.Tab(label=t('pd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[
+            dbc.Label(t('pd_goal_label', lang), className="fw-bold mt-3"),
             dcc.Textarea(id='pipeline-goal-input',
-                         placeholder="Örn: RNA-Seq verileri için diferansiyel gen ekspresyonu analizi yapacak bir pipeline oluştur.",
+                         placeholder=t('pd_goal_placeholder', lang),
                          style={'width': '100%', 'height': 200}),
             html.Hr(),
-            dbc.Button("Pipeline Tasarımını Oluştur", id="btn-generate-pipeline", color="primary", className="w-100"),
+            dbc.Button(t('pd_generate', lang), id="btn-generate-pipeline", color="primary", className="w-100"),
         ])),
     ])))
 
     result_panel = dbc.Card([
-        dbc.CardHeader("Sonuçlar"),
+        dbc.CardHeader(t('pd_results', lang)),
         dbc.CardBody(dcc.Loading(id="loading-results-spinner",
                                  children=html.Div(id="pipeline-output", className="p-3", children=html.P(
-                                     "Başlamak için hedeflerinizi girip butona tıklayın.",
+                                     t('pd_start_hint', lang),
                                      className="text-muted"
                                  ))))
     ])
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
-        html.H2("Pipeline Tasarım Asistanı"),
+        dcc.Store(id='pd-lang-store', data=lang),
+        html.H2(t('pd_title', lang)),
         html.Hr(),
         dbc.Row([
             dbc.Col(control_panel, width=12, lg=4),
@@ -177,14 +179,17 @@ app.layout = create_pipeline_layout()
     Output('pipeline-output', 'children'),
     Input('btn-generate-pipeline', 'n_clicks'),
     State('pipeline-goal-input', 'value'),
+    State('pd-lang-store', 'data'),
     prevent_initial_call=True
 )
-def handle_pipeline_generation(n_clicks, pipeline_goal, **kwargs):
+def handle_pipeline_generation(n_clicks, pipeline_goal, lang=None, **kwargs):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not pipeline_goal:
-        return dbc.Alert("Lütfen pipeline amacını açıklayan bir metin girin.", color="warning")
+        return dbc.Alert(t('pd_enter_goal', lang), color="warning")
 
     from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_pipeline_designer', cost=5,
+    ok, msg, _u = try_charge(kwargs, 'bio_pipeline_designer', cost=5, lang=lang,
                              description="Pipeline tasarımı")
     if not ok:
         return msg
@@ -195,34 +200,33 @@ def handle_pipeline_generation(n_clicks, pipeline_goal, **kwargs):
         response_text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
         mermaid_graph, steps_df, code_snippets = parse_pipeline_response(response_text)
     except Exception as e:
-        return dbc.Alert(f"Pipeline tasarımı oluşturulurken bir hata oluştu: {e}", color="danger")
+        return dbc.Alert(f"{t('pd_error', lang)}: {e}", color="danger")
 
     output_components = []
 
     # Mermaid Şeması
     if mermaid_graph:
         output_components.extend([
-            html.H4("Pipeline Akış Şeması"),
-            # Mermaid component'i, şema kodunu doğrudan render eder.
+            html.H4(t('pd_flow_chart', lang)),
             html.Div(className="mermaid", children=mermaid_graph, style={'textAlign': 'center'}),
             html.Hr()
         ])
     else:
-        output_components.append(dbc.Alert("Pipeline akış şeması oluşturulamadı.", color="warning"))
+        output_components.append(dbc.Alert(t('pd_no_flow', lang), color="warning"))
 
     # Adımlar Tablosu
     if steps_df is not None and not steps_df.empty:
         output_components.extend([
-            html.H4("Adımların Açıklaması"),
+            html.H4(t('pd_steps_desc', lang)),
             dbc.Table.from_dataframe(steps_df, striped=True, bordered=True, hover=True, responsive=True),
             html.Hr()
         ])
     else:
-        output_components.append(dbc.Alert("Pipeline adımları tablosu oluşturulamadı.", color="warning"))
+        output_components.append(dbc.Alert(t('pd_no_steps', lang), color="warning"))
 
     # Kod Parçacıkları
     if code_snippets:
-        output_components.append(html.H4("Kod Parçacıkları"))
+        output_components.append(html.H4(t('pd_code_snippets', lang)))
         for i, (title, snippet) in enumerate(code_snippets.items()):
             code_content = snippet['code']
             language = snippet['language']
@@ -240,7 +244,7 @@ def handle_pipeline_generation(n_clicks, pipeline_goal, **kwargs):
                             dcc.Clipboard(
                                 content=code_content,
                                 className="position-absolute top-0 end-0 mt-1 me-1 p-1",
-                                title="Kodu Kopyala",
+                                title=t('pd_copy_code', lang),
                             )
                         ]
                     )
@@ -251,7 +255,7 @@ def handle_pipeline_generation(n_clicks, pipeline_goal, **kwargs):
 
     if not any([mermaid_graph, isinstance(steps_df, pd.DataFrame), code_snippets]):
         return dbc.Alert(
-            "Yapay zeka modelinden geçerli bir yanıt alınamadı. Lütfen girdinizi kontrol edip tekrar deneyin veya daha spesifik bir hedef belirtin.",
+            t('pd_no_valid_response', lang),
             color="danger"
         )
 

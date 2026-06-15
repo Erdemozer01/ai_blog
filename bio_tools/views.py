@@ -343,7 +343,8 @@ def pipline_designer_view(request):
         return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
-    content = create_pipeline_layout()
+    from dash_apps.i18n_helper import get_lang
+    content = create_pipeline_layout(get_lang(request))
     _layout = html.Div([main_navbar, content])
     pipeline_designer_app.layout = lambda: _layout
 
