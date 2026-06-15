@@ -195,23 +195,24 @@ def train_and_predict_mutation_effect(features):
     return "Muhtemelen ZARARLI" if prediction[0] == 1 else "Muhtemelen ZARARSİZ", tree_rules
 
 
-def mutation_create_layout():
+def mutation_create_layout(lang='en'):
+    from dash_apps.i18n_helper import t
     control_panel = dbc.Card([
-        dbc.CardHeader("Menü"),
+        dbc.CardHeader(t('mp_menu', lang)),
         dbc.CardBody([
             dbc.Tabs([
-                dbc.Tab(label="Veri Yükleme", children=[
+                dbc.Tab(label=t('mp_data_upload', lang), children=[
                     html.Div([
-                        dbc.Label("PDB ID ile Yükle:", html_for="pdb-id-input", className="fw-bold mt-3"),
+                        dbc.Label(t('mv_pdb_label', lang), html_for="pdb-id-input", className="fw-bold mt-3"),
                         dbc.InputGroup([
-                            dbc.Input(id="pdb-id-input", placeholder="örn: 1CRN", type="text"),
-                            dbc.Button("Yükle", id="btn-load-pdb", n_clicks=0)
+                            dbc.Input(id="pdb-id-input", placeholder=t('mp_pdb_placeholder', lang), type="text"),
+                            dbc.Button(t('mp_load', lang), id="btn-load-pdb", n_clicks=0)
                         ]),
                         html.Hr(),
-                        dbc.Label("Veya Dosya Yükle (.pdb, .cif, .gz):", html_for="upload-data", className="fw-bold"),
+                        dbc.Label(t('mp_file_upload', lang), html_for="upload-data", className="fw-bold"),
                         dcc.Upload(
                             id='upload-data', multiple=True,
-                            children=html.Div(['Dosyaları Sürükle-Bırak veya Seç'],
+                            children=html.Div([t('mv_drag_drop', lang)],
                                               style={'textAlign': 'center', 'padding': '20px',
                                                      'border': '2px dashed #ccc', 'borderRadius': '5px'})
                         ),
@@ -219,29 +220,29 @@ def mutation_create_layout():
                                  style={'maxHeight': '100px', 'overflowY': 'auto'}),
                     ], className="p-3")
                 ]),
-                dbc.Tab(label="Mutasyon Etki Tahmini", children=[
+                dbc.Tab(label=t('mp_mutation_predict', lang), children=[
                     html.Div([
-                        dbc.Label("Analiz Edilecek Molekül:", className="fw-bold mt-3"),
-                        dcc.Dropdown(id='mutation-mol-selector', placeholder="Önce bir molekül yükleyin..."),
-                        dbc.Label("Mutasyon(lar) (Her satıra bir tane):", className="fw-bold mt-3"),
+                        dbc.Label(t('mp_mol_to_analyze', lang), className="fw-bold mt-3"),
+                        dcc.Dropdown(id='mutation-mol-selector', placeholder=t('mv_select_filter_mol', lang)),
+                        dbc.Label(t('mp_mutations_label', lang), className="fw-bold mt-3"),
                         dcc.Textarea(
                             id='mutation-input',
-                            placeholder="A123G\nC45D\nW117A (Hatalı Pozisyon)\n...",
+                            placeholder="A123G\nC45D\nW117A\n...",
                             style={'width': '100%', 'height': 100},
                         ),
                         html.Hr(),
-                        dbc.Label("Analiz Yöntemini Seçin:", className="fw-bold"),
+                        dbc.Label(t('mp_method_select', lang), className="fw-bold"),
                         dbc.Row([
-                            dbc.Col(dbc.Button("Bilinen Zararlı Mutasyonları Listele", id="btn-ask-ai", n_clicks=0,
+                            dbc.Col(dbc.Button(t('mp_list_harmful', lang), id="btn-ask-ai", n_clicks=0,
                                                color="info",
                                                className="w-100"), width=6),
                             dbc.Col(
-                                dbc.Button("Etkiyi Tahmin Et (Detaylı)", id="btn-calculate-program", n_clicks=0,
+                                dbc.Button(t('mp_predict_detailed', lang), id="btn-calculate-program", n_clicks=0,
                                            color="primary",
                                            className="w-100"), width=6),
                         ], className="mb-2"),
                         html.Small(
-                            "Not: 'Mutasyonları Listele' seçilen protein için bilinen zararlı mutasyonları sorgular. 'Etkiyi Tahmin Et' ise girdiğiniz spesifik mutasyon(lar) için analiz yapar.",
+                            t('mp_method_note', lang),
                             className="text-muted"),
                     ], className="p-3")
                 ])
@@ -250,19 +251,19 @@ def mutation_create_layout():
     ])
 
     result_panel = dbc.Card([
-        dbc.CardHeader("Sonuçlar"),
+        dbc.CardHeader(t('mp_results', lang)),
         dbc.CardBody([
             dcc.Loading(
                 id="loading-results",
                 type="default",
                 children=html.Div(id="results-output-area",
-                                  children=html.P("Analiz yapmak için menüden bir yöntem seçin.",
+                                  children=html.P(t('mp_select_method', lang),
                                                   className="text-muted"))
             ),
             html.Div(id='gemini-button-container', style={'display': 'none'}, children=[
                 html.Hr(),
-                html.H5("Hesaplanan Sonuçları Yorumlat"),
-                dbc.Button("Yapay Zekaya Yorumlattır", id="btn-ask-gemini-interpret", color="success",
+                html.H5(t('mp_interpret_results', lang)),
+                dbc.Button(t('mp_interpret_ai', lang), id="btn-ask-gemini-interpret", color="success",
                            className="w-100 mt-2"),
                 dcc.Loading(id="loading-gemini", children=[html.Div(id='gemini-output-div', className="mt-3")])
             ])
@@ -271,12 +272,12 @@ def mutation_create_layout():
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        dcc.Store(id='mp-lang-store', data=lang),
         dcc.Store(id='molecules-store', storage_type='memory'),
         dcc.Store(id='analysis-results-store', storage_type='memory'),
         dcc.Store(id='button-clicks-store', storage_type='memory'),
-        html.H2("Makine Öğrenmesi ile Mutasyon Etki tahmincisi"),
-        html.P(
-            "Bir molekül yükleyin, ardından bir mutasyon belirterek bu mutasyonun protein fonksiyonu üzerindeki potansiyel etkisini tahmin edin."),
+        html.H2(t('mp_title', lang)),
+        html.P(t('mp_subtitle', lang)),
         html.Hr(),
         dbc.Row([
             dbc.Col(control_panel, width=12, lg=4),
@@ -348,9 +349,12 @@ def update_molecule_selector(all_mols):
     State('mutation-input', 'value'),
     State('molecules-store', 'data'),
     State('button-clicks-store', 'data'),
+    State('mp-lang-store', 'data'),
     prevent_initial_call=True
 )
-def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks, **kwargs):
+def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks, lang=None, **kwargs):
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     calc_clicks = calc_clicks or 0
     ai_clicks = ai_clicks or 0
     if prev_clicks is None:
@@ -421,8 +425,8 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
 
         table_header = [
             html.Thead(html.Tr([
-                                   html.Th("Mutasyon"),
-                                   html.Th("Tahmin"),
+                                   html.Th(t('mp_mutation', lang)),
+                                   html.Th(t('mp_prediction', lang)),
                                ] + [html.Th(name) for name in feature_names_for_header]))
         ]
 
@@ -430,13 +434,13 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
                                   size="sm")
 
         output_layout = html.Div([
-            html.H4("Toplu Analiz Sonuçları"),
+            html.H4(t('mp_batch_results', lang)),
             html.Hr(),
-            html.H5("Başarılı Analizler", className="mt-4"),
-            results_table if table_rows else dbc.Alert("Hiçbir mutasyon başarıyla analiz edilemedi.", color="info"),
+            html.H5(t('mp_successful', lang), className="mt-4"),
+            results_table if table_rows else dbc.Alert(t('mp_none_analyzed', lang), color="info"),
 
-            html.H5("Hatalar ve Uyarılar", className="mt-4"),
-            html.Div(failed_results) if failed_results else dbc.Alert("Tüm mutasyonlar hatasız işlendi.",
+            html.H5(t('mp_errors_warnings', lang), className="mt-4"),
+            html.Div(failed_results) if failed_results else dbc.Alert("OK",
                                                                       color="success"),
         ])
 
@@ -445,7 +449,7 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
     if triggered_button == 'ai':
         initial_outputs = (None, {'display': 'none'})
         if not selected_mol_id:
-            alert = dbc.Alert("Lütfen sorgulanacak bir molekül seçin.", color="warning")
+            alert = dbc.Alert(t('mp_select_mol_first', lang), color="warning")
             return alert, *initial_outputs, current_clicks
 
         prompt = f"""
