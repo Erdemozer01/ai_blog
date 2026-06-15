@@ -177,6 +177,36 @@ def anasayfa_view(request):
     return render(request, 'blog/anasayfa.html')
 
 
+@login_required
+def request_publish_view(request, article_id):
+    """
+    Makale sahibinin, makalesinin anasayfada yayınlanması için talep göndermesi.
+    Yalnızca makale sahibi (superuser değil) kullanabilir.
+    """
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    if article.owner_id != request.user.id:
+        messages.error(request, "Bu makale için talep gönderme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    if request.user.is_superuser:
+        messages.info(request, "Yönetici makaleleri zaten otomatik yayınlanır.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    if request.method == 'POST':
+        if article.is_published:
+            messages.info(request, "Makaleniz zaten yayında.")
+        elif article.yayin_talebi:
+            messages.info(request, "Yayın talebiniz zaten alındı, inceleniyor.")
+        else:
+            article.yayin_talebi = True
+            article.save(update_fields=['yayin_talebi'])
+            messages.success(request, "Yayın talebiniz alındı! Yöneticiler inceledikten sonra "
+                                      "uygunsa makaleniz anasayfada yayınlanacaktır.")
+
+    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+
 def article_detail_view(request, article_id, slug):
     main_navbar = create_main_navbar(request)
     article = get_object_or_404(
