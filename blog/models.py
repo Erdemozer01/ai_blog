@@ -53,6 +53,22 @@ class GeneratedArticle(models.Model):
         help_text="Yalnızca yöneticiler değiştirebilir. İşaretliyse makale anasayfada görünür."
     )
 
+    # --- AI Yayınlanabilirlik İncelemesi ---
+    ai_review_score = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name="AI Yayınlanabilirlik Skoru",
+        help_text="0-100 arası. AI'ın makaleyi yayına uygunluk değerlendirmesi."
+    )
+    ai_review_notes = models.TextField(
+        null=True, blank=True,
+        verbose_name="AI Düzeltme Önerileri",
+        help_text="AI'ın tespit ettiği hatalar ve düzeltme önerileri."
+    )
+    ai_reviewed_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="AI İnceleme Tarihi"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")

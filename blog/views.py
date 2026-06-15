@@ -209,6 +209,32 @@ def request_publish_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
+@login_required
+def request_correction_view(request, article_id):
+    """
+    Kullanıcının makalesini düzelttikten sonra superuser'lara tekrar inceleme
+    talebi göndermesi. Superuser'lara e-posta atar.
+    """
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    if article.owner_id != request.user.id:
+        messages.error(request, "Bu makale için talep gönderme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    if request.method == 'POST':
+        user_message = (request.POST.get('message') or '').strip()
+        from .ai_review import notify_superusers_correction_request
+        sent = notify_superusers_correction_request(article, user_message)
+        if sent:
+            messages.success(request, "Düzeltme talebiniz yöneticilere iletildi. "
+                                      "En kısa sürede makaleniz tekrar incelenecektir.")
+        else:
+            messages.warning(request, "Talebiniz alındı ancak bildirim e-postası gönderilemedi. "
+                                      "Yöneticiler yine de admin panelinden görebilir.")
+
+    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+
 def article_detail_view(request, article_id, slug):
     main_navbar = create_main_navbar(request)
     article = get_object_or_404(

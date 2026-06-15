@@ -30,10 +30,11 @@ class OnayBekleyenFilter(admin.SimpleListFilter):
 
 @admin.register(GeneratedArticle)
 class GeneratedArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published', 'view_count', 'cover_image_preview')
+    list_display = ('title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published', 'ai_review_score', 'view_count', 'cover_image_preview')
     list_filter = ('status', 'category', 'created_at')
     search_fields = ('title', 'user_request', 'full_content')
-    readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview')
+    readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview',
+                       'ai_review_score', 'ai_review_notes', 'ai_reviewed_at')
     list_per_page = 25
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
@@ -46,6 +47,11 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             'fields': ('yayin_talebi', 'is_published'),
             'description': "Makalenizin anasayfada yayınlanması için 'Yayın için başvuruldu' kutusunu işaretleyin. "
                            "Yöneticiler başvurunuzu inceleyip onayladığında makaleniz anasayfada görünür."
+        }),
+        ('AI Yayınlanabilirlik İncelemesi', {
+            'fields': ('ai_review_score', 'ai_review_notes', 'ai_reviewed_at'),
+            'description': "Makaleyi AI ile incelemek için listede makaleyi seçip 'AI ile İncele' aksiyonunu çalıştırın. "
+                           "Skor 0-100 arasıdır; öneriler kullanıcıya e-posta ile gönderilir."
         }),
         ('İçerik', {
             'fields': ('user_request', 'keywords', 'english_abstract', 'turkish_abstract', 'full_content',
@@ -110,7 +116,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -128,12 +134,30 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         updated = queryset.update(is_published=False)
         self.message_user(request, f"{updated} makale yayından kaldırıldı.")
 
+    @admin.action(description="🤖 AI ile İncele (skor + öneri + kullanıcıya e-posta)")
+    def ai_ile_incele(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        from .ai_review import review_article
+        basarili, hatali = 0, 0
+        for article in queryset:
+            ok, msg = review_article(article)
+            if ok:
+                basarili += 1
+                self.message_user(request, f"✓ '{article.title}': {msg}")
+            else:
+                hatali += 1
+                self.message_user(request, f"✗ '{article.title}': {msg}", level='error')
+        self.message_user(request, f"İnceleme bitti: {basarili} başarılı, {hatali} hatalı.")
+
     def get_actions(self, request):
         """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
         actions = super().get_actions(request)
         if not request.user.is_superuser:
             actions.pop('yayinla', None)
             actions.pop('yayindan_kaldir', None)
+            actions.pop('ai_ile_incele', None)
         return actions
 
 
