@@ -44,17 +44,35 @@ def validate_topic_rules(text):
         return False, "Lütfen anlamlı bir konu girin."
 
     # Argo / müstehcen / küfür içeren konular
-    # (kelime sınırlarıyla eşleştir ki normal kelimeleri yanlış yakalamasın)
-    profanity = [
-        'amcık', 'amcik', 'yarrak', 'yarak', 'sik', 'sikiş', 'sikis', 'siktir',
-        'piç', 'pic', 'orospu', 'kahpe', 'göt', 'got ', 'gavat', 'pezevenk',
-        'meme', 'penis', 'vajina', 'porno', 'seks', 'pussy', 'dick', 'fuck',
-        'shit', 'sex', 'porn', 'bitch', 'whore',
-    ]
     import re as _re
-    for p in profanity:
-        # kelime sınırı ile ara (Türkçe karakterleri de hesaba kat)
-        if _re.search(r'(^|[\s.,;:!?-])' + _re.escape(p) + r'($|[\s.,;:!?-])', t):
+
+    # 1) Normalleştirme: leetspeak ve ayırıcıları temizle
+    #    (a m c ı k → amcık ; amc1k → amcik ; a.m.c.ı.k → amcık)
+    leet = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's'})
+    normalized = t.translate(leet)
+    # ayırıcıları (boşluk, nokta, tire, alt çizgi, yıldız) kaldırılmış sürüm
+    collapsed = _re.sub(r'[\s.\-_*]+', '', normalized)
+
+    # Kök halinde yakalanacak (ek alabilen) ciddi argo kökleri
+    # Bunlar normalde başka kelimenin parçası olmaz, kök araması güvenli
+    hard_roots = [
+        'amcık', 'amcik', 'amcığ', 'amcig', 'yarrak', 'yarrağ', 'orospu',
+        'sikiş', 'sikis', 'siktir', 'pezevenk', 'gavat', 'kahpe',
+        'penis', 'vajina', 'porno', 'pussy', 'fuck', 'porn', 'whore', 'bitch',
+    ]
+    for root in hard_roots:
+        root_norm = root.translate(leet)
+        if root_norm in collapsed:
+            return False, ("Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya "
+                           "bilgilendirici bir konu girin.")
+
+    # Tam kelime olarak (kelime sınırıyla) yakalanacaklar — kısa/çok-anlamlı olanlar
+    # ('sik' → 'sikke' yanlış yakalanmasın diye sadece tam kelime)
+    word_bound = [
+        'sik', 'piç', 'pic', 'göt', 'got', 'meme', 'seks', 'sex', 'dick', 'shit',
+    ]
+    for p in word_bound:
+        if _re.search(r'(^|[\s.,;:!?\-])' + _re.escape(p) + r'($|[\s.,;:!?\-])', normalized):
             return False, ("Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya "
                            "bilgilendirici bir konu girin.")
 
