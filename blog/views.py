@@ -203,8 +203,17 @@ def request_publish_view(request, article_id):
             article.save(update_fields=['yayin_talebi'])
             messages.success(request, "Yayın talebiniz alındı! Yöneticiler inceledikten sonra "
                                       "uygunsa makaleniz anasayfada yayınlanacaktır.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+    # GET → onay sayfası göster
+    if article.is_published:
+        messages.info(request, "Makaleniz zaten yayında.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+    if article.yayin_talebi:
+        messages.info(request, "Yayın talebiniz zaten alındı, inceleniyor.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    return render(request, 'blog/request_publish_confirm.html', {'article': article})
 
 
 def article_detail_view(request, article_id, slug):
@@ -350,11 +359,41 @@ def article_detail_view(request, article_id, slug):
                          outline=True, size="sm", n_clicks=0)])]
     )
 
-    edit_button = None
-    if request.user.is_superuser:
+    # --- Makale sahibi için aksiyon ikonları (düzenle + yayın talebi) ---
+    action_icons = []
+    is_owner = request.user.is_authenticated and article.owner_id == request.user.id
+
+    if is_owner or request.user.is_superuser:
+        # Düzenleme ikonu (kalem) — sahip veya superuser
         edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
-        edit_button = html.A([html.I(className="fas fa-pencil-alt me-2 text-warning float-end")], href=edit_url,
-                             className="mb-4", title="Düzenle")
+        action_icons.append(
+            html.A([html.I(className="fas fa-pencil-alt")],
+                   href=edit_url, className="text-warning me-3 fs-5",
+                   title="Makaleyi Düzenle")
+        )
+
+    # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
+    if is_owner and not request.user.is_superuser:
+        if article.is_published:
+            action_icons.append(
+                html.Span([html.I(className="fas fa-check-circle")],
+                          className="text-success fs-5", title="Anasayfada yayında")
+            )
+        elif article.yayin_talebi:
+            action_icons.append(
+                html.Span([html.I(className="fas fa-clock")],
+                          className="text-info fs-5", title="Yayın talebiniz inceleniyor")
+            )
+        else:
+            # Talep gönderme linki (uçak ikonu) — onay sayfasına gider
+            action_icons.append(
+                html.A([html.I(className="fas fa-paper-plane")],
+                       href=reverse('blog:request_publish', args=[article.id]),
+                       className="text-primary fs-5",
+                       title="Yayınlanması için talep gönder")
+            )
+
+    edit_button = html.Div(action_icons, className="float-end") if action_icons else None
 
     full_layout = html.Div([
         dcc.Store(id='article-data-store', data=article_data_for_dash),

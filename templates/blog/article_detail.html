@@ -7,41 +7,6 @@
 
 
 {% block content %}
-    {# --- Yayın durumu / talep (yalnızca makale sahibine görünür) --- #}
-    {% if user.is_authenticated and article.owner_id == user.id %}
-        <div class="container mt-3">
-            {% if user.is_superuser %}
-                <div class="alert alert-success d-flex align-items-center" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Bu sizin makaleniz ve anasayfada yayında.
-                </div>
-            {% elif article.is_published %}
-                <div class="alert alert-success d-flex align-items-center" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Makaleniz onaylandı ve anasayfada yayında.
-                </div>
-            {% elif article.yayin_talebi %}
-                <div class="alert alert-info d-flex align-items-center" role="alert">
-                    <i class="fas fa-clock me-2"></i>
-                    Yayın talebiniz alındı. Yöneticiler inceledikten sonra uygunsa makaleniz anasayfada yayınlanacaktır.
-                </div>
-            {% else %}
-                <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap" role="alert">
-                    <span>
-                        <i class="fas fa-info-circle me-2"></i>
-                        Bu makale henüz anasayfada yayınlanmıyor. Yayınlanmasını istiyorsanız talep gönderebilirsiniz.
-                    </span>
-                    <form method="post" action="{% url 'blog:request_publish' article.id %}" class="mt-2 mt-md-0">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="fas fa-paper-plane me-1"></i> Yayınlanmasını Talep Et
-                        </button>
-                    </form>
-                </div>
-            {% endif %}
-        </div>
-    {% endif %}
-
     <div data-refresh-on-navigation="true">
         {% plotly_direct name="ArticleDetailApp" %}
     </div>
