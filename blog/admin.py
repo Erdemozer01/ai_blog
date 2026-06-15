@@ -6,6 +6,28 @@ from .models import (GeneratedArticle, Category, ContactMessage,
                      Profile, WorkExperience, Education, Skill)
 
 
+class OnayBekleyenFilter(admin.SimpleListFilter):
+    """Yayın onayı bekleyen makaleleri (talep var, henüz yayınlanmamış) filtreler."""
+    title = 'Onay Durumu'
+    parameter_name = 'onay_durumu'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('bekleyen', 'Onay bekleyen (talep var, yayında değil)'),
+            ('yayinda', 'Yayında olanlar'),
+            ('talepsiz', 'Talep göndermemiş olanlar'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'bekleyen':
+            return queryset.filter(yayin_talebi=True, is_published=False)
+        if self.value() == 'yayinda':
+            return queryset.filter(is_published=True)
+        if self.value() == 'talepsiz':
+            return queryset.filter(yayin_talebi=False, is_published=False)
+        return queryset
+
+
 @admin.register(GeneratedArticle)
 class GeneratedArticleAdmin(admin.ModelAdmin):
     list_display = ('title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published', 'view_count', 'cover_image_preview')
@@ -51,9 +73,9 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return qs.filter(owner=request.user)
 
     def get_list_filter(self, request):
-        """Superuser owner'a göre filtreleyebilir; normal kullanıcıya owner filtresi gösterme."""
+        """Superuser owner ve yayın durumuna göre filtreleyebilir."""
         if request.user.is_superuser:
-            return ('status', 'owner', 'category', 'created_at')
+            return (OnayBekleyenFilter, 'yayin_talebi', 'is_published', 'status', 'owner', 'category', 'created_at')
         return ('status', 'category', 'created_at')
 
     def get_readonly_fields(self, request, obj=None):
