@@ -20,11 +20,16 @@ app = DjangoDash('ContactApp', external_stylesheets=external_stylesheets)
     State('contact-message', 'value'),
     prevent_initial_call=True
 )
-def submit_contact_form(n_clicks, name, email, subject, message):
+def submit_contact_form(n_clicks, name, email, subject, message, **kwargs):
     from blog.models import ContactMessage
+    from dash_apps.i18n_helper import t, get_lang
+
+    # Dili request cookie'sinden belirle
+    request = kwargs.get('request')
+    lang = get_lang(request) if request is not None else 'en'
 
     if not all([name, email, subject, message]):
-        return dbc.Alert("Lütfen tüm alanları doldurun.", color="warning")
+        return dbc.Alert(t('contact_fill_all', lang), color="warning")
 
     try:
         new_message = ContactMessage.objects.create(
@@ -60,7 +65,7 @@ def submit_contact_form(n_clicks, name, email, subject, message):
             </blockquote>
             <hr>
             <p>
-                
+
                 <a href="{admin_url}" style="background-color: #198754; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
                     Mesajı Görüntüle ve Okundu Olarak İşaretle
                 </a>
@@ -81,11 +86,11 @@ def submit_contact_form(n_clicks, name, email, subject, message):
         except (BadHeaderError, Exception) as e:
             print(f"!!! E-posta gönderim hatası: {e}")
 
-        return dbc.Alert("Mesajınız başarıyla gönderildi. Teşekkür ederiz!", color="success")
+        return dbc.Alert(t('contact_success', lang), color="success")
 
     except Exception as e:
         print(f"İletişim formu veritabanı kaydı hatası: {e}")
-        return dbc.Alert("Mesajınız gönderilirken bir hata oluştu.", color="danger")
+        return dbc.Alert(t('contact_error', lang), color="danger")
 
 
 @app.callback(

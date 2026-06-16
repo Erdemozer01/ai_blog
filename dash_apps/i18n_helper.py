@@ -366,6 +366,22 @@ TRANSLATIONS = {
     'pd_no_valid_response': {'tr': 'Yapay zeka modelinden geçerli bir yanıt alınamadı. Lütfen girdinizi kontrol edip tekrar deneyin veya daha spesifik bir hedef belirtin.',
                              'en': 'Could not get a valid response from the AI model. Please check your input and try again, or specify a more specific goal.'},
 
+    # ---- İletişim Sayfası ----
+    'contact_title': {'tr': 'Bize Ulaşın', 'en': 'Contact Us'},
+    'contact_subtitle': {'tr': 'Soru, öneri veya geri bildirimleriniz için bizimle iletişime geçin.',
+                         'en': 'Get in touch with us for any questions, suggestions, or feedback.'},
+    'contact_name': {'tr': 'Adınız Soyadınız', 'en': 'Your Full Name'},
+    'contact_email': {'tr': 'E-posta Adresiniz', 'en': 'Your Email Address'},
+    'contact_subject': {'tr': 'Konu', 'en': 'Subject'},
+    'contact_message': {'tr': 'Mesajınız...', 'en': 'Your Message...'},
+    'contact_send': {'tr': 'Gönder', 'en': 'Send'},
+    'contact_fill_all': {'tr': 'Lütfen tüm alanları doldurun.', 'en': 'Please fill in all fields.'},
+    'contact_success': {'tr': 'Mesajınız başarıyla gönderildi. Teşekkür ederiz!',
+                        'en': 'Your message has been sent successfully. Thank you!'},
+    'contact_error': {'tr': 'Mesajınız gönderilirken bir hata oluştu.',
+                      'en': 'An error occurred while sending your message.'},
+    'contact_meta_title': {'tr': 'İletişim - AI Blog', 'en': 'Contact - AI Blog'},
+
     # ---- Blog Anasayfa (statik_anasayfa) ----
     'home_no_article': {'tr': 'Makale Bulunamadı', 'en': 'No Articles Found'},
     'home_no_article_hint': {'tr': 'Filtre kriterlerinize uygun makale bulunamadı. Lütfen arama terimlerinizi değiştirin.',

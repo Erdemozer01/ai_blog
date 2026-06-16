@@ -710,17 +710,20 @@ def generate_article_view(request):
 
 def contact_view(request):
     main_navbar = create_main_navbar(request)
+    from dash_apps.i18n_helper import get_lang, t
+    lang = get_lang(request)
     contact_content = dbc.Row(dbc.Col([
-        html.Div([html.I(className="fas fa-envelope-open-text fa-3x text-primary mb-3"), html.H1("Bize Ulaşın"),
-                  html.P("Soru, öneri veya geri bildirimleriniz için...", className="lead text-muted")],
+        html.Div([html.I(className="fas fa-envelope-open-text fa-3x text-primary mb-3"),
+                  html.H1(t('contact_title', lang)),
+                  html.P(t('contact_subtitle', lang), className="lead text-muted")],
                  className="text-center mb-5"),
         dbc.Card(dbc.CardBody([
-            dbc.Row([dbc.Col(dbc.Input(id='contact-name', placeholder="Adınız Soyadınız")),
-                     dbc.Col(dbc.Input(id='contact-email', placeholder="E-posta Adresiniz"))], className="mb-3"),
-            dbc.Input(id='contact-subject', placeholder="Konu", className="mb-3"),
-            dbc.Textarea(id='contact-message', placeholder="Mesajınız...", rows=6, className="mb-3"),
+            dbc.Row([dbc.Col(dbc.Input(id='contact-name', placeholder=t('contact_name', lang))),
+                     dbc.Col(dbc.Input(id='contact-email', placeholder=t('contact_email', lang)))], className="mb-3"),
+            dbc.Input(id='contact-subject', placeholder=t('contact_subject', lang), className="mb-3"),
+            dbc.Textarea(id='contact-message', placeholder=t('contact_message', lang), rows=6, className="mb-3"),
             html.Div(className="d-grid",
-                     children=[dbc.Button(["Gönder"], id='submit-contact-button', color="primary")]),
+                     children=[dbc.Button([t('contact_send', lang)], id='submit-contact-button', color="primary")]),
         ]), className="p-4 shadow-sm"),
         html.Div(id='contact-form-feedback', className="mt-4")
     ], md=8, lg=7, className="mx-auto"))
@@ -731,7 +734,7 @@ def contact_view(request):
         return _contact_layout
 
     contact_app.layout = serve_contact_layout
-    return render(request, 'blog/contact.html', {'meta_title': "İletişim - AI Blog"})
+    return render(request, 'blog/contact.html', {'meta_title': t('contact_meta_title', lang)})
 
 
 def custom_logout_view(request):
