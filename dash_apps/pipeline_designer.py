@@ -135,7 +135,7 @@ def get_about_text():
     """)
 
 def create_pipeline_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
         dbc.Tab(label=t('pd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
         dbc.Tab(label=t('pd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[
@@ -144,7 +144,7 @@ def create_pipeline_layout(lang='en'):
                          placeholder=t('pd_goal_placeholder', lang),
                          style={'width': '100%', 'height': 200}),
             html.Hr(),
-            dbc.Button(f"{t('pd_generate', lang)} {t('credit_cost_5', lang)}", id="btn-generate-pipeline", color="primary", className="w-100"),
+            dbc.Button(f"{t('pd_generate', lang)} {credit_label('bio_pipeline_designer', lang)}", id="btn-generate-pipeline", color="primary", className="w-100"),
         ])),
     ])))
 
@@ -183,7 +183,7 @@ app.layout = create_pipeline_layout()
     prevent_initial_call=True
 )
 def handle_pipeline_generation(n_clicks, pipeline_goal, lang=None, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not pipeline_goal:
         return dbc.Alert(t('pd_enter_goal', lang), color="warning")

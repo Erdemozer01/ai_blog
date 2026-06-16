@@ -123,7 +123,7 @@ def _polar(angle_deg, radius):
 
 def create_plasmid_figure(total_length, orfs, cutters, lang='en'):
     """İnteraktif dairesel plazmit haritası (Plotly)."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     fig = go.Figure()
 
@@ -201,7 +201,7 @@ def create_plasmid_figure(total_length, orfs, cutters, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_plasmid_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('pm_input', lang)),
@@ -219,7 +219,7 @@ def create_plasmid_layout(lang='en'):
             ),
             dbc.Button(
                 [html.I(className="fas fa-circle-notch me-2"),
-                 f"{t('pm_draw', lang)} {t('credit_cost_5', lang)}"],
+                 f"{t('pm_draw', lang)} {credit_label('bio_plasmid_map', lang)}"],
                 id='pm-draw-btn', color="primary", className="w-100 mb-2"
             ),
             html.Small(t('pm_note', lang), className="text-muted"),
@@ -237,7 +237,7 @@ def create_plasmid_layout(lang='en'):
                 html.Hr(),
                 dbc.Button(
                     [html.I(className="fas fa-robot me-2"),
-                     f"{t('pm_ai_comment', lang)} {t('credit_cost_5', lang)}"],
+                     f"{t('pm_ai_comment', lang)} {credit_label('bio_tool_ai', lang)}"],
                     id='pm-ai-btn', color="success", className="w-100"
                 ),
                 dcc.Loading(html.Div(id='pm-ai-output', className="mt-3"))
@@ -285,7 +285,7 @@ def load_example(n_clicks):
     prevent_initial_call=True
 )
 def draw_map(n_clicks, sequence, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
 
     if not n_clicks:
@@ -382,7 +382,7 @@ def draw_map(n_clicks, sequence, lang, **kwargs):
     prevent_initial_call=True
 )
 def ai_comment(n_clicks, store_data, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
 
     if not n_clicks or not store_data:

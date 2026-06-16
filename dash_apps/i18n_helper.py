@@ -596,3 +596,19 @@ def t(key, lang='en'):
     if not entry:
         return key
     return entry.get(lang, entry.get(DEFAULT_LANG, key))
+
+
+def credit_label(service_key, lang='en', default=5):
+    """
+    Bir servisin GÜNCEL kredi maliyetini veritabanından okuyup
+    '(10 Kredi)' / '(10 Credits)' biçiminde döndürür.
+    Buton etiketlerinde kullanılır — admin'de fiyat değişince etiket de değişir.
+    """
+    try:
+        from billing.services import get_cost
+        cost = get_cost(service_key, default=default)
+    except Exception:
+        cost = default
+    word = 'Kredi' if lang == 'tr' else ('Credits' if cost != 1 else 'Credit')
+    return f"({cost} {word})"
+

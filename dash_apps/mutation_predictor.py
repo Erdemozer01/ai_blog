@@ -196,7 +196,7 @@ def train_and_predict_mutation_effect(features):
 
 
 def mutation_create_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     control_panel = dbc.Card([
         dbc.CardHeader(t('mp_menu', lang)),
         dbc.CardBody([
@@ -233,11 +233,11 @@ def mutation_create_layout(lang='en'):
                         html.Hr(),
                         dbc.Label(t('mp_method_select', lang), className="fw-bold"),
                         dbc.Row([
-                            dbc.Col(dbc.Button(f"{t('mp_list_harmful', lang)} {t('credit_cost_5', lang)}", id="btn-ask-ai", n_clicks=0,
+                            dbc.Col(dbc.Button(f"{t('mp_list_harmful', lang)} {credit_label('bio_tool_ai', lang)}", id="btn-ask-ai", n_clicks=0,
                                                color="info",
                                                className="w-100"), width=6),
                             dbc.Col(
-                                dbc.Button(f"{t('mp_predict_detailed', lang)} {t('credit_cost_5', lang)}", id="btn-calculate-program", n_clicks=0,
+                                dbc.Button(f"{t('mp_predict_detailed', lang)} {credit_label('bio_mutation_predictor', lang)}", id="btn-calculate-program", n_clicks=0,
                                            color="primary",
                                            className="w-100"), width=6),
                         ], className="mb-2"),
@@ -263,7 +263,7 @@ def mutation_create_layout(lang='en'):
             html.Div(id='gemini-button-container', style={'display': 'none'}, children=[
                 html.Hr(),
                 html.H5(t('mp_interpret_results', lang)),
-                dbc.Button(f"{t('mp_interpret_ai', lang)} {t('credit_cost_5', lang)}", id="btn-ask-gemini-interpret", color="success",
+                dbc.Button(f"{t('mp_interpret_ai', lang)} {credit_label('bio_tool_ai', lang)}", id="btn-ask-gemini-interpret", color="success",
                            className="w-100 mt-2"),
                 dcc.Loading(id="loading-gemini", children=[html.Div(id='gemini-output-div', className="mt-3")])
             ])
@@ -353,7 +353,7 @@ def update_molecule_selector(all_mols):
     prevent_initial_call=True
 )
 def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks, lang=None, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     calc_clicks = calc_clicks or 0
     ai_clicks = ai_clicks or 0

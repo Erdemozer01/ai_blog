@@ -41,7 +41,7 @@ def parse_upload_content(contents):
 
 def get_alignment_interpretation(fasta_data, lang='en'):
     """Hizalama verisini alıp Gemini'ye yorumlatır."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     if not fasta_data:
         return t('sal_no_interaction', lang)
 
@@ -91,7 +91,7 @@ def get_alignment_interpretation(fasta_data, lang='en'):
 # --- Ön Yüz: Dash Layout Fonksiyonu ---
 def create_sequence_alignment_layout(lang='en'):
     """Gelişmiş Sekans Hizalama Görüntüleyicisi'nin layout'unu oluşturur."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     sidebar = dbc.Col([
         dcc.Tabs(id='alignment-control-tabs', value='data-tab', children=[
@@ -168,7 +168,7 @@ def create_sequence_alignment_layout(lang='en'):
         ])),
         html.Div([
             dbc.Button([html.I(className="fas fa-robot me-2"),
-                        f"{t('sal_ai_btn', lang)} (5 {t('credits_required', lang)})"],
+                        f"{t('sal_ai_btn', lang)} {credit_label('bio_tool_ai', lang)}"],
                        id="alignment-ai-btn", color="info", outline=True, className="mt-3"),
             dbc.FormText(t('sal_ai_prompt_hint', lang), className="d-block text-muted mt-1"),
         ]),
@@ -213,7 +213,7 @@ def update_textarea_from_upload(contents):
 )
 def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, showconservation, showgap, lang):
     """Veri girildiğinde veya grafik ayarları değiştiğinde hizalama grafiğini oluşturur."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not data:
         return html.P(t('sal_enter_data', lang), className="text-muted")
@@ -246,7 +246,7 @@ def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, 
 )
 def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs):
     """AI butonuna basıldığında hizalamayı yorumlar."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not n_clicks or not alignment_data:
         return None
@@ -272,7 +272,7 @@ def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs)
     prevent_initial_call=True
 )
 def event_data_select(data, lang):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if data is None:
         return t('sal_no_interaction', lang)

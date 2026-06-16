@@ -174,7 +174,7 @@ def parse_cif_for_table(cif_content):
 
 
 def get_ai_report(protein_name, organism, lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     if not protein_name or protein_name == "N/A":
         return None, t('mv_no_protein', lang)
     if lang == 'tr':
@@ -356,7 +356,7 @@ def get_unique_chains_from_content(content, ext):
 
 # --- UYGULAMA YERLEŞİMİ (LAYOUT) ---
 def create_molecule_viewer_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     data_tab = dbc.CardBody([
         dbc.Label(t('mv_pdb_label', lang), html_for="pdb-id-input", className="fw-bold"),
         dbc.InputGroup([dbc.Input(id="pdb-id-input", placeholder=t('mv_pdb_placeholder', lang), type="text"),
@@ -395,7 +395,7 @@ def create_molecule_viewer_layout(lang='en'):
         html.Hr(),
         dbc.Label(t('mv_ai_report_label', lang), className="fw-bold"),
         dcc.Dropdown(id='ai-mol-dropdown', placeholder=t('mv_select_report_mol', lang)),
-        dbc.Button(f"{t('mv_generate_report', lang)} {t('credit_cost_5', lang)}", id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
+        dbc.Button(f"{t('mv_generate_report', lang)} {credit_label('bio_tool_ai', lang)}", id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
         html.Hr(),
         dcc.Loading(html.Div(id="main-status-output", className="mt-2 text-center")),
     ])

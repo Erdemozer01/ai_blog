@@ -19,7 +19,7 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
     """
     Verilen dosya içeriğini ve formatını kullanarak sekansı analiz eder.
     """
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     if not file_content:
         return {"error": t('sa_no_input', lang)}
 
@@ -68,7 +68,7 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
 # --- Ön Yüz: Dash Layout Fonksiyonu (Dropdown Güncellendi) ---
 def create_sequence_analyzer_layout(lang='en'):
     """Sekans Analiz Aracı sayfasının iki sütunlu ve dosya yüklemeli içeriğini oluşturur."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     sidebar = dbc.Col(
         [
@@ -119,7 +119,7 @@ def create_sequence_analyzer_layout(lang='en'):
                 style={'width': '100%', 'height': 200},
                 className="form-control mb-3 font-monospace"
             ),
-            dbc.Button([html.I(className="fas fa-cogs me-2"), f"{t('sa_analyze_btn', lang)} {t('credit_cost_5', lang)}"], id="analyze-button", color="primary",
+            dbc.Button([html.I(className="fas fa-cogs me-2"), f"{t('sa_analyze_btn', lang)} {credit_label('bio_sequence_analyzer', lang)}"], id="analyze-button", color="primary",
                        className="w-100"),
         ],
         md=4,
@@ -189,7 +189,7 @@ def update_file_content(contents, filename):
     prevent_initial_call=True
 )
 def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not sequence_content:
         return dbc.Alert(t('sa_no_input', lang), color="warning")

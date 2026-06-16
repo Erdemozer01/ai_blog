@@ -99,7 +99,7 @@ def analyze_restriction(sequence, is_linear=True, enzyme_names=None):
 
 def create_cut_map_figure(results, seq_length, lang='en'):
     """Kesim haritası grafiği (her enzimin kesim noktaları dizi üzerinde)."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     # Sadece az kesen enzimleri haritada göster (kalabalık olmasın) — ilk 15
     show = [r for r in results if r['cuts'] <= 5][:15]
@@ -150,7 +150,7 @@ def create_cut_map_figure(results, seq_length, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_restriction_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('re_input', lang)),
@@ -179,7 +179,7 @@ def create_restriction_layout(lang='en'):
             ),
             dbc.Button(
                 [html.I(className="fas fa-cut me-2"),
-                 f"{t('re_analyze', lang)} {t('re_credit_badge', lang)}"],
+                 f"{t('re_analyze', lang)} {credit_label('bio_restriction', lang)}"],
                 id='re-analyze-btn', color="primary", className="w-100 mb-2"
             ),
             html.Small(t('re_note', lang), className="text-muted"),
@@ -197,7 +197,7 @@ def create_restriction_layout(lang='en'):
                 html.Hr(),
                 dbc.Button(
                     [html.I(className="fas fa-robot me-2"),
-                     f"{t('re_ai_comment', lang)} {t('re_credit_badge', lang)}"],
+                     f"{t('re_ai_comment', lang)} {credit_label('bio_tool_ai', lang)}"],
                     id='re-ai-btn', color="success", className="w-100"
                 ),
                 dcc.Loading(html.Div(id='re-ai-output', className="mt-3"))
@@ -255,7 +255,7 @@ def load_example(n_clicks):
     prevent_initial_call=True
 )
 def run_analysis(n_clicks, sequence, dna_type, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
 
     if not sequence:
@@ -338,7 +338,7 @@ def run_analysis(n_clicks, sequence, dna_type, lang, **kwargs):
     prevent_initial_call=True
 )
 def ai_comment(n_clicks, store_data, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
 
     if not n_clicks or not store_data:

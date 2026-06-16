@@ -77,7 +77,7 @@ def get_about_text():
 
 
 def bacterial_create_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
         dbc.Tab(label=t('bd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
         dbc.Tab(label=t('bd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[
@@ -87,7 +87,7 @@ def bacterial_create_layout(lang='en'):
             dcc.Textarea(id='design-goals-input', placeholder="...",
                          style={'width': '100%', 'height': 150}),
             html.Hr(),
-            dbc.Button(f"{t('bd_generate', lang)} {t('credit_cost_5', lang)}", id="btn-generate-design", color="primary", className="w-100"),
+            dbc.Button(f"{t('bd_generate', lang)} {credit_label('bio_bacterial_designer', lang)}", id="btn-generate-design", color="primary", className="w-100"),
         ])),
     ])))
 
@@ -142,7 +142,7 @@ app.layout = bacterial_create_layout()
     prevent_initial_call=True
 )
 def handle_design_and_sequence_generation(n_clicks, design_goals, target_organism, lang=None, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not design_goals or not target_organism:
         return dbc.Alert(t('bd_fill_all', lang), color="warning"), dash.no_update, True, 'tab-design'
