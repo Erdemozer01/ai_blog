@@ -24,8 +24,7 @@ urlpatterns = [
 
     path('api/job-status/<str:job_id>/', views.get_job_status_view, name='get_job_status'),
 
-    re_path(
-        r'^fastq-analyzer/(?P<path>.*)$', views.FastqDashAppView.as_view(), name='fastq_analyzer'),
+    path('fastq-analyzer/', views.fastq_analyzer_view, name='fastq_analyzer'),
 
     path('api/', include('bio_tools.api.urls')),
 

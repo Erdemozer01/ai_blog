@@ -85,161 +85,22 @@ def validate_job_id(job_id: str) -> bool:
 
 
 # --- FASTQ DASH APP VIEW ---
-@method_decorator(csrf_exempt, name='dispatch')
-class FastqDashAppView(View):
-    """
-    Dash app proxy with proper stream handling
-    """
+@login_required
+def fastq_analyzer_view(request):
+    """FASTQ Analiz Aracı (DjangoDash — diğer araçlarla aynı yapı)."""
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
 
-    def dispatch(self, request, *args, **kwargs):
-        """Request tracking"""
-        request_id = str(uuid.uuid4())[:8]
-        content_length = request.META.get('CONTENT_LENGTH', '0')
-        logger.info(f"[{request_id}] {request.method} {request.path} - Size: {content_length} bytes")
+    main_navbar = create_main_navbar(request)
+    from dash_apps.fastq_app import build_fastq_content
+    content = build_fastq_content()
+    _layout = html.Div([main_navbar, content])
+    fastq_app.layout = lambda: _layout
 
-        try:
-            response = super().dispatch(request, *args, **kwargs)
-            logger.info(f"[{request_id}] Response: {response.status_code}")
-            return response
-        except Exception as e:
-            logger.error(f"[{request_id}] Error: {e}", exc_info=True)
-            return HttpResponse("Internal Server Error", status=500)
-
-    def get(self, request, *args, **kwargs):
-        """Handle GET requests"""
-        try:
-            with fastq_app.server.test_request_context(
-                    request.get_full_path(),
-                    method='GET',
-                    headers=dict(request.headers)
-            ):
-                flask_response = fastq_app.server.full_dispatch_request()
-
-                django_response = HttpResponse(
-                    content=flask_response.get_data(),
-                    status=flask_response.status_code,
-                    content_type=flask_response.content_type
-                )
-
-                for key, value in flask_response.headers:
-                    if key.lower() not in ['content-type', 'content-length', 'date', 'server']:
-                        django_response[key] = value
-
-                return django_response
-
-        except Exception as e:
-            logger.error(f"GET error: {e}", exc_info=True)
-            return HttpResponse("Internal Server Error", status=500)
-
-    def post(self, request, *args, **kwargs):
-        """
-        Handle POST with seekable stream
-        CRITICAL FIX: Reset stream position before WSGI call
-        """
-        environ = self._build_wsgi_environ(request)
-
-        status_headers = {'status': None, 'headers': None}
-
-        def start_response(status, headers, exc_info=None):
-            if exc_info:
-                try:
-                    raise exc_info[1].with_traceback(exc_info[2])
-                finally:
-                    exc_info = None
-            elif status_headers['status'] is not None:
-                raise AssertionError("start_response called twice")
-
-            status_headers['status'] = status
-            status_headers['headers'] = headers
-
-        try:
-            response_iter = fastq_app.server.wsgi_app(environ, start_response)
-            response_body = b''.join(response_iter)
-
-            if status_headers['status'] is None:
-                raise RuntimeError("WSGI app did not call start_response")
-
-            status_code = int(status_headers['status'].split(' ')[0])
-
-            django_response = HttpResponse(
-                content=response_body,
-                status=status_code,
-            )
-
-            if status_headers['headers']:
-                for key, value in status_headers['headers']:
-                    if key.lower() not in ['content-length', 'date', 'server', 'connection']:
-                        django_response[key] = value
-
-            return django_response
-
-        except Exception as e:
-            logger.error(f"POST WSGI error: {e}", exc_info=True)
-
-            if 'API/resumable' in request.path:
-                return JsonResponse({
-                    'error': f'Upload processing error: {type(e).__name__}',
-                    'detail': str(e)
-                }, status=500)
-
-            return HttpResponse(
-                f"Internal Server Error: {type(e).__name__}",
-                status=500
-            )
-
-    def _build_wsgi_environ(self, request):
-        """
-        Build WSGI environment with seekable stream
-        CRITICAL FIX: Create fresh BytesIO and seek to start
-        """
-        # Get content length
-        content_length = request.META.get('CONTENT_LENGTH', '0')
-        try:
-            content_length = str(int(content_length))
-        except (ValueError, TypeError):
-            content_length = str(len(request.body))
-
-        # Get full Content-Type with boundary
-        content_type = request.content_type
-        if content_type.startswith('multipart/'):
-            full_content_type = request.META.get('CONTENT_TYPE', content_type)
-        else:
-            full_content_type = content_type
-
-        # CRITICAL FIX: Create fresh, seekable stream
-        body_stream = BytesIO(request.body)
-        body_stream.seek(0)  # Ensure we're at the start
-
-        # Build base environ
-        environ = {
-            'wsgi.version': (1, 0),
-            'wsgi.url_scheme': request.scheme,
-            'wsgi.input': body_stream,  # Fresh, seekable stream
-            'wsgi.errors': sys.stderr,
-            'wsgi.multithread': True,
-            'wsgi.multiprocess': True,
-            'wsgi.run_once': False,
-            'REQUEST_METHOD': request.method,
-            'SCRIPT_NAME': '',
-            'PATH_INFO': request.path_info,
-            'QUERY_STRING': request.META.get('QUERY_STRING', ''),
-            'CONTENT_TYPE': full_content_type,
-            'CONTENT_LENGTH': content_length,
-            'SERVER_NAME': request.META.get('SERVER_NAME', 'localhost'),
-            'SERVER_PORT': request.META.get('SERVER_PORT', '8000'),
-            'SERVER_PROTOCOL': request.META.get('SERVER_PROTOCOL', 'HTTP/1.1'),
-            'REMOTE_ADDR': request.META.get('REMOTE_ADDR', '127.0.0.1'),
-        }
-
-        # Add HTTP headers
-        for key, value in request.headers.items():
-            key_upper = key.upper().replace('-', '_')
-            env_key = f'HTTP_{key_upper}'
-
-            if env_key not in ('HTTP_CONTENT_TYPE', 'HTTP_CONTENT_LENGTH'):
-                environ[env_key] = value
-
-        return environ
+    return render(request, 'bio_tools/fastq_analyzer.html', {
+        'meta_title': "FASTQ Analiz Aracı - AI Blog"
+    })
 
 
 # --- OTHER DASH APP VIEWS ---

@@ -12,7 +12,6 @@ import uuid
 import dash
 from dash import dcc, html, Input, Output, State, no_update, ALL
 import dash_bootstrap_components as dbc
-import dash_uploader as du
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -38,20 +37,17 @@ PHRED_SCORE_RANGE = 42
 MAX_GC_SAMPLES = 100_000
 MAX_FILES = 2  # Maksimum dosya sayısı (2 dosya, her biri 5 MB)
 
-# Dash uygulaması
-app = dash.Dash(
-    __name__,
+# Dash uygulaması (DjangoDash — diğer bio-tool'lar ile aynı yapı)
+from django_plotly_dash import DjangoDash
+
+app = DjangoDash(
+    'FastqAnalyzerApp',
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
         "https://use.fontawesome.com/releases/v5.15.4/css/all.css"
     ],
     suppress_callback_exceptions=True,
-    routes_pathname_prefix='/bio-tools/fastq-analyzer/',
-    requests_pathname_prefix='/bio-tools/fastq-analyzer/',
 )
-
-server = app.server
-du.configure_upload(app, UPLOAD_ROOT, use_upload_id=True)
 
 
 # ------------------------------------------------------------------------------
@@ -554,12 +550,25 @@ def create_static_navbar():
         align_end=True,
     )
 
+    # Dil seçici (ana navbar ile aynı)
+    language_dropdown = dbc.DropdownMenu(
+        label="🌐 TR/EN",
+        children=[
+            dbc.DropdownMenuItem("Türkçe", href="/set-language/tr/", external_link=True),
+            dbc.DropdownMenuItem("English", href="/set-language/en/", external_link=True),
+        ],
+        nav=True,
+        in_navbar=True,
+        align_end=True,
+    )
+
     nav_items = [
         dbc.NavItem(dbc.NavLink("Blog", href="/", active="exact", external_link=True)),
         dbc.NavItem(dbc.NavLink("Makale Arama", href="/article-search/", active="exact", external_link=True)),
         bio_tools_dropdown,
         dbc.NavItem(dbc.NavLink("İletişim", href="/contact/", external_link=True, active="exact")),
         user_dropdown,
+        language_dropdown,
     ]
 
     return dbc.Navbar(
@@ -587,11 +596,11 @@ def create_static_navbar():
     )
 
 
-app.layout = html.Div([
-    create_static_navbar(),
-
-    dbc.Container([
-        dcc.Store(id="files-store", data={}),  # {file_id: {path, name}}
+def build_fastq_content():
+    """FASTQ sayfasının içeriği (navbar hariç). Navbar view'da eklenir."""
+    return html.Div([
+        dbc.Container([
+            dcc.Store(id="files-store", data={}),  # {file_id: {path, name}}
         dcc.Store(id="analysis-results-store", data={}),  # {file_name: analysis_result}
 
         dbc.Row([
@@ -600,13 +609,21 @@ app.layout = html.Div([
                 dbc.Card([
                     dbc.CardHeader("FASTQ Dosyaları"),
                     dbc.CardBody([
-                        du.Upload(
-                            id="du-upload",
-                            text=f"FASTQ dosyalarını yükleyin (Maks. {MAX_FILES} dosya, 5 MB)",
-                            filetypes=["fastq", "fq", "fastq.gz", "fq.gz", "gz"],
-                            max_file_size=5,  # 5 MB
-
-                            max_files=MAX_FILES,
+                        dcc.Upload(
+                            id="dcc-upload",
+                            children=html.Div([
+                                html.I(className="fas fa-cloud-upload-alt fa-2x mb-2 text-primary"),
+                                html.Br(),
+                                f"FASTQ dosyalarını sürükleyin veya seçin (Maks. {MAX_FILES} dosya, 5 MB)"
+                            ]),
+                            style={
+                                'width': '100%', 'minHeight': '100px', 'lineHeight': '1.5',
+                                'borderWidth': '2px', 'borderStyle': 'dashed',
+                                'borderRadius': '8px', 'textAlign': 'center',
+                                'padding': '20px', 'cursor': 'pointer'
+                            },
+                            multiple=True,
+                            max_size=5 * 1024 * 1024,  # 5 MB
                         ),
 
                         html.Div(id="upload-status", className="mt-2"),
@@ -691,6 +708,9 @@ app.layout = html.Div([
 ])
 
 
+app.layout = build_fastq_content()
+
+
 # ------------------------------------------------------------------------------
 # Callbacks
 # ------------------------------------------------------------------------------
@@ -713,66 +733,94 @@ def toggle_navbar(n, is_open, **kwargs):
         Output("files-list", "children"),
         Output("btn-analyze-all", "disabled"),
     ],
-    Input("du-upload", "isCompleted"),
+    Input("dcc-upload", "contents"),
     [
-        State("du-upload", "fileNames"),
-        State("du-upload", "upload_id"),
+        State("dcc-upload", "filename"),
         State("files-store", "data"),
     ],
 )
-def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
-    """MİNİMAL VERSİYON - En hızlı"""
+def handle_upload(contents_list, file_names, current_files, **kwargs):
+    """dcc.Upload ile gelen base64 içeriği media klasörüne yazar."""
+    import base64
+
     if current_files is None:
         current_files = {}
 
-    if not is_completed or not file_names or not upload_id:
-        return "Bekliyor...", current_files, [], True
+    if not contents_list or not file_names:
+        return "Bekliyor...", current_files, _render_files_list(current_files), len(current_files) == 0
 
+    # Tek dosya gelirse listeye çevir
+    if not isinstance(contents_list, list):
+        contents_list = [contents_list]
+        file_names = [file_names]
+
+    # Bu oturum için upload klasörü
+    upload_id = str(uuid.uuid4())
     folder = os.path.join(UPLOAD_ROOT, upload_id)
+    os.makedirs(folder, exist_ok=True)
 
-    # Hızlı yol: glob ile tek seferde
-    import glob
-    all_files = {os.path.basename(f): f for f in glob.glob(os.path.join(folder, '*'))}
-
+    allowed_ext = ('.fastq', '.fq', '.fastq.gz', '.fq.gz', '.gz')
     uploaded_count = 0
     limit_reached = False
-    for file_name in file_names:
-        if file_name not in all_files:
+    rejected = []
+
+    for content, file_name in zip(contents_list, file_names):
+        if not content or not file_name:
+            continue
+
+        # Uzantı kontrolü
+        if not file_name.lower().endswith(allowed_ext):
+            rejected.append(file_name)
             continue
 
         # Duplicate kontrolü
         if any(f['name'] == file_name for f in current_files.values()):
             continue
 
-        # Dosya sayısı limiti (sunucu tarafı — arayüz limiti güvenilmez)
+        # Dosya sayısı limiti
         if len(current_files) >= MAX_FILES:
             limit_reached = True
-            # Limiti aşan dosyayı diskten sil
-            try:
-                os.remove(all_files[file_name])
-            except OSError:
-                pass
             continue
 
-        file_path = all_files[file_name]
-        file_size = os.path.getsize(file_path)  # Tek stat call
+        # base64 çöz ve diske yaz
+        try:
+            _header, b64data = content.split(',', 1)
+            file_bytes = base64.b64decode(b64data)
+        except Exception:
+            rejected.append(file_name)
+            continue
+
+        # 5 MB sunucu tarafı kontrol
+        if len(file_bytes) > 5 * 1024 * 1024:
+            rejected.append(f"{file_name} (çok büyük)")
+            continue
+
+        file_path = os.path.join(folder, file_name)
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_bytes)
+        except OSError:
+            rejected.append(file_name)
+            continue
 
         current_files[str(uuid.uuid4())] = {
             'path': file_path,
             'name': file_name,
-            'size_mb': file_size / (1024 * 1024)
+            'size_mb': len(file_bytes) / (1024 * 1024)
         }
         uploaded_count += 1
 
-    # Basit UI
-    files_list = dbc.ListGroup([
-        dbc.ListGroupItem(f"{info['name']} ({info['size_mb']:.1f} MB)")
-        for info in current_files.values()
-    ])
+    files_list = _render_files_list(current_files)
 
+    # Durum mesajı
     if limit_reached:
         status = dbc.Alert(
             f"En fazla {MAX_FILES} dosya yükleyebilirsiniz. Fazla dosyalar atlandı.",
+            color="warning"
+        )
+    elif rejected:
+        status = dbc.Alert(
+            f"✓ {uploaded_count} dosya yüklendi. Reddedilen: {', '.join(rejected)}",
             color="warning"
         )
     else:
@@ -782,6 +830,16 @@ def handle_upload(is_completed, file_names, upload_id, current_files, **kwargs):
         )
 
     return status, current_files, files_list, len(current_files) == 0
+
+
+def _render_files_list(current_files):
+    """Yüklenen dosyaların listesini gösterir."""
+    if not current_files:
+        return []
+    return dbc.ListGroup([
+        dbc.ListGroupItem(f"{info['name']} ({info['size_mb']:.1f} MB)")
+        for info in current_files.values()
+    ])
 
 
 @app.callback(
