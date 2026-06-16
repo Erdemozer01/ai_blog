@@ -370,10 +370,13 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
     if triggered_button is None:
         return dash.no_update, dash.no_update, dash.no_update, current_clicks
 
-    # Her işlem (hesaplama veya AI) 5 kredi
+    # Hesaplama → analiz fiyatı; AI yorumu → AI fiyatı
     from billing.dash_helpers import try_charge
-    _desc = "Mutasyon hesaplama" if triggered_button == 'calculate' else "Mutasyon AI yorumu"
-    ok, msg, _u = try_charge(kwargs, 'bio_mutation_predictor', cost=5, lang=lang, description=_desc)
+    if triggered_button == 'calculate':
+        _key, _desc = 'bio_mutation_predictor', "Mutasyon hesaplama"
+    else:
+        _key, _desc = 'bio_tool_ai', "Mutasyon AI yorumu"
+    ok, msg, _u = try_charge(kwargs, _key, cost=5, lang=lang, description=_desc)
     if not ok:
         return msg, dash.no_update, dash.no_update, current_clicks
 

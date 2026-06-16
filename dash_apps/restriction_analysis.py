@@ -346,7 +346,7 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
 
     # AI yorumu ayrı işlem — 5 kredi
     from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_restriction', cost=5, lang=lang,
+    ok, msg, _u = try_charge(kwargs, 'bio_tool_ai', cost=5, lang=lang,
                              description="Restriksiyon AI yorumu")
     if not ok:
         return msg
@@ -389,3 +389,4 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:restriction_analysis')
     except Exception:
         return False
+

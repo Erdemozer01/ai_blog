@@ -389,7 +389,7 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
         return no_update
 
     from billing.dash_helpers import try_charge
-    ok, msg, _user = try_charge(kwargs, 'bio_plasmid_map', cost=5, lang=lang,
+    ok, msg, _user = try_charge(kwargs, 'bio_tool_ai', cost=5, lang=lang,
                                 description="Plazmit harita AI yorumu")
     if not ok:
         return msg

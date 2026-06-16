@@ -30,6 +30,35 @@ class ServicePrice(models.Model):
         return obj.cost if obj else default
 
 
+class AIServicePrice(models.Model):
+    """
+    AI işlemlerinin (makale üretimi, bio-tool AI yorumları) kredi maliyeti.
+    Analiz işlemlerinden AYRI yönetilir (ServicePrice analiz, bu AI).
+    service_key, kodda kredi düşülürken kullanılan benzersiz anahtardır.
+    """
+    service_key = models.CharField(max_length=100, unique=True, verbose_name="Servis Anahtarı",
+                                   help_text="Kodda kullanılan benzersiz ad (örn: makale_uretim, bio_tool_ai)")
+    label = models.CharField(max_length=150, verbose_name="Görünen Ad",
+                             help_text="Örn: Makale AI, Bio-Tool AI")
+    cost = models.PositiveIntegerField(default=1, verbose_name="Kredi Maliyeti",
+                                       help_text="Bu AI işlemi kaç kredi düşsün")
+    is_active = models.BooleanField(default=True, verbose_name="Aktif mi?")
+
+    def __str__(self):
+        return f"{self.label} ({self.cost} kredi)"
+
+    class Meta:
+        verbose_name = "AI Servis Fiyatı"
+        verbose_name_plural = "AI Servis Fiyatları"
+        ordering = ['label']
+
+    @classmethod
+    def get_cost(cls, service_key, default=1):
+        """Bir AI servisinin kredi maliyetini döndürür. Tanımsızsa default."""
+        obj = cls.objects.filter(service_key=service_key, is_active=True).first()
+        return obj.cost if obj else default
+
+
 class UserCredit(models.Model):
     """Kullanıcının kredi bakiyesi."""
     user = models.OneToOneField(User, on_delete=models.CASCADE,

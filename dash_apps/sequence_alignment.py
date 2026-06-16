@@ -252,7 +252,7 @@ def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs)
         return None
 
     from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_sequence_alignment', cost=5, lang=lang,
+    ok, msg, _u = try_charge(kwargs, 'bio_tool_ai', cost=5, lang=lang,
                              description="Hizalama AI yorumu")
     if not ok:
         return msg

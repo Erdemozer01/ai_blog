@@ -1,10 +1,17 @@
 from django.contrib import admin
 
-from .models import UserCredit, CreditTransaction, ServicePrice
+from .models import UserCredit, CreditTransaction, ServicePrice, AIServicePrice
 
 
 @admin.register(ServicePrice)
 class ServicePriceAdmin(admin.ModelAdmin):
+    list_display = ('label', 'service_key', 'cost', 'is_active')
+    list_editable = ('cost', 'is_active')
+    search_fields = ('label', 'service_key')
+
+
+@admin.register(AIServicePrice)
+class AIServicePriceAdmin(admin.ModelAdmin):
     list_display = ('label', 'service_key', 'cost', 'is_active')
     list_editable = ('cost', 'is_active')
     search_fields = ('label', 'service_key')

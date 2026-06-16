@@ -736,7 +736,7 @@ def generate_ai_report_callback(n_clicks, selected_mol_id, original_mols, remove
         return dbc.Alert("Lütfen rapor oluşturmak için bir molekül seçin.", color="warning")
 
     from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_molecule_viewer', cost=5, lang=lang,
+    ok, msg, _u = try_charge(kwargs, 'bio_tool_ai', cost=5, lang=lang,
                              description="Molekül AI raporu")
     if not ok:
         return msg

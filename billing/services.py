@@ -12,7 +12,16 @@ Kural:
   - superuser her zaman kullanabilir, kredi düşmez (sınırsız)
   - diğer kullanıcılar: yeterli kredisi varsa kullanır, işlem kredisini düşer
 """
-from .models import UserCredit, ServicePrice, CreditTransaction
+from .models import UserCredit, ServicePrice, AIServicePrice, CreditTransaction
+
+
+# AI servis anahtarları — bunlar AIServicePrice'tan, diğerleri ServicePrice'tan okunur
+AI_SERVICE_KEYS = {'makale_uretim', 'bio_tool_ai'}
+
+
+def _price_model(service_key):
+    """service_key'e göre doğru fiyat modelini döndürür (AI mı analiz mi)."""
+    return AIServicePrice if service_key in AI_SERVICE_KEYS else ServicePrice
 
 
 def get_balance(user):
@@ -23,8 +32,8 @@ def get_balance(user):
 
 
 def get_cost(service_key, default=1):
-    """Bir servisin kredi maliyeti."""
-    return ServicePrice.get_cost(service_key, default=default)
+    """Bir servisin kredi maliyeti (AI ise AIServicePrice, değilse ServicePrice)."""
+    return _price_model(service_key).get_cost(service_key, default=default)
 
 
 def can_use(user, service_key, default_cost=1):
@@ -39,7 +48,7 @@ def can_use(user, service_key, default_cost=1):
     if user.is_superuser:
         return True, ""
 
-    cost = ServicePrice.get_cost(service_key, default=default_cost)
+    cost = _price_model(service_key).get_cost(service_key, default=default_cost)
     balance = UserCredit.get_balance(user)
     if balance < cost:
         return False, (f"Yetersiz kredi. Bu işlem {cost} kredi gerektiriyor, "
@@ -63,8 +72,9 @@ def charge(user, service_key, default_cost=1, description=None):
     if user.is_superuser:
         return None
 
-    cost = ServicePrice.get_cost(service_key, default=default_cost)
-    price_obj = ServicePrice.objects.filter(service_key=service_key).first()
+    model = _price_model(service_key)
+    cost = model.get_cost(service_key, default=default_cost)
+    price_obj = model.objects.filter(service_key=service_key).first()
     label = price_obj.label if price_obj else service_key
     desc = description or f"{label} kullanımı"
 
