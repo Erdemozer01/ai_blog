@@ -66,6 +66,8 @@ def create_main_navbar(request):
                                  external_link=True, id="pipline_designer_view"),
             dbc.DropdownMenuItem(t('nav_primer', lang), href=reverse('bio_tools:primer_design'),
                                  external_link=True, id="primer_design"),
+            dbc.DropdownMenuItem(t('nav_restriction', lang), href=reverse('bio_tools:restriction_analysis'),
+                                 external_link=True, id="restriction_analysis"),
             dbc.DropdownMenuItem(t('nav_fastq', lang), href="/bio-tools/fastq-analyzer/",
                                  external_link=True, id="fastq_analyzer"),
 

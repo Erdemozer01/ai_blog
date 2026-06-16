@@ -34,6 +34,7 @@ from dash_apps.mutation_predictor import app as mutation_predictor_app, mutation
 from dash_apps.bacterial_designer import app as bacterial_designer_app, bacterial_create_layout
 from dash_apps.pipeline_designer import app as pipeline_designer_app, create_pipeline_layout
 from dash_apps.primer_design import app as primer_design_app, create_primer_layout
+from dash_apps.restriction_analysis import app as restriction_app, create_restriction_layout
 from dash_apps.fastq_app import app as fastq_app
 
 # --- Constants and Setup ---
@@ -231,6 +232,25 @@ def primer_design_view(request):
 
     return render(request, 'bio_tools/primer_design.html', {
         'meta_title': "Primer Tasarım Aracı - AI Blog"
+    })
+
+
+@login_required
+def restriction_view(request):
+    """Restriksiyon Enzim Analizi (Kesim Haritası)"""
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+
+    main_navbar = create_main_navbar(request)
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    content = create_restriction_layout(lang)
+    _layout = html.Div([main_navbar, content])
+    restriction_app.layout = lambda: _layout
+
+    return render(request, 'bio_tools/restriction_analysis.html', {
+        'meta_title': "Restriksiyon Enzim Analizi - AI Blog"
     })
 
 
