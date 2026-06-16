@@ -195,7 +195,8 @@ def analyze_fastq(path: str, max_reads: int = MAX_READS_TO_PROCESS):
 # Grafik Oluşturma
 # ------------------------------------------------------------------------------
 
-def create_fastqc_style_plot(distributions_data, mean_data_df, title):
+def create_fastqc_style_plot(distributions_data, mean_data_df, title, lang='en'):
+    from dash_apps.i18n_helper import t
     """FastQC benzeri kutu (boxplot) ve çizgi grafiği oluşturur."""
     fig = go.Figure()
 
@@ -230,8 +231,8 @@ def create_fastqc_style_plot(distributions_data, mean_data_df, title):
 
     fig.update_layout(
         title=title,
-        xaxis_title="Baz Pozisyonu",
-        yaxis_title="Kalite Skoru",
+        xaxis_title=t('fq_g_base_pos', lang),
+        yaxis_title=t('fq_g_quality_score', lang),
         yaxis_range=[0, 42],
         template="plotly_white",
         height=500
@@ -247,7 +248,7 @@ def create_fastqc_style_plot(distributions_data, mean_data_df, title):
         q3=p75_list,
         lowerfence=p10_list,
         upperfence=p90_list,
-        name="Kalite Dağılımı",
+        name=t('fq_g_quality_dist', lang),
         fillcolor='rgba(255, 255, 0, 0.7)',
         line=dict(color='black', width=1),
         marker_opacity=0,
@@ -259,7 +260,7 @@ def create_fastqc_style_plot(distributions_data, mean_data_df, title):
         y=p50_list,
         mode='lines',
         line=dict(color='red', width=2),
-        name="Medyan"
+        name=t('fq_g_median', lang)
     ))
 
     if mean_data_df is not None and not mean_data_df.empty:
@@ -268,7 +269,7 @@ def create_fastqc_style_plot(distributions_data, mean_data_df, title):
             y=mean_data_df["Average Quality Score"],
             mode='lines',
             line=dict(color='blue', width=2),
-            name="Ortalama"
+            name=t('fq_g_mean', lang)
         ))
 
     return fig
@@ -287,8 +288,9 @@ def _find_percentile(binned_scores, p, total_count):
     return PHRED_SCORE_RANGE - 1
 
 
-def detect_batch_issues(batch_results):
+def detect_batch_issues(batch_results, lang='en'):
     """Batch'ler arasındaki anormallikleri tespit eder."""
+    from dash_apps.i18n_helper import t
     warnings = []
 
     if len(batch_results) < 2:
@@ -311,17 +313,15 @@ def detect_batch_issues(batch_results):
         warnings.append({
             'level': 'danger',
             'icon': 'fa-exclamation-triangle',
-            'title': 'Kritik Kalite Farkı',
-            'message': f"Batch'ler arası kalite farkı {qual_diff:.1f} puan! "
-                       f"En yüksek: {max_file} ({max_qual:.1f}), "
-                       f"En düşük: {min_file} ({min_qual:.1f})"
+            'title': t('fq_anom_crit_quality', lang),
+            'message': t('fq_msg_crit_quality', lang).replace('{diff}', f'{qual_diff:.1f}').replace('{maxf}', max_file).replace('{maxq}', f'{max_qual:.1f}').replace('{minf}', min_file).replace('{minq}', f'{min_qual:.1f}')
         })
     elif qual_diff > 3:
         warnings.append({
             'level': 'warning',
             'icon': 'fa-exclamation-circle',
-            'title': 'Orta Kalite Farkı',
-            'message': f"Batch'ler arası kalite farkı {qual_diff:.1f} puan. Normalizasyon gerekebilir."
+            'title': t('fq_anom_mid_quality', lang),
+            'message': t('fq_msg_mid_quality', lang).replace('{diff}', f'{qual_diff:.1f}')
         })
 
     # 2. GC İçeriği Kontrolü
@@ -335,10 +335,8 @@ def detect_batch_issues(batch_results):
         warnings.append({
             'level': 'danger',
             'icon': 'fa-dna',
-            'title': 'GC İçeriği Tutarsızlığı',
-            'message': f"GC farkı %{gc_diff:.1f}! Kontaminasyon veya farklı organizma şüphesi. "
-                       f"En yüksek: {max_file} ({max_gc:.1f}%), "
-                       f"En düşük: {min_file} ({min_gc:.1f}%)"
+            'title': t('fq_anom_gc_incons', lang),
+            'message': t('fq_msg_gc_incons', lang).replace('{diff}', f'{gc_diff:.1f}').replace('{maxf}', max_file).replace('{maxg}', f'{max_gc:.1f}').replace('{minf}', min_file).replace('{ming}', f'{min_gc:.1f}')
         })
     elif gc_diff > 5:
         warnings.append({
@@ -405,9 +403,8 @@ def detect_batch_issues(batch_results):
             warnings.append({
                 'level': 'warning',
                 'icon': 'fa-dna',
-                'title': f'Chargaff Kuralı İhlali ({name})',
-                'message': f"A≠T (fark: {a_t_diff:.1f}%) veya G≠C (fark: {g_c_diff:.1f}%). "
-                           f"DNA degredasyonu veya bias olabilir."
+                'title': f"{t('fq_anom_chargaff', lang)} ({name})",
+                'message': t('fq_msg_chargaff', lang).replace('{at}', f'{a_t_diff:.1f}').replace('{gc}', f'{g_c_diff:.1f}')
             })
 
     # 6. Genel Değerlendirme
@@ -422,8 +419,9 @@ def detect_batch_issues(batch_results):
     return warnings
 
 
-def create_batch_comparison_plots(batch_results):
+def create_batch_comparison_plots(batch_results, lang='en'):
     """Batch'leri karşılaştıran grafikler oluşturur."""
+    from dash_apps.i18n_helper import t
 
     # 1. Kalite Karşılaştırma
     fig_quality = go.Figure()
@@ -440,9 +438,9 @@ def create_batch_comparison_plots(batch_results):
         ))
 
     fig_quality.update_layout(
-        title="Batch Kalite Karşılaştırma",
-        xaxis_title="Baz Pozisyonu",
-        yaxis_title="Ortalama Kalite Skoru",
+        title=t('fq_g_batch_quality', lang),
+        xaxis_title=t('fq_g_base_pos', lang),
+        yaxis_title=t('fq_g_avg_quality', lang),
         template="plotly_white",
         height=500,
         hovermode='x unified'
@@ -461,9 +459,9 @@ def create_batch_comparison_plots(batch_results):
         ))
 
     fig_gc.update_layout(
-        title="Batch GC İçerik Karşılaştırma",
-        xaxis_title="GC İçerik (%)",
-        yaxis_title="Frekans",
+        title=t('fq_g_batch_gc', lang),
+        xaxis_title=t('fq_g_gc_content', lang),
+        yaxis_title=t('fq_g_frequency', lang),
         template="plotly_white",
         height=500,
         barmode='overlay'
@@ -482,8 +480,8 @@ def create_batch_comparison_plots(batch_results):
         ))
 
     fig_length.update_layout(
-        title="Batch Read Length Karşılaştırma",
-        yaxis_title="Read Length (bp)",
+        title=t('fq_g_batch_length', lang),
+        yaxis_title=t('fq_g_read_length', lang),
         template="plotly_white",
         height=500
     )
@@ -492,11 +490,11 @@ def create_batch_comparison_plots(batch_results):
     stats_data = []
     for file_name, result in batch_results.items():
         stats_data.append({
-            'Dosya': file_name,
-            'Okuma Sayısı': f"{result['reads_processed']:,}",
-            'Ort. Kalite': f"{result['mean_quality']:.2f}",
-            'Ort. GC (%)': f"{result['mean_gc']:.2f}",
-            'Ort. Length': f"{result['mean_length']:.1f}",
+            t('fq_col_file', lang): file_name,
+            t('fq_col_reads', lang): f"{result['reads_processed']:,}",
+            t('fq_col_quality', lang): f"{result['mean_quality']:.2f}",
+            t('fq_col_gc', lang): f"{result['mean_gc']:.2f}",
+            t('fq_col_length', lang): f"{result['mean_length']:.1f}",
             'A (%)': f"{result['base_pct']['A']:.1f}",
             'T (%)': f"{result['base_pct']['T']:.1f}",
             'G (%)': f"{result['base_pct']['G']:.1f}",
@@ -596,9 +594,11 @@ def create_static_navbar():
     )
 
 
-def build_fastq_content():
+def build_fastq_content(lang='en'):
     """FASTQ sayfasının içeriği (navbar hariç). Navbar view'da eklenir."""
+    from dash_apps.i18n_helper import t
     return html.Div([
+        dcc.Store(id="fq-lang-store", data=lang),
         dbc.Container([
             dcc.Store(id="files-store", data={}),  # {file_id: {path, name}}
         dcc.Store(id="analysis-results-store", data={}),  # {file_name: analysis_result}
@@ -607,14 +607,14 @@ def build_fastq_content():
             # Sol panel
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader("FASTQ Dosyaları"),
+                    dbc.CardHeader(t('fq_files', lang)),
                     dbc.CardBody([
                         dcc.Upload(
                             id="dcc-upload",
                             children=html.Div([
                                 html.I(className="fas fa-cloud-upload-alt fa-2x mb-2 text-primary"),
                                 html.Br(),
-                                f"FASTQ dosyalarını sürükleyin veya seçin (Maks. {MAX_FILES} dosya, 5 MB)"
+                                t('fq_upload_text', lang).replace('{n}', str(MAX_FILES))
                             ]),
                             style={
                                 'width': '100%', 'minHeight': '100px', 'lineHeight': '1.5',
@@ -631,14 +631,14 @@ def build_fastq_content():
                         html.Div(id="files-list", className="mb-2"),
                         html.Hr(),
                         dbc.Button(
-                            "Tüm Dosyaları Analiz Et",
+                            t('fq_analyze_all', lang),
                             id="btn-analyze-all",
                             color="primary",
                             className="w-100 mb-2",
                             disabled=True
                         ),
                         dbc.Button(
-                            "Batch Karşılaştır",
+                            t('fq_compare_batch', lang),
                             id="btn-compare-batch",
                             color="success",
                             className="w-100",
@@ -652,18 +652,18 @@ def build_fastq_content():
             # Sağ panel - Grafikler
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Analiz Sonuçları")),
+                    dbc.CardHeader(html.H5(t('fq_results', lang))),
                     dbc.CardBody([
                         dbc.Tabs(id="analysis-tabs", children=[
                             dbc.Tab(
-                                label="Tek Dosya Analizi",
+                                label=t('fq_single_analysis', lang),
                                 children=[
                                     html.Div(id="single-file-selector", className="mb-3 mt-3"),
                                     dcc.Loading(
                                         dcc.Graph(
                                             id="quality-plot",
                                             figure=go.Figure().update_layout(
-                                                title_text="Dosya yükleyin ve analiz edin",
+                                                title_text=t('fq_upload_prompt', lang),
                                                 template="plotly_white",
                                                 height=500
                                             )
@@ -678,13 +678,13 @@ def build_fastq_content():
                                 ]
                             ),
                             dbc.Tab(
-                                label="Batch Karşılaştırma",
+                                label=t('fq_batch_comparison', lang),
                                 children=[
                                     dcc.Loading(
                                         dcc.Graph(
                                             id="batch-quality-comparison",
                                             figure=go.Figure().update_layout(
-                                                title_text="Batch karşılaştırma için en az 2 dosya gerekli",
+                                                title_text=t('fq_batch_min_files', lang),
                                                 template="plotly_white",
                                                 height=500
                                             )
@@ -737,17 +737,20 @@ def toggle_navbar(n, is_open, **kwargs):
     [
         State("dcc-upload", "filename"),
         State("files-store", "data"),
+        State("fq-lang-store", "data"),
     ],
 )
-def handle_upload(contents_list, file_names, current_files, **kwargs):
+def handle_upload(contents_list, file_names, current_files, lang=None, **kwargs):
     """dcc.Upload ile gelen base64 içeriği media klasörüne yazar."""
     import base64
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
 
     if current_files is None:
         current_files = {}
 
     if not contents_list or not file_names:
-        return "Bekliyor...", current_files, _render_files_list(current_files), len(current_files) == 0
+        return t('fq_waiting', lang), current_files, _render_files_list(current_files), len(current_files) == 0
 
     # Tek dosya gelirse listeye çevir
     if not isinstance(contents_list, list):
@@ -815,17 +818,17 @@ def handle_upload(contents_list, file_names, current_files, **kwargs):
     # Durum mesajı
     if limit_reached:
         status = dbc.Alert(
-            f"En fazla {MAX_FILES} dosya yükleyebilirsiniz. Fazla dosyalar atlandı.",
+            t('fq_limit_reached', lang).replace('{n}', str(MAX_FILES)),
             color="warning"
         )
     elif rejected:
         status = dbc.Alert(
-            f"✓ {uploaded_count} dosya yüklendi. Reddedilen: {', '.join(rejected)}",
+            t('fq_rejected', lang).replace('{count}', str(uploaded_count)).replace('{names}', ', '.join(rejected)),
             color="warning"
         )
     else:
         status = dbc.Alert(
-            f"✓ {uploaded_count} dosya yüklendi (Toplam: {len(current_files)})",
+            t('fq_uploaded', lang).replace('{count}', str(uploaded_count)).replace('{total}', str(len(current_files))),
             color="success" if uploaded_count > 0 else "info"
         )
 
@@ -840,6 +843,22 @@ def _render_files_list(current_files):
         dbc.ListGroupItem(f"{info['name']} ({info['size_mb']:.1f} MB)")
         for info in current_files.values()
     ])
+
+
+def _cleanup_empty_upload_dirs():
+    """UPLOAD_ROOT altındaki boş upload_id klasörlerini siler."""
+    try:
+        if not os.path.isdir(UPLOAD_ROOT):
+            return
+        for entry in os.listdir(UPLOAD_ROOT):
+            sub = os.path.join(UPLOAD_ROOT, entry)
+            try:
+                if os.path.isdir(sub) and not os.listdir(sub):
+                    os.rmdir(sub)
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"Boş klasör temizliği hatası: {e}")
 
 
 @app.callback(
@@ -890,12 +909,19 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
                 'base_pct': base_pct,
             }
 
-            # Dosyayı sil
+            # Dosyayı sil (ve klasör boşaldıysa klasörü de sil)
             try:
                 if os.path.exists(file_path):
                     os.remove(file_path)
+                # Üst klasör (upload_id klasörü) boşsa onu da kaldır
+                parent_dir = os.path.dirname(file_path)
+                if os.path.isdir(parent_dir) and not os.listdir(parent_dir):
+                    os.rmdir(parent_dir)
             except Exception as e:
-                print(f"Dosya silinirken hata: {e}")
+                print(f"Dosya/klasör silinirken hata: {e}")
+
+        # Döngü bitti — UPLOAD_ROOT altındaki boş klasörleri temizle (güvenlik)
+        _cleanup_empty_upload_dirs()
 
         status = dbc.Alert(
             f"✓ {len(results)} dosya analiz edildi!",
@@ -924,9 +950,12 @@ def analyze_all_files(n_clicks, files_data, **kwargs):
     ],
     Input("single-file-select", "value"),
     State("analysis-results-store", "data"),
+    State("fq-lang-store", "data"),
 )
-def update_single_file_plots(selected_file, results, **kwargs):
+def update_single_file_plots(selected_file, results, lang=None, **kwargs):
     """Seçili dosyanın grafiklerini güncelle"""
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not selected_file or not results or selected_file not in results:
         return no_update, no_update, no_update
 
@@ -937,7 +966,8 @@ def update_single_file_plots(selected_file, results, **kwargs):
     fig_quality = create_fastqc_style_plot(
         result['distributions'],
         quality_df,
-        f"Kalite Skoru - {selected_file}"
+        f"{t('fq_g_quality_of', lang)} - {selected_file}",
+        lang=lang
     )
 
     # GC histogram
@@ -945,7 +975,7 @@ def update_single_file_plots(selected_file, results, **kwargs):
     fig_gc = px.histogram(
         df_gc,
         x="GC Content (%)",
-        title=f"GC Dağılımı - {selected_file}",
+        title=f"{t('fq_g_gc_dist_of', lang)} - {selected_file}",
         nbins=50
     )
     fig_gc.update_layout(template="plotly_white", height=400)
@@ -976,10 +1006,13 @@ def update_single_file_plots(selected_file, results, **kwargs):
     ],
     Input("btn-compare-batch", "n_clicks"),
     State("analysis-results-store", "data"),
+    State("fq-lang-store", "data"),
     prevent_initial_call=True
 )
-def compare_batches(n_clicks, results, **kwargs):
+def compare_batches(n_clicks, results, lang=None, **kwargs):
     """Batch karşılaştırma grafiklerini oluştur"""
+    from dash_apps.i18n_helper import t
+    lang = lang or 'en'
     if not n_clicks or not results or len(results) < 2:
         return no_update, no_update, no_update, no_update
 
@@ -999,10 +1032,10 @@ def compare_batches(n_clicks, results, **kwargs):
             }
 
         # Karşılaştırma grafiklerini oluştur
-        fig_quality, fig_gc, fig_length, df_stats = create_batch_comparison_plots(batch_results)
+        fig_quality, fig_gc, fig_length, df_stats = create_batch_comparison_plots(batch_results, lang=lang)
 
         # Otomatik uyarı sistemi
-        warnings = detect_batch_issues(batch_results)
+        warnings = detect_batch_issues(batch_results, lang=lang)
 
         # Uyarı kartları
         warning_cards = []
@@ -1023,10 +1056,10 @@ def compare_batches(n_clicks, results, **kwargs):
 
         # İstatistik tablosu
         table_content = html.Div([
-            html.H5("Otomatik Kalite Kontrol", className="mt-3 mb-3"),
+            html.H5(t('fq_qc_title', lang), className="mt-3 mb-3"),
             html.Div(warning_cards),
             html.Hr(),
-            html.H5("Detaylı İstatistikler", className="mt-3 mb-3"),
+            html.H5(t('fq_detailed_stats', lang), className="mt-3 mb-3"),
             dbc.Table.from_dataframe(
                 df_stats,
                 striped=True,

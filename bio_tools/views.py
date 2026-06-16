@@ -94,7 +94,8 @@ def fastq_analyzer_view(request):
 
     main_navbar = create_main_navbar(request)
     from dash_apps.fastq_app import build_fastq_content
-    content = build_fastq_content()
+    from dash_apps.i18n_helper import get_lang
+    content = build_fastq_content(get_lang(request))
     _layout = html.Div([main_navbar, content])
     fastq_app.layout = lambda: _layout
 
