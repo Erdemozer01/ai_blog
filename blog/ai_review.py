@@ -47,10 +47,26 @@ def _parse_ai_response(text):
         data = json.loads(match.group(0))
         score = int(data.get('score', 0))
         score = max(0, min(100, score))  # 0-100 sınırla
+
+        # suggestions string, liste veya None olabilir — hepsini metne çevir
+        raw_suggestions = data.get('suggestions')
+        if isinstance(raw_suggestions, list):
+            # Liste → madde madde metin
+            suggestions = '\n'.join(
+                f"• {str(item).strip()}" for item in raw_suggestions if str(item).strip()
+            )
+        elif isinstance(raw_suggestions, str):
+            suggestions = raw_suggestions.strip()
+        elif raw_suggestions is None:
+            suggestions = ''
+        else:
+            # dict veya başka tip → düz metne çevir
+            suggestions = str(raw_suggestions).strip()
+
         return {
             'score': score,
             'publishable': bool(data.get('publishable', score >= 60)),
-            'suggestions': (data.get('suggestions') or '').strip(),
+            'suggestions': suggestions,
         }
     except (json.JSONDecodeError, ValueError, TypeError):
         return None
