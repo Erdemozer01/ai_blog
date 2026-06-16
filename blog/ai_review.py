@@ -10,8 +10,17 @@ from django.utils import timezone
 
 def _build_review_prompt(article):
     """AI'a gönderilecek inceleme istemi."""
+    import re as _re
     title = article.title or "Başlık yok"
-    content = (article.full_content or "")[:8000]  # token sınırı için kırp
+
+    # Sistem yer tutucularını temizle (AI bunları "eksik içerik" sanmasın)
+    raw_content = article.full_content or ""
+    # _||_STRUCTURED_DATA_N_||_ ve _||_SECTION_BREAK_||_ gibi işaretleri kaldır
+    raw_content = _re.sub(r'_\|\|_STRUCTURED_DATA_\d+_\|\|_', '', raw_content)
+    raw_content = _re.sub(r'_\|\|_SECTION_BREAK_\|\|_', '\n\n', raw_content)
+    raw_content = _re.sub(r'_\|\|_[A-Z_]+\d*_\|\|_', '', raw_content)  # diğer olası yer tutucular
+    content = raw_content.strip()[:8000]  # token sınırı için kırp
+
     abstract = article.turkish_abstract or article.english_abstract or ""
 
     return (
@@ -19,6 +28,8 @@ def _build_review_prompt(article):
         "uygunluk açısından değerlendir. Şunları kontrol et: bilimsel/olgusal doğruluk, "
         "akademik dil ve üslup, mantıksal tutarlılık, dilbilgisi ve yazım, uygunsuz/etik "
         "olmayan içerik, eksik veya yüzeysel bölümler.\n\n"
+        "NOT: Makaledeki grafik ve tablolar sistem tarafından otomatik olarak ayrı bir "
+        "alanda yerleştirilir; metinde görmesen bile eksik olarak değerlendirme.\n\n"
         "Yanıtını YALNIZCA şu JSON formatında ver (başka açıklama ekleme):\n"
         "{\n"
         '  "score": <0-100 arası tamsayı, yayınlanabilirlik skoru>,\n'
