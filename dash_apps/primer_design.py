@@ -158,7 +158,8 @@ def create_primer_layout(lang='en'):
                             ], width=6),
                         ], className="mb-3"),
 
-                        dbc.Button([html.I(className="fas fa-cogs me-2"), t('primer_design_btn', lang)],
+                        dbc.Button([html.I(className="fas fa-cogs me-2"),
+                                    f"{t('primer_design_btn', lang)} (5 {t('credits_required', lang)})"],
                                    id="primer-design-btn", color="primary",
                                    className="w-100", n_clicks=0),
                     ]),

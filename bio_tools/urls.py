@@ -20,6 +20,7 @@ urlpatterns = [
     path('pipeline-designer/', views.pipline_designer_view, name='pipline_designer_view'),
     path('primer-design/', views.primer_design_view, name='primer_design'),
     path('restriction-analysis/', views.restriction_view, name='restriction_analysis'),
+    path('plasmid-map/', views.plasmid_map_view, name='plasmid_map'),
 
     path('api/start-analysis/', views.start_analysis_view, name='start_analysis'),
 

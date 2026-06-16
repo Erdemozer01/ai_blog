@@ -134,7 +134,7 @@ def create_federated_layout():
                                   value=["yes"], switch=True),
                 ], xs=12, md=6, lg=3, className="mb-3 mb-lg-0 mt-lg-3"),
                 dbc.Col([
-                    dbc.Button([html.I(className="fas fa-play me-2"), "Simülasyonu Başlat"],
+                    dbc.Button([html.I(className="fas fa-play me-2"), "Simülasyonu Başlat (5 Kredi)"],
                                id="fl-run-btn", color="success", className="w-100 h-100"),
                 ], xs=12, md=6, lg=3, className="mt-lg-3 d-flex align-items-end"),
             ], className="mt-0 mt-lg-3"),

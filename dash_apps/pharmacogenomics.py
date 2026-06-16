@@ -57,7 +57,7 @@ def create_pharmacogenomics_layout():
                     placeholder="Örn: CYP2D6, TPMT, Warfarin, Klopidogrel…",
                     type="text", debounce=True,
                 ),
-                dbc.Button([html.I(className="fas fa-dna me-2"), "Araştır"],
+                dbc.Button([html.I(className="fas fa-dna me-2"), "Araştır (5 Kredi)"],
                            id="pgx-search-btn", color="primary",
                            style={"background": "#7c3aed", "border": "none"}),
             ]),

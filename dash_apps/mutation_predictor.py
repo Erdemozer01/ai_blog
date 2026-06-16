@@ -233,11 +233,11 @@ def mutation_create_layout(lang='en'):
                         html.Hr(),
                         dbc.Label(t('mp_method_select', lang), className="fw-bold"),
                         dbc.Row([
-                            dbc.Col(dbc.Button(t('mp_list_harmful', lang), id="btn-ask-ai", n_clicks=0,
+                            dbc.Col(dbc.Button(f"{t('mp_list_harmful', lang)} {t('credit_cost_5', lang)}", id="btn-ask-ai", n_clicks=0,
                                                color="info",
                                                className="w-100"), width=6),
                             dbc.Col(
-                                dbc.Button(t('mp_predict_detailed', lang), id="btn-calculate-program", n_clicks=0,
+                                dbc.Button(f"{t('mp_predict_detailed', lang)} {t('credit_cost_5', lang)}", id="btn-calculate-program", n_clicks=0,
                                            color="primary",
                                            className="w-100"), width=6),
                         ], className="mb-2"),
@@ -263,7 +263,7 @@ def mutation_create_layout(lang='en'):
             html.Div(id='gemini-button-container', style={'display': 'none'}, children=[
                 html.Hr(),
                 html.H5(t('mp_interpret_results', lang)),
-                dbc.Button(t('mp_interpret_ai', lang), id="btn-ask-gemini-interpret", color="success",
+                dbc.Button(f"{t('mp_interpret_ai', lang)} {t('credit_cost_5', lang)}", id="btn-ask-gemini-interpret", color="success",
                            className="w-100 mt-2"),
                 dcc.Loading(id="loading-gemini", children=[html.Div(id='gemini-output-div', className="mt-3")])
             ])

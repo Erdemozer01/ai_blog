@@ -178,9 +178,8 @@ def create_restriction_layout(lang='en'):
                 id='re-example-btn', color="secondary", outline=True, className="w-100 mb-2"
             ),
             dbc.Button(
-                [html.I(className="fas fa-cut me-2"), t('re_analyze', lang),
-                 dbc.Badge(t('re_credit_badge', lang), color="light", text_color="primary",
-                           className="ms-2")],
+                [html.I(className="fas fa-cut me-2"),
+                 f"{t('re_analyze', lang)} {t('re_credit_badge', lang)}"],
                 id='re-analyze-btn', color="primary", className="w-100 mb-2"
             ),
             html.Small(t('re_note', lang), className="text-muted"),
@@ -197,9 +196,8 @@ def create_restriction_layout(lang='en'):
             html.Div(id='re-ai-container', style={'display': 'none'}, children=[
                 html.Hr(),
                 dbc.Button(
-                    [html.I(className="fas fa-robot me-2"), t('re_ai_comment', lang),
-                     dbc.Badge(t('re_credit_badge', lang), color="light", text_color="success",
-                               className="ms-2")],
+                    [html.I(className="fas fa-robot me-2"),
+                     f"{t('re_ai_comment', lang)} {t('re_credit_badge', lang)}"],
                     id='re-ai-btn', color="success", className="w-100"
                 ),
                 dcc.Loading(html.Div(id='re-ai-output', className="mt-3"))
@@ -382,3 +380,12 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
         return dcc.Markdown(comment)
     except Exception as e:
         return dbc.Alert(f"{t('re_ai_error', lang)}: {e}", color="danger")
+
+
+@app.callback(Output("restriction_analysis", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:restriction_analysis')
+    except Exception:
+        return False

@@ -144,7 +144,7 @@ def create_pipeline_layout(lang='en'):
                          placeholder=t('pd_goal_placeholder', lang),
                          style={'width': '100%', 'height': 200}),
             html.Hr(),
-            dbc.Button(t('pd_generate', lang), id="btn-generate-pipeline", color="primary", className="w-100"),
+            dbc.Button(f"{t('pd_generate', lang)} {t('credit_cost_5', lang)}", id="btn-generate-pipeline", color="primary", className="w-100"),
         ])),
     ])))
 

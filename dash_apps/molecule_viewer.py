@@ -395,7 +395,7 @@ def create_molecule_viewer_layout(lang='en'):
         html.Hr(),
         dbc.Label(t('mv_ai_report_label', lang), className="fw-bold"),
         dcc.Dropdown(id='ai-mol-dropdown', placeholder=t('mv_select_report_mol', lang)),
-        dbc.Button(t('mv_generate_report', lang), id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
+        dbc.Button(f"{t('mv_generate_report', lang)} {t('credit_cost_5', lang)}", id="btn-get-ai-report", n_clicks=0, className="w-100 mt-2"),
         html.Hr(),
         dcc.Loading(html.Div(id="main-status-output", className="mt-2 text-center")),
     ])

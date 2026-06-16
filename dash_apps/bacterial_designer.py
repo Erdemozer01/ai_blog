@@ -87,7 +87,7 @@ def bacterial_create_layout(lang='en'):
             dcc.Textarea(id='design-goals-input', placeholder="...",
                          style={'width': '100%', 'height': 150}),
             html.Hr(),
-            dbc.Button(t('bd_generate', lang), id="btn-generate-design", color="primary", className="w-100"),
+            dbc.Button(f"{t('bd_generate', lang)} {t('credit_cost_5', lang)}", id="btn-generate-design", color="primary", className="w-100"),
         ])),
     ])))
 

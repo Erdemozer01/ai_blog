@@ -94,7 +94,7 @@ def create_variant_layout():
                                     "TP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic",
                         rows=6, className="font-monospace small",
                     ),
-                    dbc.Button([html.I(className="fas fa-play me-2"), "Analiz Et"],
+                    dbc.Button([html.I(className="fas fa-play me-2"), "Analiz Et (5 Kredi)"],
                                id="variant-manual-btn", color="primary", className="mt-2"),
                 ]),
                 dbc.Tab(label="VCF / TSV Yükle", tab_id="upload", children=[

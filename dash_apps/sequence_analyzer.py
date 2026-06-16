@@ -119,7 +119,7 @@ def create_sequence_analyzer_layout(lang='en'):
                 style={'width': '100%', 'height': 200},
                 className="form-control mb-3 font-monospace"
             ),
-            dbc.Button([html.I(className="fas fa-cogs me-2"), t('sa_analyze_btn', lang)], id="analyze-button", color="primary",
+            dbc.Button([html.I(className="fas fa-cogs me-2"), f"{t('sa_analyze_btn', lang)} {t('credit_cost_5', lang)}"], id="analyze-button", color="primary",
                        className="w-100"),
         ],
         md=4,

@@ -68,6 +68,8 @@ def create_main_navbar(request):
                                  external_link=True, id="primer_design"),
             dbc.DropdownMenuItem(t('nav_restriction', lang), href=reverse('bio_tools:restriction_analysis'),
                                  external_link=True, id="restriction_analysis"),
+            dbc.DropdownMenuItem(t('nav_plasmid', lang), href=reverse('bio_tools:plasmid_map'),
+                                 external_link=True, id="plasmid_map"),
             dbc.DropdownMenuItem(t('nav_fastq', lang), href="/bio-tools/fastq-analyzer/",
                                  external_link=True, id="fastq_analyzer"),
 

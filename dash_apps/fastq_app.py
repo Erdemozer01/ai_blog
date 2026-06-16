@@ -598,6 +598,7 @@ def build_fastq_content(lang='en'):
     """FASTQ sayfasının içeriği (navbar hariç). Navbar view'da eklenir."""
     from dash_apps.i18n_helper import t
     return html.Div([
+        dcc.Location(id="url", refresh=False),
         dcc.Store(id="fq-lang-store", data=lang),
         dbc.Container([
             dcc.Store(id="files-store", data={}),  # {file_id: {path, name}}
@@ -724,6 +725,15 @@ def toggle_navbar(n, is_open, **kwargs):
     if n:
         return not is_open
     return is_open
+
+
+@app.callback(Output("fastq_analyzer", "active"), Input("url", "pathname"))
+def toggle_active_link(pathname):
+    from django.shortcuts import reverse
+    try:
+        return pathname == reverse('bio_tools:fastq_analyzer')
+    except Exception:
+        return False
 
 
 @app.callback(
