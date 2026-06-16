@@ -486,6 +486,7 @@ TRANSLATIONS = {
     're_no_single': {'tr': 'Tek kesim yapan enzim yok.', 'en': 'No single-cutter enzymes.'},
     're_detail': {'tr': 'Detay', 'en': 'Detail'},
     're_ai_comment': {'tr': 'AI ile Yorumla (Klonlama)', 'en': 'AI Comment (Cloning)'},
+    're_credit_badge': {'tr': '5 Kredi', 'en': '5 Credits'},
     're_ai_error': {'tr': 'AI yorumu alınamadı', 'en': 'Could not get AI comment'},
 
     # ---- Restriksiyon Enzim Analizi (Kesim Haritası) ----

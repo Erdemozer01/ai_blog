@@ -178,7 +178,9 @@ def create_restriction_layout(lang='en'):
                 id='re-example-btn', color="secondary", outline=True, className="w-100 mb-2"
             ),
             dbc.Button(
-                [html.I(className="fas fa-cut me-2"), t('re_analyze', lang)],
+                [html.I(className="fas fa-cut me-2"), t('re_analyze', lang),
+                 dbc.Badge(t('re_credit_badge', lang), color="light", text_color="primary",
+                           className="ms-2")],
                 id='re-analyze-btn', color="primary", className="w-100 mb-2"
             ),
             html.Small(t('re_note', lang), className="text-muted"),
@@ -195,7 +197,9 @@ def create_restriction_layout(lang='en'):
             html.Div(id='re-ai-container', style={'display': 'none'}, children=[
                 html.Hr(),
                 dbc.Button(
-                    [html.I(className="fas fa-robot me-2"), t('re_ai_comment', lang)],
+                    [html.I(className="fas fa-robot me-2"), t('re_ai_comment', lang),
+                     dbc.Badge(t('re_credit_badge', lang), color="light", text_color="success",
+                               className="ms-2")],
                     id='re-ai-btn', color="success", className="w-100"
                 ),
                 dcc.Loading(html.Div(id='re-ai-output', className="mt-3"))
