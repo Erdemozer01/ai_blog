@@ -156,15 +156,19 @@ def _send_review_email(article, result):
 
 def notify_superusers_correction_request(article, user_message=""):
     """
-    Kullanıcı düzeltme/tekrar inceleme talebi gönderdiğinde superuser'lara e-posta atar.
-    Sabit alıcı: ozer246@gmail.com (+ veritabanındaki diğer superuser e-postaları).
+    Kullanıcı düzeltme/tekrar inceleme talebi gönderdiğinde yöneticilere e-posta atar.
+    Sabit alıcılar: ozer246@gmail.com ve artificalintelligentblog@gmail.com
+    (+ veritabanındaki diğer superuser e-postaları).
+    (ok: bool, hata_mesajı: str) döner.
     """
     from django.core.mail import send_mail
     from django.conf import settings
     from django.contrib.auth.models import User
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Alıcılar: sabit adres + tüm superuser e-postaları
-    recipients = {'ozer246@gmail.com'}
+    # Sabit alıcılar + tüm superuser e-postaları
+    recipients = {'ozer246@gmail.com', 'artificalintelligentblog@gmail.com'}
     for su in User.objects.filter(is_superuser=True).exclude(email='').values_list('email', flat=True):
         if su:
             recipients.add(su)
@@ -184,6 +188,7 @@ def notify_superusers_correction_request(article, user_message=""):
 
     try:
         send_mail(subject, body, from_email, list(recipients), fail_silently=False)
-        return True
-    except Exception:
-        return False
+        return True, ""
+    except Exception as e:
+        logger.error("Düzeltme talebi e-postası gönderilemedi: %s", e)
+        return False, str(e)

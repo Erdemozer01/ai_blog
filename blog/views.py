@@ -224,12 +224,12 @@ def request_correction_view(request, article_id):
     if request.method == 'POST':
         user_message = (request.POST.get('message') or '').strip()
         from .ai_review import notify_superusers_correction_request
-        sent = notify_superusers_correction_request(article, user_message)
+        sent, err = notify_superusers_correction_request(article, user_message)
         if sent:
             messages.success(request, "Düzeltme talebiniz yöneticilere iletildi. "
                                       "En kısa sürede makaleniz tekrar incelenecektir.")
         else:
-            messages.warning(request, "Talebiniz alındı ancak bildirim e-postası gönderilemedi. "
+            messages.warning(request, f"Talebiniz alındı ancak bildirim e-postası gönderilemedi: {err} "
                                       "Yöneticiler yine de admin panelinden görebilir.")
 
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
