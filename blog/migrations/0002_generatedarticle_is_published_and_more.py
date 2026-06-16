@@ -21,3 +21,4 @@ class Migration(migrations.Migration):
             field=models.BooleanField(default=False, help_text='Makalenizin anasayfada yayınlanması için başvurmak istiyorsanız işaretleyin.', verbose_name='Yayın için başvuruldu'),
         ),
     ]
+
