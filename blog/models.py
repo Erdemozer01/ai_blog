@@ -80,6 +80,12 @@ class GeneratedArticle(models.Model):
         verbose_name="Kaynak Doğrulama Tarihi"
     )
 
+    # Kullanıcının son düzenleme zamanı (tekrar inceleme talebi kontrolü için)
+    last_edited_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Son Düzenleme Tarihi"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")

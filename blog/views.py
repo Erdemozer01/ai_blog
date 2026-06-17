@@ -214,6 +214,84 @@ def request_publish_view(request, article_id):
 
 
 @login_required
+@login_required
+def edit_article_view(request, article_id):
+    """
+    Kullanıcının kendi makalesini düzenlemesi.
+    full_content yer tutucuların etrafından parçalanır; kullanıcı yalnızca metin
+    parçalarını düzenler. Grafik/tablo yer tutucuları kilitli gösterilir ve
+    kaydederken aynen korunur.
+    """
+    from .edit_helpers import (split_content_for_editing, rebuild_content,
+                               has_meaningful_change)
+
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    # Yalnızca makale sahibi düzenleyebilir
+    if article.owner_id != request.user.id:
+        messages.error(request, "Bu makaleyi düzenleme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    original_parts = split_content_for_editing(article.full_content)
+
+    if request.method == 'POST':
+        # Metin parçalarını topla (text_<index> isimli alanlar)
+        edited_texts = {}
+        for i, p in enumerate(original_parts):
+            if p['type'] == 'text':
+                field_name = f'text_{i}'
+                edited_texts[i] = request.POST.get(field_name, p['value'])
+
+        new_content = rebuild_content(original_parts, edited_texts)
+
+        # Diğer alanlar
+        new_title = (request.POST.get('title') or '').strip()
+        new_keywords = (request.POST.get('keywords') or '').strip()
+        new_tr_abstract = (request.POST.get('turkish_abstract') or '').strip()
+        new_en_abstract = (request.POST.get('english_abstract') or '').strip()
+        new_bibliography = (request.POST.get('bibliography') or '').strip()
+
+        # Değişiklik var mı? (kandırma önlemi için bayrak)
+        content_changed = (
+            has_meaningful_change(article.full_content, new_content)
+            or article.title != new_title
+            or article.bibliography != new_bibliography
+            or article.turkish_abstract != new_tr_abstract
+            or article.english_abstract != new_en_abstract
+        )
+
+        # Kaydet
+        article.title = new_title or article.title
+        article.keywords = new_keywords
+        article.turkish_abstract = new_tr_abstract
+        article.english_abstract = new_en_abstract
+        article.full_content = new_content
+        article.bibliography = new_bibliography
+        update_fields = ['title', 'keywords', 'turkish_abstract',
+                         'english_abstract', 'full_content', 'bibliography']
+
+        if content_changed:
+            from django.utils import timezone
+            article.last_edited_at = timezone.now()
+            update_fields.append('last_edited_at')
+
+        article.save(update_fields=update_fields)
+
+        if content_changed:
+            messages.success(request, "Makaleniz güncellendi.")
+        else:
+            messages.info(request, "Makaleniz kaydedildi (içerikte değişiklik algılanmadı).")
+
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    # GET — düzenleme formunu göster
+    return render(request, 'blog/edit_article.html', {
+        'article': article,
+        'parts': original_parts,
+        'meta_title': f"Düzenle: {article.title}",
+    })
+
+
 def request_correction_view(request, article_id):
     """
     Kullanıcının makalesini düzelttikten sonra superuser'lara tekrar inceleme
@@ -223,6 +301,19 @@ def request_correction_view(request, article_id):
 
     if article.owner_id != request.user.id:
         messages.error(request, "Bu makale için talep gönderme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    # Kandırma önlemi: son AI incelemesinden sonra makale gerçekten düzenlenmiş mi?
+    if article.ai_reviewed_at and article.last_edited_at:
+        if article.last_edited_at <= article.ai_reviewed_at:
+            messages.warning(request, "Son incelemeden bu yana makalede bir değişiklik yapılmamış. "
+                                      "Lütfen önce önerilen düzeltmeleri uygulayın, sonra tekrar "
+                                      "inceleme talep edin.")
+            return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+    elif article.ai_reviewed_at and not article.last_edited_at:
+        # İncelenmiş ama hiç düzenlenmemiş
+        messages.warning(request, "Makalede henüz bir düzenleme yapmadınız. "
+                                  "Lütfen önce önerilen düzeltmeleri uygulayın.")
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
     if request.method == 'POST':
@@ -427,13 +518,21 @@ def article_detail_view(request, article_id, slug):
     is_owner = request.user.is_authenticated and article.owner_id == request.user.id
 
     if is_owner or request.user.is_superuser:
-        # Düzenleme ikonu (kalem) — sahip veya superuser
-        edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+        # Düzenleme ikonu (kalem) — kullanıcı dostu düzenleme sayfası
+        edit_url = reverse('blog:edit_article', args=[article.id])
         action_icons.append(
             html.A([html.I(className="fas fa-pencil-alt")],
                    href=edit_url, className="text-warning me-3 fs-5",
                    title="Makaleyi Düzenle")
         )
+        # Superuser için ek olarak admin düzenleme linki
+        if request.user.is_superuser:
+            admin_edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+            action_icons.append(
+                html.A([html.I(className="fas fa-cog")],
+                       href=admin_edit_url, className="text-secondary me-3 fs-5",
+                       title="Admin'de Düzenle")
+            )
 
     # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
     if is_owner and not request.user.is_superuser:

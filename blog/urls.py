@@ -10,6 +10,7 @@ urlpatterns = [
     path('article/<int:article_id>/download-pdf/', views.download_article_as_pdf, name='download_article_pdf'),
     path('article/<int:article_id>/yayin-talebi/', views.request_publish_view, name='request_publish'),
     path('article/<int:article_id>/duzeltme-talebi/', views.request_correction_view, name='request_correction'),
+    path('article/<int:article_id>/duzenle/', views.edit_article_view, name='edit_article'),
 
     re_path(r'^article/(?P<article_id>[0-9]+)/(?P<slug>[^/]+)/$', views.article_detail_view, name='article_detail'),
 
