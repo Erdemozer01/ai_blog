@@ -302,13 +302,48 @@ def _build_reference_check_badge(article):
     if total == 0:
         return html.Div()
 
+    # İçerik kontrolü yapıldı mı
+    content_checked = result.get('content_checked', False)
+    content_unrelated = result.get('content_unrelated', 0)
+    content_relevant = result.get('content_relevant', 0)
+
     # Renk: çoğu doğrulandıysa yeşil, şüpheli varsa sarı
-    if not_found == 0:
+    if not_found == 0 and content_unrelated == 0:
         color, icon = "success", "fa-check-circle"
     elif verified > not_found:
         color, icon = "warning", "fa-exclamation-triangle"
     else:
         color, icon = "danger", "fa-times-circle"
+
+    # İçerik kontrolü satırı (yapıldıysa)
+    content_line = html.Span("")
+    if content_checked:
+        if content_unrelated > 0:
+            content_line = html.Div([
+                html.I(className="fas fa-search me-2"),
+                html.Strong("İçerik kontrolü: "),
+                html.Span(f"{content_relevant} kaynak konuyla ilgili, "),
+                html.Span(f"{content_unrelated} kaynak alakasız görünüyor (şüpheli atıf).",
+                          className="fw-bold text-danger"),
+            ], className="mb-1 mt-1")
+        else:
+            content_line = html.Div([
+                html.I(className="fas fa-search me-2"),
+                html.Strong("İçerik kontrolü: "),
+                html.Span(f"Kontrol edilen {content_relevant} kaynak konuyla ilgili görünüyor.",
+                          className="text-success"),
+            ], className="mb-1 mt-1")
+
+    # Açıklama notu (içerik kontrolü yapıldıysa farklı)
+    if content_checked:
+        note = ("Bu kontrol kaynakların varlığını CrossRef'te doğrular ve AI ile "
+                "atıf-kaynak konu ilgisini değerlendirir. Yine de tam içerik doğruluğu "
+                "(kaynağın iddiayı birebir desteklemesi) garanti edilemez; kaynakları "
+                "kendiniz de değerlendiriniz.")
+    else:
+        note = ("Bu kontrol kaynakların gerçekten var olup olmadığını doğrular. "
+                "Ancak her atfın ilgili kaynağı içerik olarak doğru yansıtıp yansıtmadığı "
+                "otomatik teyit edilmemiştir; kaynakları kendiniz de değerlendiriniz.")
 
     return dbc.Alert([
         html.Div([
@@ -317,11 +352,10 @@ def _build_reference_check_badge(article):
             (html.Span(f" — {not_found} kaynak bulunamadı (şüpheli).",
                        className="ms-1") if not_found else html.Span("")),
         ], className="mb-1"),
+        content_line,
         html.Small([
             html.I(className="fas fa-info-circle me-1"),
-            "Bu kontrol kaynakların gerçekten var olup olmadığını doğrular. "
-            "Ancak her atfın ilgili kaynağı içerik olarak doğru yansıtıp yansıtmadığı "
-            "otomatik teyit edilmemiştir; kaynakları kendiniz de değerlendiriniz."
+            note,
         ], className="text-muted d-block mt-1"),
     ], color=color, className="mb-3")
 

@@ -83,6 +83,15 @@ def _extract_doi(ref_text):
     return m.group(0).rstrip('.') if m else None
 
 
+def _clean_abstract(raw):
+    """CrossRef abstract'ı JATS/XML etiketlerinden temizler."""
+    if not raw:
+        return None
+    text = re.sub(r'<[^>]+>', ' ', raw)  # XML etiketlerini kaldır
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text or None
+
+
 def verify_single_reference(ref_text, timeout=10):
     """
     Tek bir kaynağı CrossRef'te doğrular.
@@ -90,6 +99,7 @@ def verify_single_reference(ref_text, timeout=10):
         'status': 'verified' | 'not_found' | 'unreachable',
         'doi': str|None,
         'matched_title': str|None,
+        'abstract': str|None,   # atıf-içerik kontrolü için
     }
     """
     # Önce DOI varsa doğrudan onu kontrol et
@@ -102,14 +112,18 @@ def verify_single_reference(ref_text, timeout=10):
                 data = json.loads(r.read().decode())
             msg = data.get('message', {})
             title = (msg.get('title') or ['?'])[0]
-            return {'status': 'verified', 'doi': doi, 'matched_title': title}
+            abstract = _clean_abstract(msg.get('abstract'))
+            return {'status': 'verified', 'doi': doi, 'matched_title': title,
+                    'abstract': abstract}
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 pass  # DOI bulunamadı, başlıkla aramaya devam et
             else:
-                return {'status': 'unreachable', 'doi': None, 'matched_title': None}
+                return {'status': 'unreachable', 'doi': None, 'matched_title': None,
+                        'abstract': None}
         except Exception:
-            return {'status': 'unreachable', 'doi': None, 'matched_title': None}
+            return {'status': 'unreachable', 'doi': None, 'matched_title': None,
+                    'abstract': None}
 
     # Başlık/bibliyografik arama
     query = _extract_search_query(ref_text)
@@ -121,22 +135,27 @@ def verify_single_reference(ref_text, timeout=10):
             data = json.loads(r.read().decode())
         items = data.get('message', {}).get('items', [])
         if not items:
-            return {'status': 'not_found', 'doi': None, 'matched_title': None}
+            return {'status': 'not_found', 'doi': None, 'matched_title': None,
+                    'abstract': None}
 
         # En iyi eşleşme — CrossRef relevance'a göre sıralı döner
         top = items[0]
         found_title = (top.get('title') or ['?'])[0]
         found_doi = top.get('DOI')
+        found_abstract = _clean_abstract(top.get('abstract'))
 
         # Basit benzerlik: aranan başlık kelimelerinin ne kadarı eşleşmede var
         score = _title_similarity(query, found_title)
         if score >= 0.4:  # makul eşleşme eşiği
-            return {'status': 'verified', 'doi': found_doi, 'matched_title': found_title}
+            return {'status': 'verified', 'doi': found_doi, 'matched_title': found_title,
+                    'abstract': found_abstract}
         else:
-            return {'status': 'not_found', 'doi': None, 'matched_title': found_title}
+            return {'status': 'not_found', 'doi': None, 'matched_title': found_title,
+                    'abstract': None}
 
     except Exception:
-        return {'status': 'unreachable', 'doi': None, 'matched_title': None}
+        return {'status': 'unreachable', 'doi': None, 'matched_title': None,
+                'abstract': None}
 
 
 def _title_similarity(a, b):
@@ -223,8 +242,10 @@ def check_article_references(article):
 
 def _remove_fake_references(full_content, bibliography, suspicious_nums):
     """
-    Şüpheli (uydurma) kaynakları kaynakçadan siler, metindeki atıflarını kaldırır,
-    kalan kaynakları yeniden numaralandırır.
+    Şüpheli (uydurma) kaynakları kaynakçadan siler ve metindeki atıf İŞARETLERİNİ
+    (örn. [3]) kaldırır. CÜMLELER KORUNUR — yalnızca [N] işareti silinir, cümlenin
+    kelimelerine dokunulmaz (AI'ın ürettiği bilgi yerinde kalır). Kalan kaynaklar
+    yeniden numaralandırılır.
 
     full_content içindeki _||_..._||_ placeholder'ları KORUNUR (regex sadece [N] yakalar).
 
@@ -334,5 +355,121 @@ def clean_superuser_article_references(article):
                                 'reference_check_result', 'reference_checked_at'])
 
     return True, (f"{len(rapor['silinen'])} uydurma kaynak silindi "
-                  f"(numaralar: {rapor['silinen']}). "
-                  f"{rapor['kalan']} gerçek kaynak kaldı ve yeniden numaralandı.")
+                  f"(numaralar: {rapor['silinen']}). Cümleler korundu, yalnızca "
+                  f"sahte atıf işaretleri kaldırıldı. {rapor['kalan']} gerçek kaynak "
+                  f"kaldı ve yeniden numaralandı.")
+
+
+def _extract_citation_context(full_content, citation_num):
+    """
+    Metinde [N] atfının geçtiği cümleyi bulur (AI içerik kontrolü için).
+    Placeholder'lar temizlenir.
+    """
+    if not full_content:
+        return None
+    text = re.sub(r'_\|\|_[A-Z_]+\d*_\|\|_', ' ', full_content)
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    target = f'[{citation_num}]'
+    for sent in sentences:
+        if target in sent:
+            clean = re.sub(r'\[\d+\]', '', sent).strip()
+            return clean[:500]  # uzunsa kırp
+    return None
+
+
+def check_citation_relevance_ai(sentence, abstract, lang='tr'):
+    """
+    AI'a sorar: bu cümle, bu kaynağın abstract'ıyla içerik olarak ilgili mi?
+    Türkçe cümle + İngilizce abstract sorununu AI çözer.
+
+    Döner: dict {'relevance': 'relevant'|'unrelated'|'uncertain', 'note': str}
+    """
+    if not sentence or not abstract:
+        return {'relevance': 'uncertain', 'note': 'Abstract bulunamadı.'}
+
+    prompt = (
+        "Aşağıda bir akademik makaleden bir CÜMLE ve bu cümlede atıf yapılan "
+        "kaynağın ÖZETİ (abstract) var. Görevin: bu kaynağın özeti, cümledeki "
+        "iddiayı/konuyu destekliyor mu yoksa alakasız mı belirlemek.\n\n"
+        f"CÜMLE: {sentence}\n\n"
+        f"KAYNAK ÖZETİ: {abstract[:1500]}\n\n"
+        "Yalnızca şu üç kelimeden biriyle yanıt ver (başka açıklama yapma):\n"
+        "- ILGILI (özet cümleyle konu/iddia olarak örtüşüyor)\n"
+        "- ALAKASIZ (özet tamamen farklı bir konuda, cümleyle ilgisiz)\n"
+        "- BELIRSIZ (karar verilemiyor)\n"
+    )
+
+    try:
+        from ai_engine.services import generate_with_pool
+        answer, _key = generate_with_pool(
+            prompt, service_name='Google Gemini', model_name='gemini-2.5-flash'
+        )
+        if not answer:
+            return {'relevance': 'uncertain', 'note': 'AI yanıt vermedi.'}
+        ans = answer.strip().upper()
+        if 'ALAKASIZ' in ans:
+            return {'relevance': 'unrelated', 'note': 'Kaynak özeti cümleyle alakasız görünüyor.'}
+        elif 'ILGILI' in ans or 'İLGİLİ' in ans:
+            return {'relevance': 'relevant', 'note': 'Kaynak konuyla ilgili görünüyor.'}
+        else:
+            return {'relevance': 'uncertain', 'note': 'İlgi durumu belirsiz.'}
+    except Exception as e:
+        return {'relevance': 'uncertain', 'note': f'AI kontrolü yapılamadı: {e}'}
+
+
+def check_article_references_with_content(article, max_ai_checks=8):
+    """
+    Kaynakları doğrular VE (abstract varsa) AI ile atıf-içerik ilgisini kontrol eder.
+    AI çağrısı maliyetli olduğu için en fazla max_ai_checks kaynak kontrol edilir.
+
+    Sonucu modele kaydeder. (ok, mesaj) döner.
+    """
+    from django.utils import timezone
+
+    if not article.bibliography:
+        return False, "Makalede kaynakça bulunamadı."
+
+    result = verify_bibliography(article.bibliography)
+    if not result['reachable']:
+        return False, ("CrossRef API'sine ulaşılamadı. api.crossref.org'un "
+                       "whitelist'te olduğundan emin olun.")
+
+    # Doğrulanan + abstract'ı olan kaynaklar için AI içerik kontrolü
+    ai_checks = 0
+    relevant_count = 0
+    unrelated_count = 0
+    for ref in result['results']:
+        if ref['status'] != 'verified':
+            continue
+        if ai_checks >= max_ai_checks:
+            ref['content_relevance'] = 'skipped'
+            continue
+        abstract = ref.get('abstract')
+        if not abstract:
+            ref['content_relevance'] = 'no_abstract'
+            continue
+        sentence = _extract_citation_context(article.full_content, ref['num'])
+        if not sentence:
+            ref['content_relevance'] = 'no_context'
+            continue
+        check = check_citation_relevance_ai(sentence, abstract)
+        ref['content_relevance'] = check['relevance']
+        ref['content_note'] = check['note']
+        ai_checks += 1
+        if check['relevance'] == 'relevant':
+            relevant_count += 1
+        elif check['relevance'] == 'unrelated':
+            unrelated_count += 1
+
+    result['content_checked'] = True
+    result['content_relevant'] = relevant_count
+    result['content_unrelated'] = unrelated_count
+
+    article.reference_check_result = result
+    article.reference_checked_at = timezone.now()
+    article.save(update_fields=['reference_check_result', 'reference_checked_at'])
+
+    msg = (f"{result['verified']}/{result['total']} kaynak doğrulandı. "
+           f"İçerik kontrolü: {relevant_count} ilgili, {unrelated_count} alakasız "
+           f"(şüpheli atıf).")
+    return True, msg

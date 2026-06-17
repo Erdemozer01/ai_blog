@@ -123,7 +123,8 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula', 'uydurma_kaynaklari_temizle']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula',
+               'kaynaklari_icerik_dogrula', 'uydurma_kaynaklari_temizle']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -175,6 +176,23 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
         self.message_user(request, f"Doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
 
+    @admin.action(description="🔍 Kaynakları + İçerik Doğrula (AI ile atıf-kaynak ilgisi)")
+    def kaynaklari_icerik_dogrula(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        from .reference_check import check_article_references_with_content
+        basarili, hatali = 0, 0
+        for article in queryset:
+            ok, msg = check_article_references_with_content(article)
+            if ok:
+                basarili += 1
+                self.message_user(request, f"✓ '{article.title}': {msg}")
+            else:
+                hatali += 1
+                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
+        self.message_user(request, f"İçerik doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
+
     @admin.action(description="🧹 Uydurma Kaynakları Temizle (yalnızca superuser makaleleri)")
     def uydurma_kaynaklari_temizle(self, request, queryset):
         if not request.user.is_superuser:
@@ -200,6 +218,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
             actions.pop('kaynaklari_dogrula', None)
+            actions.pop('kaynaklari_icerik_dogrula', None)
             actions.pop('uydurma_kaynaklari_temizle', None)
         return actions
 
