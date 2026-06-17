@@ -11,38 +11,48 @@
         {% plotly_direct name="ArticleDetailApp" %}
     </div>
 
-    {# --- AI inceleme sonucu (yalnızca makale sahibine görünür, navbar'ın ALTINDA) --- #}
+    {# --- AI inceleme sonucu (yalnızca makale sahibine görünür) --- #}
     {% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
-    <div class="container mt-3" id="ai-review-card">
-        <div class="card border-info shadow-sm">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-robot me-2"></i>AI Yayınlanabilirlik İncelemesi</span>
-                <span class="d-flex align-items-center gap-2">
-                    <span class="badge bg-light text-dark fs-6">Skor: {{ article.ai_review_score }}/100</span>
-                    <button type="button" class="btn-close btn-close-white"
-                            aria-label="Kapat"
-                            onclick="document.getElementById('ai-review-card').style.display='none';"></button>
-                </span>
-            </div>
-            <div class="card-body">
-                {# Skor göstergesi #}
-                <div class="progress mb-3" style="height: 22px;">
-                    {% if article.ai_review_score >= 80 %}
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Yayına hazır</div>
-                    {% elif article.ai_review_score >= 60 %}
-                        <div class="progress-bar bg-warning text-dark" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Küçük düzeltmeler</div>
-                    {% else %}
-                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Düzeltme gerekli</div>
-                    {% endif %}
+    {# Navbar altında tetikleyici buton — modalı tekrar açar #}
+    <div class="container mt-3">
+        <button type="button" class="btn btn-info text-white shadow-sm w-100 d-flex justify-content-between align-items-center"
+                data-bs-toggle="modal" data-bs-target="#aiReviewModal">
+            <span><i class="fas fa-robot me-2"></i>AI Yayınlanabilirlik İncelemesi — Önerileri Görüntüle</span>
+            <span class="badge bg-light text-dark fs-6">Skor: {{ article.ai_review_score }}/100</span>
+        </button>
+    </div>
+
+    {# Otomatik açılan modal — sayfa yüklenince önerileri gösterir #}
+    <div class="modal fade" id="aiReviewModal" tabindex="-1" aria-labelledby="aiReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="aiReviewModalLabel">
+                        <i class="fas fa-robot me-2"></i>AI Yayınlanabilirlik İncelemesi
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
-                {# Düzeltme önerileri #}
-                <h6><i class="fas fa-lightbulb text-warning me-1"></i>Düzeltme Önerileri:</h6>
-                <div class="text-muted" style="white-space: pre-line;">{{ article.ai_review_notes }}</div>
-                <hr>
-                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="modal-body">
+                    {# Skor göstergesi #}
+                    <div class="progress mb-3" style="height: 22px;">
+                        {% if article.ai_review_score >= 80 %}
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Yayına hazır</div>
+                        {% elif article.ai_review_score >= 60 %}
+                            <div class="progress-bar bg-warning text-dark" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Küçük düzeltmeler</div>
+                        {% else %}
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ article.ai_review_score }}%;">{{ article.ai_review_score }}/100 - Düzeltme gerekli</div>
+                        {% endif %}
+                    </div>
+                    {# Düzeltme önerileri #}
+                    <h6><i class="fas fa-lightbulb text-warning me-1"></i>Düzeltme Önerileri:</h6>
+                    <div class="text-muted" style="white-space: pre-line;">{{ article.ai_review_notes }}</div>
+                    <hr>
                     <small class="text-muted">İnceleme tarihi: {{ article.ai_reviewed_at|date:"d M Y H:i" }}</small>
-                    <button type="button" class="btn btn-outline-primary btn-sm mt-2 mt-md-0"
-                            data-bs-toggle="modal" data-bs-target="#correctionModal">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Kapat</button>
+                    <button type="button" class="btn btn-primary"
+                            data-bs-target="#correctionModal" data-bs-toggle="modal">
                         <i class="fas fa-redo me-1"></i> Düzelttim, Tekrar İncelensin
                     </button>
                 </div>
@@ -109,4 +119,18 @@
         </div>
     </div>
     {% endif %}
+{% endblock %}
+
+{% block js %}
+{% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var modalEl = document.getElementById('aiReviewModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            var aiModal = new bootstrap.Modal(modalEl);
+            aiModal.show();
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}
