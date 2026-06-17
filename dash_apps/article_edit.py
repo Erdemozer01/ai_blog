@@ -40,8 +40,6 @@ def build_edit_content(article, parts):
                 html.Div([
                     html.I(className="fas fa-lock me-2"),
                     html.Strong(p['label']),
-                    html.Span(" (kilitli — otomatik korunur)",
-                              className="ms-2 text-muted small"),
                 ], className="d-flex align-items-center justify-content-center my-2 p-3 rounded",
                    style={'background': '#f1f3f5', 'border': '2px dashed #adb5bd',
                           'color': '#495057'})
@@ -58,12 +56,6 @@ def build_edit_content(article, parts):
                    href=f"/article/{article.id}/{article.slug}/",
                    className="btn btn-outline-secondary btn-sm"),
         ], className="d-flex justify-content-between align-items-center mb-4"),
-
-        dbc.Alert([
-            html.I(className="fas fa-info-circle me-1"),
-            html.Strong("Grafik ve tablolar kilitlidir"),
-            " — bu blokları değiştiremezsiniz, otomatik korunur. Yalnızca metin alanlarını düzenleyin.",
-        ], color="info"),
 
         # Genel bilgiler
         dbc.Card([
