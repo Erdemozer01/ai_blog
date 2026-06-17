@@ -7,13 +7,22 @@
 
 
 {% block content %}
-    {# --- AI inceleme sonucu (yalnızca makale sahibine görünür) --- #}
+    <div data-refresh-on-navigation="true">
+        {% plotly_direct name="ArticleDetailApp" %}
+    </div>
+
+    {# --- AI inceleme sonucu (yalnızca makale sahibine görünür, navbar'ın ALTINDA) --- #}
     {% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
-    <div class="container mt-3">
+    <div class="container mt-3" id="ai-review-card">
         <div class="card border-info shadow-sm">
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-robot me-2"></i>AI Yayınlanabilirlik İncelemesi</span>
-                <span class="badge bg-light text-dark fs-6">Skor: {{ article.ai_review_score }}/100</span>
+                <span class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark fs-6">Skor: {{ article.ai_review_score }}/100</span>
+                    <button type="button" class="btn-close btn-close-white"
+                            aria-label="Kapat"
+                            onclick="document.getElementById('ai-review-card').style.display='none';"></button>
+                </span>
             </div>
             <div class="card-body">
                 {# Skor göstergesi #}
@@ -41,10 +50,6 @@
         </div>
     </div>
     {% endif %}
-
-    <div data-refresh-on-navigation="true">
-        {% plotly_direct name="ArticleDetailApp" %}
-    </div>
 
     {# --- Düzeltme talebi modalı (sahip + AI incelemesi yapılmışsa) --- #}
     {% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
