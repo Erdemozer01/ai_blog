@@ -27,6 +27,7 @@ from dash_apps.article_detail import app as article_detail_app
 from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 from dash_apps.resume import app as resume_app, create_resume_layout
 from dash_apps.contact import app as contact_app
+import dash_apps.article_edit  # noqa: F401 — ArticleEditApp callback'lerini kaydeder
 from dash_apps.article_search import app as article_search_app, create_article_search_layout
 from dash_apps.admin_dash import app as admin_dash_app
 
@@ -217,13 +218,13 @@ def request_publish_view(request, article_id):
 @login_required
 def edit_article_view(request, article_id):
     """
-    Kullanıcının kendi makalesini düzenlemesi.
+    Kullanıcının kendi makalesini düzenlemesi (Dash sayfası).
     full_content yer tutucuların etrafından parçalanır; kullanıcı yalnızca metin
     parçalarını düzenler. Grafik/tablo yer tutucuları kilitli gösterilir ve
-    kaydederken aynen korunur.
+    kaydetme Dash callback'inde yapılır (ArticleEditApp).
     """
-    from .edit_helpers import (split_content_for_editing, rebuild_content,
-                               has_meaningful_change)
+    from .edit_helpers import split_content_for_editing
+    from dash_apps.article_edit import app as edit_app, build_edit_content
 
     article = get_object_or_404(GeneratedArticle, id=article_id)
 
@@ -232,62 +233,13 @@ def edit_article_view(request, article_id):
         messages.error(request, "Bu makaleyi düzenleme yetkiniz yok.")
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    original_parts = split_content_for_editing(article.full_content)
+    main_navbar = create_main_navbar(request)
+    parts = split_content_for_editing(article.full_content)
+    content = build_edit_content(article, parts)
+    _layout = html.Div([main_navbar, content])
+    edit_app.layout = lambda: _layout
 
-    if request.method == 'POST':
-        # Metin parçalarını topla (text_<index> isimli alanlar)
-        edited_texts = {}
-        for i, p in enumerate(original_parts):
-            if p['type'] == 'text':
-                field_name = f'text_{i}'
-                edited_texts[i] = request.POST.get(field_name, p['value'])
-
-        new_content = rebuild_content(original_parts, edited_texts)
-
-        # Diğer alanlar
-        new_title = (request.POST.get('title') or '').strip()
-        new_keywords = (request.POST.get('keywords') or '').strip()
-        new_tr_abstract = (request.POST.get('turkish_abstract') or '').strip()
-        new_en_abstract = (request.POST.get('english_abstract') or '').strip()
-        new_bibliography = (request.POST.get('bibliography') or '').strip()
-
-        # Değişiklik var mı? (kandırma önlemi için bayrak)
-        content_changed = (
-            has_meaningful_change(article.full_content, new_content)
-            or article.title != new_title
-            or article.bibliography != new_bibliography
-            or article.turkish_abstract != new_tr_abstract
-            or article.english_abstract != new_en_abstract
-        )
-
-        # Kaydet
-        article.title = new_title or article.title
-        article.keywords = new_keywords
-        article.turkish_abstract = new_tr_abstract
-        article.english_abstract = new_en_abstract
-        article.full_content = new_content
-        article.bibliography = new_bibliography
-        update_fields = ['title', 'keywords', 'turkish_abstract',
-                         'english_abstract', 'full_content', 'bibliography']
-
-        if content_changed:
-            from django.utils import timezone
-            article.last_edited_at = timezone.now()
-            update_fields.append('last_edited_at')
-
-        article.save(update_fields=update_fields)
-
-        if content_changed:
-            messages.success(request, "Makaleniz güncellendi.")
-        else:
-            messages.info(request, "Makaleniz kaydedildi (içerikte değişiklik algılanmadı).")
-
-        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-
-    # GET — düzenleme formunu göster
     return render(request, 'blog/edit_article.html', {
-        'article': article,
-        'parts': original_parts,
         'meta_title': f"Düzenle: {article.title}",
     })
 
