@@ -17,6 +17,37 @@ app = DjangoDash('ArticleEditApp', external_stylesheets=external_stylesheets,
                  suppress_callback_exceptions=True)
 
 
+def _build_review_suggestions(article):
+    """AI düzeltme önerilerini düzenleme sayfasında gösterir (varsa)."""
+    score = getattr(article, 'ai_review_score', None)
+    notes = getattr(article, 'ai_review_notes', None)
+    if score is None:
+        return html.Div()
+
+    if score >= 80:
+        color, label = "success", "Yayına hazır"
+    elif score >= 60:
+        color, label = "warning", "Küçük düzeltmeler gerekli"
+    else:
+        color, label = "danger", "Düzeltme gerekli"
+
+    return dbc.Card([
+        dbc.CardHeader([
+            html.I(className="fas fa-robot me-2"),
+            html.Strong("AI Düzeltme Önerileri"),
+            dbc.Badge(f"Skor: {score}/100", color=color, className="ms-2"),
+        ]),
+        dbc.CardBody([
+            dbc.Progress(value=score, label=f"{score}/100 — {label}", color=color,
+                         style={'height': '22px'}, className="mb-3"),
+            html.P("Aşağıdaki önerileri dikkate alarak makalenizi düzenleyin:",
+                   className="text-muted mb-2"),
+            html.Div(notes or "Önemli bir hata tespit edilmedi.",
+                     style={'whiteSpace': 'pre-line'}),
+        ])
+    ], className="mb-4", color=color, outline=True)
+
+
 def build_edit_content(article, parts):
     """
     Makaleye özel düzenleme içeriği oluşturur.
@@ -57,6 +88,9 @@ def build_edit_content(article, parts):
                    className="btn btn-outline-secondary btn-sm"),
         ], className="d-flex justify-content-between align-items-center mb-4"),
 
+        # AI düzeltme önerileri (varsa)
+        _build_review_suggestions(article),
+
         # Genel bilgiler
         dbc.Card([
             dbc.CardHeader(html.Strong("Genel Bilgiler")),
@@ -65,6 +99,30 @@ def build_edit_content(article, parts):
                 dbc.Input(id='edit-title', value=article.title or '', className="mb-3"),
                 dbc.Label("Anahtar Kelimeler", className="fw-bold"),
                 dbc.Input(id='edit-keywords', value=article.keywords or '', className="mb-3"),
+
+                # Kapak resmi
+                dbc.Label("Kapak Fotoğrafı", className="fw-bold"),
+                html.Div(id='edit-current-image', children=[
+                    html.Img(src=article.cover_image.url, style={'maxWidth': '200px',
+                             'borderRadius': '8px', 'marginBottom': '10px'})
+                    if getattr(article, 'cover_image', None) and article.cover_image
+                    else html.P("Henüz kapak resmi yok.", className="text-muted")
+                ], className="mb-2"),
+                dcc.Upload(
+                    id='edit-image-upload',
+                    children=html.Div([
+                        html.I(className="fas fa-cloud-upload-alt me-2"),
+                        "Resim seçmek için tıklayın veya sürükleyin"
+                    ]),
+                    style={'width': '100%', 'height': '70px', 'lineHeight': '70px',
+                           'borderWidth': '2px', 'borderStyle': 'dashed',
+                           'borderRadius': '8px', 'textAlign': 'center',
+                           'background': '#f8f9fa', 'cursor': 'pointer'},
+                    accept='image/*',
+                    className="mb-2"
+                ),
+                html.Div(id='edit-image-feedback', className="mb-3"),
+
                 dbc.Label("Türkçe Özet", className="fw-bold"),
                 dbc.Textarea(id='edit-tr-abstract', value=article.turkish_abstract or '',
                              rows=3, className="mb-3"),
@@ -189,3 +247,62 @@ def save_article(n_clicks, article_id, slug, title, keywords, tr_abstract,
         msg,
         html.A("Makaleye dön →", href=article_url, className="alert-link"),
     ], color=color)
+
+
+@app.callback(
+    [Output('edit-image-feedback', 'children'),
+     Output('edit-current-image', 'children')],
+    Input('edit-image-upload', 'contents'),
+    [State('edit-image-upload', 'filename'),
+     State('edit-article-id', 'data')],
+    prevent_initial_call=True
+)
+def upload_cover_image(contents, filename, article_id, **kwargs):
+    if not contents or not article_id:
+        return no_update, no_update
+
+    # Yetki
+    request = kwargs.get('request')
+    user = getattr(request, 'user', None) if request else None
+    if user is None or not user.is_authenticated:
+        return dbc.Alert("Giriş yapmalısınız.", color="warning"), no_update
+
+    import base64
+    import os
+    from django.conf import settings
+    from blog.models import GeneratedArticle
+    from django.core.files.base import ContentFile
+
+    try:
+        article = GeneratedArticle.objects.get(id=article_id)
+    except GeneratedArticle.DoesNotExist:
+        return dbc.Alert("Makale bulunamadı.", color="danger"), no_update
+
+    if article.owner_id != user.id:
+        return dbc.Alert("Yetkiniz yok.", color="danger"), no_update
+
+    # Boyut/tip kontrolü
+    try:
+        content_type, content_string = contents.split(',')
+    except ValueError:
+        return dbc.Alert("Geçersiz dosya.", color="danger"), no_update
+
+    if 'image' not in content_type:
+        return dbc.Alert("Yalnızca resim dosyaları yüklenebilir.", color="warning"), no_update
+
+    decoded = base64.b64decode(content_string)
+    # 5MB sınırı
+    if len(decoded) > 5 * 1024 * 1024:
+        return dbc.Alert("Resim 5MB'den küçük olmalı.", color="warning"), no_update
+
+    # Dosya adını güvenli yap
+    safe_name = (filename or 'cover.jpg').replace(' ', '_')
+    article.cover_image.save(safe_name, ContentFile(decoded), save=True)
+
+    # Güncel resmi göster
+    new_preview = html.Img(src=article.cover_image.url,
+                           style={'maxWidth': '200px', 'borderRadius': '8px',
+                                  'marginBottom': '10px'})
+    feedback = dbc.Alert([html.I(className="fas fa-check-circle me-2"),
+                          "Kapak resmi yüklendi."], color="success")
+    return feedback, new_preview

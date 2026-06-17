@@ -228,7 +228,11 @@ def edit_article_view(request, article_id):
 
     article = get_object_or_404(GeneratedArticle, id=article_id)
 
-    # Yalnızca makale sahibi düzenleyebilir
+    # Superuser bu sayfayı kullanmaz, admin panelini kullanır
+    if request.user.is_superuser:
+        return redirect('admin:blog_generatedarticle_change', article.id)
+
+    # Normal kullanıcı yalnızca kendi makalesini düzenleyebilir
     if article.owner_id != request.user.id:
         messages.error(request, "Bu makaleyi düzenleme yetkiniz yok.")
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
@@ -469,22 +473,22 @@ def article_detail_view(request, article_id, slug):
     action_icons = []
     is_owner = request.user.is_authenticated and article.owner_id == request.user.id
 
-    if is_owner or request.user.is_superuser:
-        # Düzenleme ikonu (kalem) — kullanıcı dostu düzenleme sayfası
+    if request.user.is_superuser:
+        # Superuser → admin panelinden düzenler
+        admin_edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+        action_icons.append(
+            html.A([html.I(className="fas fa-pencil-alt")],
+                   href=admin_edit_url, className="text-warning me-3 fs-5",
+                   title="Makaleyi Düzenle (Admin)")
+        )
+    elif is_owner:
+        # Normal kullanıcı (makale sahibi) → kullanıcı dostu edit sayfası
         edit_url = reverse('blog:edit_article', args=[article.id])
         action_icons.append(
             html.A([html.I(className="fas fa-pencil-alt")],
                    href=edit_url, className="text-warning me-3 fs-5",
                    title="Makaleyi Düzenle")
         )
-        # Superuser için ek olarak admin düzenleme linki
-        if request.user.is_superuser:
-            admin_edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
-            action_icons.append(
-                html.A([html.I(className="fas fa-cog")],
-                       href=admin_edit_url, className="text-secondary me-3 fs-5",
-                       title="Admin'de Düzenle")
-            )
 
     # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
     if is_owner and not request.user.is_superuser:
