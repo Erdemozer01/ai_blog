@@ -49,7 +49,7 @@ def _build_review_suggestions(article):
 
 
 def _cover_preview(article):
-    """Mevcut kapak resmini + (varsa) kaldır butonunu gösterir."""
+    """Mevcut kapak resmini + (varsa) 'resmi kaldır' onay kutusunu gösterir."""
     has_image = bool(getattr(article, 'cover_image', None) and article.cover_image)
     if has_image:
         img = html.Img(src=article.cover_image.url,
@@ -58,13 +58,17 @@ def _cover_preview(article):
     else:
         img = html.P("Henüz kapak resmi yok.", className="text-muted")
 
-    # Kaldır butonu her zaman DOM'da (callback için), resim yoksa gizli
-    remove_btn = dbc.Button(
-        [html.I(className="fas fa-trash-alt me-1"), "Kapak Resmini Kaldır"],
-        id='edit-image-remove-btn', color="danger", outline=True, size="sm",
-        style={} if has_image else {'display': 'none'}
+    # 'Resmi kaldır' onay kutusu — her zaman DOM'da, resim yoksa gizli.
+    # İşaretlenip Kaydet'e basılınca resim kaldırılır.
+    remove_check = dbc.Checklist(
+        options=[{'label': ' Kaydederken bu resmi kaldır', 'value': 'remove'}],
+        value=[],
+        id='edit-image-remove-check',
+        switch=True,
+        style={} if has_image else {'display': 'none'},
+        className="text-danger"
     )
-    return [img, remove_btn]
+    return [img, remove_check]
 
 
 def build_edit_content(article, parts):
@@ -175,7 +179,9 @@ def build_edit_content(article, parts):
 
 
 @app.callback(
-    Output('edit-feedback', 'children'),
+    [Output('edit-feedback', 'children'),
+     Output('edit-current-image', 'children', allow_duplicate=True),
+     Output('edit-image-remove-check', 'value')],
     Input('edit-save-btn', 'n_clicks'),
     State('edit-article-id', 'data'),
     State('edit-article-slug', 'data'),
@@ -184,20 +190,21 @@ def build_edit_content(article, parts):
     State('edit-tr-abstract', 'value'),
     State('edit-en-abstract', 'value'),
     State('edit-bibliography', 'value'),
+    State('edit-image-remove-check', 'value'),
     State({'type': 'edit-text-part', 'index': ALL}, 'value'),
     State({'type': 'edit-text-part', 'index': ALL}, 'id'),
     prevent_initial_call=True
 )
 def save_article(n_clicks, article_id, slug, title, keywords, tr_abstract,
-                 en_abstract, bibliography, text_values, text_ids, **kwargs):
+                 en_abstract, bibliography, remove_image_check, text_values, text_ids, **kwargs):
     if not n_clicks or not article_id:
-        return no_update
+        return no_update, no_update, no_update
 
     # Yetki: oturum kullanıcısı makale sahibi mi
     request = kwargs.get('request')
     user = getattr(request, 'user', None) if request else None
     if user is None or not user.is_authenticated:
-        return dbc.Alert("Bu işlem için giriş yapmalısınız.", color="warning")
+        return dbc.Alert("Bu işlem için giriş yapmalısınız.", color="warning"), no_update, no_update
 
     from blog.models import GeneratedArticle
     from blog.edit_helpers import (split_content_for_editing, rebuild_content,
@@ -207,10 +214,10 @@ def save_article(n_clicks, article_id, slug, title, keywords, tr_abstract,
     try:
         article = GeneratedArticle.objects.get(id=article_id)
     except GeneratedArticle.DoesNotExist:
-        return dbc.Alert("Makale bulunamadı.", color="danger")
+        return dbc.Alert("Makale bulunamadı.", color="danger"), no_update, no_update
 
     if article.owner_id != user.id:
-        return dbc.Alert("Bu makaleyi düzenleme yetkiniz yok.", color="danger")
+        return dbc.Alert("Bu makaleyi düzenleme yetkiniz yok.", color="danger"), no_update, no_update
 
     # Orijinal parçaları tekrar üret (token'lar için) ve düzenlenen metinleri eşle
     original_parts = split_content_for_editing(article.full_content)
@@ -243,25 +250,39 @@ def save_article(n_clicks, article_id, slug, title, keywords, tr_abstract,
     update_fields = ['title', 'keywords', 'turkish_abstract',
                      'english_abstract', 'full_content', 'bibliography']
 
-    if content_changed:
+    # Kapak resmi kaldırma — onay kutusu işaretliyse
+    image_removed = False
+    if remove_image_check and 'remove' in remove_image_check:
+        if getattr(article, 'cover_image', None) and article.cover_image:
+            article.cover_image.delete(save=False)
+            article.cover_image = None
+            update_fields.append('cover_image')
+            image_removed = True
+
+    if content_changed or image_removed:
         article.last_edited_at = timezone.now()
-        update_fields.append('last_edited_at')
+        if 'last_edited_at' not in update_fields:
+            update_fields.append('last_edited_at')
 
     article.save(update_fields=update_fields)
 
     article_url = f"/article/{article.id}/{article.slug}/"
-    if content_changed:
+    if content_changed or image_removed:
         msg = "Makaleniz güncellendi. "
         color = "success"
     else:
         msg = "Kaydedildi (içerikte değişiklik algılanmadı). "
         color = "info"
 
-    return dbc.Alert([
+    feedback = dbc.Alert([
         html.I(className="fas fa-check-circle me-2"),
         msg,
         html.A("Makaleye dön →", href=article_url, className="alert-link"),
     ], color=color)
+
+    # Resim kaldırıldıysa önizlemeyi güncelle, kutuyu sıfırla
+    new_preview = _cover_preview(article)
+    return feedback, new_preview, []
 
 
 @app.callback(
@@ -319,43 +340,3 @@ def upload_cover_image(contents, filename, article_id, **kwargs):
     feedback = dbc.Alert([html.I(className="fas fa-check-circle me-2"),
                           "Kapak resmi yüklendi."], color="success")
     return feedback, new_preview
-
-
-@app.callback(
-    [Output('edit-image-feedback', 'children', allow_duplicate=True),
-     Output('edit-current-image', 'children', allow_duplicate=True)],
-    Input('edit-image-remove-btn', 'n_clicks'),
-    State('edit-article-id', 'data'),
-    prevent_initial_call=True
-)
-def remove_cover_image(n_clicks, article_id, **kwargs):
-    if not n_clicks or not article_id:
-        return no_update, no_update
-
-    # Yetki
-    request = kwargs.get('request')
-    user = getattr(request, 'user', None) if request else None
-    if user is None or not user.is_authenticated:
-        return dbc.Alert("Giriş yapmalısınız.", color="warning"), no_update
-
-    from blog.models import GeneratedArticle
-
-    try:
-        article = GeneratedArticle.objects.get(id=article_id)
-    except GeneratedArticle.DoesNotExist:
-        return dbc.Alert("Makale bulunamadı.", color="danger"), no_update
-
-    if article.owner_id != user.id:
-        return dbc.Alert("Yetkiniz yok.", color="danger"), no_update
-
-    if not (getattr(article, 'cover_image', None) and article.cover_image):
-        return dbc.Alert("Zaten kapak resmi yok.", color="info"), no_update
-
-    # Dosyayı sil (diskten) + alanı temizle
-    article.cover_image.delete(save=False)
-    article.cover_image = None
-    article.save(update_fields=['cover_image'])
-
-    feedback = dbc.Alert([html.I(className="fas fa-check-circle me-2"),
-                          "Kapak resmi kaldırıldı."], color="success")
-    return feedback, _cover_preview(article)
