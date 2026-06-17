@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('blog', '0004_reference_check_fields'),
+        ('blog', '0004_generatedarticle_reference_check_result_and_more'),
     ]
 
     operations = [
