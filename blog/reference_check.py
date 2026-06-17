@@ -219,3 +219,120 @@ def check_article_references(article):
     msg = (f"Kaynak doğrulama tamamlandı. {result['verified']}/{result['total']} kaynak "
            f"doğrulandı, {result['not_found']} bulunamadı (şüpheli).")
     return True, msg
+
+
+def _remove_fake_references(full_content, bibliography, suspicious_nums):
+    """
+    Şüpheli (uydurma) kaynakları kaynakçadan siler, metindeki atıflarını kaldırır,
+    kalan kaynakları yeniden numaralandırır.
+
+    full_content içindeki _||_..._||_ placeholder'ları KORUNUR (regex sadece [N] yakalar).
+
+    Döner: (yeni_content, yeni_bibliography, rapor_dict)
+    """
+    suspicious = set(int(n) for n in suspicious_nums)
+
+    # Kaynakçayı ayrıştır (sıralı)
+    lines = [ln.strip() for ln in (bibliography or '').split('\n') if ln.strip()]
+    refs = {}
+    order = []
+    num_re = re.compile(r'^\[?(\d+)[\].\)]\s*(.*)')
+    for ln in lines:
+        m = num_re.match(ln)
+        if m:
+            n = int(m.group(1))
+            refs[n] = m.group(2)
+            order.append(n)
+
+    # Eski→yeni numara haritası (şüpheliler atlanır)
+    remap = {}
+    new_n = 1
+    for old_n in order:
+        if old_n not in suspicious:
+            remap[old_n] = new_n
+            new_n += 1
+
+    # Yeni kaynakça
+    new_biblio_lines = []
+    for old_n in order:
+        if old_n in remap:
+            new_biblio_lines.append(f"{remap[old_n]}. {refs[old_n]}")
+    new_bibliography = '\n'.join(new_biblio_lines)
+
+    # Metindeki atıfları işle ([N] → sil veya yeni numara). Placeholder'lar etkilenmez.
+    def _replace_citation(match):
+        n = int(match.group(1))
+        if n in suspicious:
+            return ''
+        if n in remap:
+            return f'[{remap[n]}]'
+        return match.group(0)
+
+    new_content = re.sub(r'\[(\d+)\]', _replace_citation, full_content or '')
+    # Atıf silinince oluşan fazla boşluk/noktalama düzeltmesi
+    new_content = re.sub(r'  +', ' ', new_content)
+    new_content = re.sub(r'\s+([.,;:])', r'\1', new_content)
+    new_content = re.sub(r'\(\s*\)', '', new_content)  # boş parantez kaldıysa
+
+    rapor = {
+        'silinen': sorted(suspicious & set(order)),
+        'kalan': len(remap),
+        'toplam': len(order),
+    }
+    return new_content, new_bibliography, rapor
+
+
+def clean_superuser_article_references(article):
+    """
+    SADECE superuser'a ait makaleler için: önce kaynakları doğrular, sonra
+    uydurma (bulunamayan) kaynakları siler ve metni/kaynakçayı günceller.
+
+    (ok: bool, mesaj: str) döner.
+    """
+    from django.utils import timezone
+
+    # Güvenlik: yalnızca superuser makalesi
+    owner = getattr(article, 'owner', None) or getattr(article, 'author', None)
+    if not owner or not getattr(owner, 'is_superuser', False):
+        return False, "Bu işlem yalnızca superuser'a ait makalelerde yapılır."
+
+    if not article.bibliography:
+        return False, "Makalede kaynakça bulunamadı."
+
+    # Önce doğrula
+    result = verify_bibliography(article.bibliography)
+    if not result['reachable']:
+        return False, ("CrossRef API'sine ulaşılamadı. api.crossref.org'un "
+                       "whitelist'te olduğundan emin olun.")
+
+    # Şüpheli (not_found) kaynak numaralarını topla
+    suspicious_nums = [int(r['num']) for r in result['results']
+                       if r['status'] == 'not_found' and str(r['num']).isdigit()]
+
+    if not suspicious_nums:
+        # Sonucu yine kaydet (hepsi temiz)
+        article.reference_check_result = result
+        article.reference_checked_at = timezone.now()
+        article.save(update_fields=['reference_check_result', 'reference_checked_at'])
+        return True, f"Tüm kaynaklar doğrulandı ({result['verified']}/{result['total']}). Silinecek uydurma kaynak yok."
+
+    # Uydurmaları temizle
+    new_content, new_biblio, rapor = _remove_fake_references(
+        article.full_content, article.bibliography, suspicious_nums)
+
+    article.full_content = new_content
+    article.bibliography = new_biblio
+    # Doğrulama sonucunu da güncelle (artık temizlenmiş)
+    article.reference_check_result = {
+        'cleaned': True,
+        'removed': rapor['silinen'],
+        'remaining': rapor['kalan'],
+        'original_total': rapor['toplam'],
+    }
+    article.reference_checked_at = timezone.now()
+    article.save(update_fields=['full_content', 'bibliography',
+                                'reference_check_result', 'reference_checked_at'])
+
+    return True, (f"{len(rapor['silinen'])} uydurma kaynak silindi "
+                  f"(numaralar: {rapor['silinen']}). "
+                  f"{rapor['kalan']} gerçek kaynak kaldı ve yeniden numaralandı.")

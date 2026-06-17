@@ -123,7 +123,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula', 'uydurma_kaynaklari_temizle']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -175,6 +175,23 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
         self.message_user(request, f"Doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
 
+    @admin.action(description="🧹 Uydurma Kaynakları Temizle (yalnızca superuser makaleleri)")
+    def uydurma_kaynaklari_temizle(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        from .reference_check import clean_superuser_article_references
+        temizlenen, atlanan = 0, 0
+        for article in queryset:
+            ok, msg = clean_superuser_article_references(article)
+            if ok:
+                temizlenen += 1
+                self.message_user(request, f"✓ '{article.title}': {msg}")
+            else:
+                atlanan += 1
+                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
+        self.message_user(request, f"Temizlik bitti: {temizlenen} işlendi, {atlanan} atlandı.")
+
     def get_actions(self, request):
         """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
         actions = super().get_actions(request)
@@ -183,6 +200,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
             actions.pop('kaynaklari_dogrula', None)
+            actions.pop('uydurma_kaynaklari_temizle', None)
         return actions
 
 
