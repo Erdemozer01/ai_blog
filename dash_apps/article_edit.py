@@ -48,6 +48,25 @@ def _build_review_suggestions(article):
     ], className="mb-4", color=color, outline=True)
 
 
+def _cover_preview(article):
+    """Mevcut kapak resmini + (varsa) kaldır butonunu gösterir."""
+    has_image = bool(getattr(article, 'cover_image', None) and article.cover_image)
+    if has_image:
+        img = html.Img(src=article.cover_image.url,
+                       style={'maxWidth': '200px', 'borderRadius': '8px',
+                              'marginBottom': '10px', 'display': 'block'})
+    else:
+        img = html.P("Henüz kapak resmi yok.", className="text-muted")
+
+    # Kaldır butonu her zaman DOM'da (callback için), resim yoksa gizli
+    remove_btn = dbc.Button(
+        [html.I(className="fas fa-trash-alt me-1"), "Kapak Resmini Kaldır"],
+        id='edit-image-remove-btn', color="danger", outline=True, size="sm",
+        style={} if has_image else {'display': 'none'}
+    )
+    return [img, remove_btn]
+
+
 def build_edit_content(article, parts):
     """
     Makaleye özel düzenleme içeriği oluşturur.
@@ -102,12 +121,8 @@ def build_edit_content(article, parts):
 
                 # Kapak resmi
                 dbc.Label("Kapak Fotoğrafı", className="fw-bold"),
-                html.Div(id='edit-current-image', children=[
-                    html.Img(src=article.cover_image.url, style={'maxWidth': '200px',
-                             'borderRadius': '8px', 'marginBottom': '10px'})
-                    if getattr(article, 'cover_image', None) and article.cover_image
-                    else html.P("Henüz kapak resmi yok.", className="text-muted")
-                ], className="mb-2"),
+                html.Div(id='edit-current-image', children=_cover_preview(article),
+                         className="mb-2"),
                 dcc.Upload(
                     id='edit-image-upload',
                     children=html.Div([
@@ -250,8 +265,8 @@ def save_article(n_clicks, article_id, slug, title, keywords, tr_abstract,
 
 
 @app.callback(
-    [Output('edit-image-feedback', 'children'),
-     Output('edit-current-image', 'children')],
+    [Output('edit-image-feedback', 'children', allow_duplicate=True),
+     Output('edit-current-image', 'children', allow_duplicate=True)],
     Input('edit-image-upload', 'contents'),
     [State('edit-image-upload', 'filename'),
      State('edit-article-id', 'data')],
@@ -299,10 +314,48 @@ def upload_cover_image(contents, filename, article_id, **kwargs):
     safe_name = (filename or 'cover.jpg').replace(' ', '_')
     article.cover_image.save(safe_name, ContentFile(decoded), save=True)
 
-    # Güncel resmi göster
-    new_preview = html.Img(src=article.cover_image.url,
-                           style={'maxWidth': '200px', 'borderRadius': '8px',
-                                  'marginBottom': '10px'})
+    # Güncel resmi göster (kaldır butonlu)
+    new_preview = _cover_preview(article)
     feedback = dbc.Alert([html.I(className="fas fa-check-circle me-2"),
                           "Kapak resmi yüklendi."], color="success")
     return feedback, new_preview
+
+
+@app.callback(
+    [Output('edit-image-feedback', 'children', allow_duplicate=True),
+     Output('edit-current-image', 'children', allow_duplicate=True)],
+    Input('edit-image-remove-btn', 'n_clicks'),
+    State('edit-article-id', 'data'),
+    prevent_initial_call=True
+)
+def remove_cover_image(n_clicks, article_id, **kwargs):
+    if not n_clicks or not article_id:
+        return no_update, no_update
+
+    # Yetki
+    request = kwargs.get('request')
+    user = getattr(request, 'user', None) if request else None
+    if user is None or not user.is_authenticated:
+        return dbc.Alert("Giriş yapmalısınız.", color="warning"), no_update
+
+    from blog.models import GeneratedArticle
+
+    try:
+        article = GeneratedArticle.objects.get(id=article_id)
+    except GeneratedArticle.DoesNotExist:
+        return dbc.Alert("Makale bulunamadı.", color="danger"), no_update
+
+    if article.owner_id != user.id:
+        return dbc.Alert("Yetkiniz yok.", color="danger"), no_update
+
+    if not (getattr(article, 'cover_image', None) and article.cover_image):
+        return dbc.Alert("Zaten kapak resmi yok.", color="info"), no_update
+
+    # Dosyayı sil (diskten) + alanı temizle
+    article.cover_image.delete(save=False)
+    article.cover_image = None
+    article.save(update_fields=['cover_image'])
+
+    feedback = dbc.Alert([html.I(className="fas fa-check-circle me-2"),
+                          "Kapak resmi kaldırıldı."], color="success")
+    return feedback, _cover_preview(article)
