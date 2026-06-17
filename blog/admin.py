@@ -34,7 +34,8 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
     list_filter = ('status', 'category', 'created_at')
     search_fields = ('title', 'user_request', 'full_content')
     readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview',
-                       'ai_review_score', 'ai_review_notes', 'ai_reviewed_at')
+                       'ai_review_score', 'ai_review_notes', 'ai_reviewed_at',
+                       'reference_check_result', 'reference_checked_at')
     list_per_page = 25
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
@@ -52,6 +53,12 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             'fields': ('ai_review_score', 'ai_review_notes', 'ai_reviewed_at'),
             'description': "Makaleyi AI ile incelemek için listede makaleyi seçip 'AI ile İncele' aksiyonunu çalıştırın. "
                            "Skor 0-100 arasıdır; öneriler kullanıcıya e-posta ile gönderilir."
+        }),
+        ('Kaynak Doğrulama (CrossRef)', {
+            'fields': ('reference_check_result', 'reference_checked_at'),
+            'description': "Kaynakların gerçekliğini CrossRef'te kontrol etmek için 'Kaynakları Doğrula' aksiyonunu çalıştırın. "
+                           "Yalnızca kaynağın varlığını doğrular, atıf içeriğini değil.",
+            'classes': ('collapse',)
         }),
         ('İçerik', {
             'fields': ('user_request', 'keywords', 'english_abstract', 'turkish_abstract', 'full_content',
@@ -116,7 +123,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -151,6 +158,23 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✗ '{article.title}': {msg}", level='error')
         self.message_user(request, f"İnceleme bitti: {basarili} başarılı, {hatali} hatalı.")
 
+    @admin.action(description="📚 Kaynakları Doğrula (CrossRef ile gerçeklik kontrolü)")
+    def kaynaklari_dogrula(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        from .reference_check import check_article_references
+        basarili, hatali = 0, 0
+        for article in queryset:
+            ok, msg = check_article_references(article)
+            if ok:
+                basarili += 1
+                self.message_user(request, f"✓ '{article.title}': {msg}")
+            else:
+                hatali += 1
+                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
+        self.message_user(request, f"Doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
+
     def get_actions(self, request):
         """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
         actions = super().get_actions(request)
@@ -158,6 +182,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayinla', None)
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
+            actions.pop('kaynaklari_dogrula', None)
         return actions
 
 

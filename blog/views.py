@@ -239,6 +239,46 @@ def request_correction_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
+def _build_reference_check_badge(article):
+    """
+    Kaynak doğrulama sonucunu şeffaf bir bilgi kutusu olarak gösterir.
+    Doğrulama yapılmamışsa boş döner.
+    """
+    result = getattr(article, 'reference_check_result', None)
+    if not result:
+        return html.Div()
+
+    total = result.get('total', 0)
+    verified = result.get('verified', 0)
+    not_found = result.get('not_found', 0)
+
+    if total == 0:
+        return html.Div()
+
+    # Renk: çoğu doğrulandıysa yeşil, şüpheli varsa sarı
+    if not_found == 0:
+        color, icon = "success", "fa-check-circle"
+    elif verified > not_found:
+        color, icon = "warning", "fa-exclamation-triangle"
+    else:
+        color, icon = "danger", "fa-times-circle"
+
+    return dbc.Alert([
+        html.Div([
+            html.I(className=f"fas {icon} me-2"),
+            html.Strong(f"Kaynak Doğrulama: {verified}/{total} kaynak CrossRef'te bulundu"),
+            (html.Span(f" — {not_found} kaynak bulunamadı (şüpheli).",
+                       className="ms-1") if not_found else html.Span("")),
+        ], className="mb-1"),
+        html.Small([
+            html.I(className="fas fa-info-circle me-1"),
+            "Bu kontrol kaynakların gerçekten var olup olmadığını doğrular. "
+            "Ancak her atfın ilgili kaynağı içerik olarak doğru yansıtıp yansıtmadığı "
+            "otomatik teyit edilmemiştir; kaynakları kendiniz de değerlendiriniz."
+        ], className="text-muted d-block mt-1"),
+    ], color=color, className="mb-3")
+
+
 def article_detail_view(request, article_id, slug):
     main_navbar = create_main_navbar(request)
     article = get_object_or_404(
@@ -471,6 +511,7 @@ def article_detail_view(request, article_id, slug):
 
                     html.Hr(className="my-5"),
                     html.H4("Kaynakça"),
+                    _build_reference_check_badge(article),
                     html.Ol(formatted_bibliography_items),
 
                 ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),

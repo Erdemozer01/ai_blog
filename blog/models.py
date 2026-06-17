@@ -69,6 +69,17 @@ class GeneratedArticle(models.Model):
         verbose_name="AI İnceleme Tarihi"
     )
 
+    # --- Kaynak Doğrulama (CrossRef) ---
+    reference_check_result = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Kaynak Doğrulama Sonucu",
+        help_text="CrossRef ile kaynakların varlık doğrulaması (özet + her kaynağın durumu)."
+    )
+    reference_checked_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Kaynak Doğrulama Tarihi"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")
