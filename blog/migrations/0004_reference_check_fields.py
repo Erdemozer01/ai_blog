@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('blog', '0003_ai_review_fields'),
+        ('blog', '0003_generatedarticle_ai_review_notes_and_more'),
     ]
 
     operations = [
