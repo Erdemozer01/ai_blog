@@ -122,6 +122,17 @@
 {% endblock %}
 
 {% block js %}
+<script>
+    // Makale içeriği iframe'inin yüksekliğini içeriğe göre ayarla
+    window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'article-iframe-height') {
+            var iframe = document.getElementById('article-content-iframe');
+            if (iframe && e.data.height) {
+                iframe.style.height = (e.data.height + 30) + 'px';
+            }
+        }
+    });
+</script>
 {% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
