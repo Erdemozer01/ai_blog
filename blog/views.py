@@ -806,11 +806,50 @@ def download_article_as_pdf(request, article_id):
 @login_required
 def create_article_view(request):
     """
-    Manuel makale oluşturma (CKEditor). Şimdilik geçici placeholder —
-    CKEditor entegrasyonu sonraki adımda yapılacak.
+    Manuel makale oluşturma (CKEditor ile). Kullanıcı başlık, özet, içerik,
+    anahtar kelime ve kapak resmi girip kaydeder. İçerik CKEditor'dan HTML gelir.
+    Normal kullanıcının makalesi onay bekler (is_published=False),
+    superuser'ınki doğrudan yayınlanır.
     """
-    from django.http import HttpResponse
-    main_navbar = create_main_navbar(request)
+    if request.method == 'POST':
+        title = (request.POST.get('title') or '').strip()
+        keywords = (request.POST.get('keywords') or '').strip()
+        tr_abstract = (request.POST.get('turkish_abstract') or '').strip()
+        en_abstract = (request.POST.get('english_abstract') or '').strip()
+        content = (request.POST.get('content') or '').strip()
+        bibliography = (request.POST.get('bibliography') or '').strip()
+        cover = request.FILES.get('cover_image')
+
+        # Basit doğrulama
+        if not title:
+            messages.error(request, "Lütfen bir başlık girin.")
+            return render(request, 'blog/create_article.html', {'meta_title': 'Makale Oluştur'})
+        if not content or len(content) < 50:
+            messages.error(request, "Makale içeriği çok kısa (en az 50 karakter).")
+            return render(request, 'blog/create_article.html', {'meta_title': 'Makale Oluştur'})
+
+        article = GeneratedArticle(
+            owner=request.user,
+            user_request=f"[Manuel oluşturuldu] {title}",
+            title=title,
+            keywords=keywords,
+            turkish_abstract=tr_abstract,
+            english_abstract=en_abstract,
+            full_content=content,
+            bibliography=bibliography,
+            status='tamamlandi',
+            is_published=bool(request.user.is_superuser),
+        )
+        if cover:
+            article.cover_image = cover
+        article.save()
+
+        if request.user.is_superuser:
+            messages.success(request, "Makaleniz oluşturuldu ve yayınlandı.")
+        else:
+            messages.success(request, "Makaleniz oluşturuldu. Yönetici onayından sonra yayınlanacak.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
     return render(request, 'blog/create_article.html', {
         'meta_title': 'Makale Oluştur',
     })
