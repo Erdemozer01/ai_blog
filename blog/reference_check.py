@@ -473,3 +473,126 @@ def check_article_references_with_content(article, max_ai_checks=8):
            f"İçerik kontrolü: {relevant_count} ilgili, {unrelated_count} alakasız "
            f"(şüpheli atıf).")
     return True, msg
+
+
+def clean_article_references(article, max_ai_checks=10):
+    """
+    SADE TEK AKIŞ — "Makaleyi Kontrol Et":
+      1. CrossRef'e bakar; bulunmayan (doğrulanmayan) kaynakları kaynakçadan ÇIKARIR
+         ve metindeki [N] atıf işaretini de kaldırır (kaynak sahte olduğu için).
+      2. Kalan doğrulanmış kaynaklar için AI ile içerik uyuşmasını kontrol eder;
+         içerik UYUŞMAYAN kaynağı kaynakçadan ÇIKARIR ama metinde [N] atfı KALIR
+         (bilgi yerinde dursun, sadece kaynak listeden çıkar).
+      3. Kaynakçayı yeniden numaralandırır.
+
+    (ok: bool, mesaj: str) döner.
+    """
+    from django.utils import timezone
+
+    if not article.bibliography:
+        return False, "Makalede kaynakça bulunamadı."
+
+    # --- 1. CrossRef doğrulama ---
+    result = verify_bibliography(article.bibliography)
+    if not result['reachable']:
+        return False, ("CrossRef API'sine ulaşılamadı. api.crossref.org'un "
+                       "whitelist'te olduğundan emin olun.")
+
+    # Bulunamayan (sahte) kaynak numaraları → tamamen silinecek (atıf dahil)
+    not_found_nums = set(int(r['num']) for r in result['results']
+                         if r['status'] == 'not_found' and str(r['num']).isdigit())
+
+    # --- 2. Doğrulananlar için AI içerik kontrolü ---
+    unrelated_nums = set()  # içerik uyuşmayan → kaynakçadan çıkar, atıf kalır
+    ai_checks = 0
+    for ref in result['results']:
+        if ref['status'] != 'verified':
+            continue
+        if ai_checks >= max_ai_checks:
+            break
+        abstract = ref.get('abstract')
+        if not abstract:
+            continue
+        try:
+            num = int(ref['num'])
+        except (ValueError, KeyError, TypeError):
+            continue
+        sentence = _extract_citation_context(article.full_content, num)
+        if not sentence:
+            continue
+        check = check_citation_relevance_ai(sentence, abstract)
+        ai_checks += 1
+        if check['relevance'] == 'unrelated':
+            unrelated_nums.add(num)
+
+    # --- 3. Kaynakçayı yeniden kur ---
+    lines = [ln.strip() for ln in (article.bibliography or '').split('\n') if ln.strip()]
+    refs = {}
+    order = []
+    num_re = re.compile(r'^\[?(\d+)[\].\)]\s*(.*)')
+    for ln in lines:
+        m = num_re.match(ln)
+        if m:
+            n = int(m.group(1))
+            refs[n] = m.group(2)
+            order.append(n)
+
+    # Kaynakçadan çıkarılacaklar: bulunamayanlar + içerik uyuşmayanlar
+    removed_from_biblio = not_found_nums | unrelated_nums
+
+    # Eski→yeni numara haritası (kaynakçada KALANLAR için)
+    remap = {}
+    new_n = 1
+    for old_n in order:
+        if old_n not in removed_from_biblio:
+            remap[old_n] = new_n
+            new_n += 1
+
+    # Yeni kaynakça
+    new_biblio_lines = []
+    for old_n in order:
+        if old_n in remap:
+            new_biblio_lines.append(f"{remap[old_n]}. {refs[old_n]}")
+    new_bibliography = '\n'.join(new_biblio_lines)
+
+    # Metindeki atıfları işle:
+    #   - not_found (sahte) → atıf işareti SİLİNİR
+    #   - unrelated → atıf KALIR (ama numarası... kaynakçada yok artık)
+    #   - kalan → yeni numaraya çevrilir
+    # Sorun: unrelated atıf kalırsa numarası kaynakçayla uyuşmaz. Çözüm: unrelated
+    # atıfları olduğu gibi bırak (eski numarayla) ama köşeli parantezi koru.
+    def _replace_citation(match):
+        n = int(match.group(1))
+        if n in not_found_nums:
+            return ''  # sahte → sil
+        if n in unrelated_nums:
+            return match.group(0)  # içerik uyuşmaz → metinde kalsın (eski haliyle)
+        if n in remap:
+            return f'[{remap[n]}]'  # kalan → yeni numara
+        return match.group(0)
+
+    new_content = re.sub(r'\[(\d+)\]', _replace_citation, article.full_content or '')
+    new_content = re.sub(r'  +', ' ', new_content)
+    new_content = re.sub(r'\s+([.,;:])', r'\1', new_content)
+
+    # Kaydet
+    article.full_content = new_content
+    article.bibliography = new_bibliography
+    article.reference_check_result = {
+        'cleaned': True,
+        'not_found_removed': sorted(not_found_nums & set(order)),
+        'unrelated_removed': sorted(unrelated_nums & set(order)),
+        'remaining': len(remap),
+        'original_total': len(order),
+    }
+    article.reference_checked_at = timezone.now()
+    article.save(update_fields=['full_content', 'bibliography',
+                                'reference_check_result', 'reference_checked_at'])
+
+    n_fake = len(not_found_nums & set(order))
+    n_unrel = len(unrelated_nums & set(order))
+    return True, (
+        f"Kontrol tamamlandı. {n_fake} bulunamayan kaynak silindi (atıfları da kaldırıldı). "
+        f"{n_unrel} içerik-uyuşmayan kaynak kaynakçadan çıkarıldı (metindeki bilgi korundu). "
+        f"{len(remap)} kaynak kaynakçada kaldı."
+    )

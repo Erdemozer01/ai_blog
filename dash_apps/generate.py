@@ -135,6 +135,18 @@ def get_base_prompt(user_request_text, word_count=1500):
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
     7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, {ref_count} kaynakça maddesi.
+        KAYNAK DOĞRULUĞU KURALLARI (ÇOK ÖNEMLİ):
+        - ASLA var olmayan, uydurma kaynak, yazar veya makale üretme. Emin olmadığın bir kaynağı yazma.
+        - Gelecek tarihli ({current_year}'dan sonraki) veya henüz yayınlanmamış kaynak verme.
+        - Yalnızca gerçekten var olduğundan emin olduğun, tanınmış ve doğrulanabilir kaynakları kullan.
+        - Eğer bir iddia için gerçek bir kaynak bilmiyorsan, o iddiaya atıf koyma; genel ifade kullan.
+        - Mümkün olduğunda her kaynağa gerçek DOI veya yayın bilgisi ekle. DOI uydurma.
+        - Az ama gerçek kaynak, çok ama uydurma kaynaktan iyidir.
+        - KAYNAK-İÇERİK UYUMU: Her kaynağı, makalenin İngilizce özetinde (abstract) belirtilen
+          ana konulara ve iddialara doğrudan ilişkili seç. Atıf yaptığın cümle ile kaynağın
+          konusu birebir örtüşmeli. Konuyla yalnızca dolaylı ilgili veya alakasız kaynak ekleme.
+          Kaynakçadaki HER kaynak, metinde en az bir [N] atfıyla kullanılmalı; metinde
+          atıf yapılmayan kaynağı kaynakçaya koyma.
     8.  Yapısal Veri (JSON): Makale içindeki placeholder'larla eşleşen, anahtar-değer yapısında GEÇERLİ bir JSON nesnesi oluştur. Anahtarlar metindeki placeholder'daki sayılar olmalı (örn: "1", "2"). Sadece JSON nesnesini ver, başına veya sonuna "```json" gibi kod blokları ekleme.
         - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') kendin seç.
         - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "description": "Bu tablo neyi gösteriyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: Dünya Bankası, 2024)", "columns": ["Sütun 1"], "data": [["Değer 1A"]]}}}}`
@@ -163,7 +175,11 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
                      "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
                      "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "
                      "konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, "
-                     "yayınlanmaya hazır bir makale taslağı oluşturmak. Cevabını, istenen "
+                     "yayınlanmaya hazır bir makale taslağı oluşturmak. "
+                     "AKADEMİK DÜRÜSTLÜK: Asla var olmayan kaynak, yazar, makale veya DOI "
+                     "uydurma. Emin olmadığın bilgiyi gerçekmiş gibi sunma. Gerçek olmayan "
+                     "bir kaynağa atıf yapmaktansa o iddiayı atıfsız bırak. "
+                     "Cevabını, istenen "
                      "8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka "
                      "hiçbir açıklama olmadan sunmalısın.")
     max_tokens = min(int(word_count * 2.2) + 2000, 16384)

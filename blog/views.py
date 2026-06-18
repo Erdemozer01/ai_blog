@@ -308,7 +308,55 @@ def request_correction_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
-def _build_bibliography_items(article, references_list, apa_style):
+@login_required
+def delete_article_view(request, article_id):
+    """Makale sahibi (veya superuser) makalesini siler. Onay POST ile gelir."""
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    if article.owner_id != request.user.id and not request.user.is_superuser:
+        messages.error(request, "Bu makaleyi silme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    if request.method == 'POST':
+        title = article.title
+        article.delete()
+        messages.success(request, f"'{title}' başlıklı makale silindi.")
+        return redirect('blog:anasayfa')
+
+    # GET: onay sayfası göster
+    return render(request, 'blog/delete_article_confirm.html', {
+        'article': article,
+        'meta_title': 'Makaleyi Sil',
+    })
+
+
+@login_required
+def check_references_view(request, article_id):
+    """
+    Makale sahibinin kendi makalesinin kaynaklarını doğrulaması.
+    CrossRef + AI içerik kontrolü çalıştırır (maliyetli + yavaş).
+    """
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    if article.owner_id != request.user.id and not request.user.is_superuser:
+        messages.error(request, "Bu makalenin kaynaklarını kontrol etme yetkiniz yok.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    if not article.bibliography:
+        messages.warning(request, "Bu makalede kaynakça bulunamadı.")
+        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+    from .reference_check import clean_article_references
+    ok, msg = clean_article_references(article)
+    if ok:
+        messages.success(request, msg)
+    else:
+        messages.warning(request, f"Kontrol yapılamadı: {msg}")
+
+    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
+
+
+def _build_bibliography_items(article, references_list, apa_style, show_badges=True):
     """
     Her kaynağı listeler; doğrulama yapıldıysa yanına durum işareti koyar:
       ✓ yeşil  = CrossRef'te bulundu (+ içerik ilgili)
@@ -317,10 +365,12 @@ def _build_bibliography_items(article, references_list, apa_style):
     """
     import re as _re
 
+    full_content = getattr(article, 'full_content', '') or ''
+
     result = getattr(article, 'reference_check_result', None)
     # num -> sonuç eşlemesi
     status_by_num = {}
-    if result and isinstance(result, dict):
+    if show_badges and result and isinstance(result, dict):
         for r in result.get('results', []):
             try:
                 status_by_num[int(r['num'])] = r
@@ -518,7 +568,8 @@ def article_detail_view(request, article_id, slug):
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
-    formatted_bibliography_items = _build_bibliography_items(article, references_list, apa_style)
+    _is_owner_for_badges = request.user.is_authenticated and (article.owner_id == request.user.id or request.user.is_superuser)
+    formatted_bibliography_items = _build_bibliography_items(article, references_list, apa_style, show_badges=_is_owner_for_badges)
 
     total_votes = article.likes + article.dislikes
     average_rating = 0
@@ -580,21 +631,40 @@ def article_detail_view(request, article_id, slug):
     action_icons = []
     is_owner = request.user.is_authenticated and article.owner_id == request.user.id
 
-    if request.user.is_superuser:
-        # Superuser → admin panelinden düzenler
-        admin_edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+    if request.user.is_superuser or is_owner:
+        # Superuser ve makale sahibi → 3 nokta menüsü
+        # Superuser düzenlemeyi admin panelinden, sahip edit sayfasından yapar
+        if request.user.is_superuser:
+            edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
+            edit_label = "Makaleyi Düzenle (Admin)"
+        else:
+            edit_url = reverse('blog:edit_article', args=[article.id])
+            edit_label = "Makale Düzenle"
+        delete_url = reverse('blog:delete_article', args=[article.id])
+        check_url = reverse('blog:check_references', args=[article.id])
+
+        menu_items = [
+            dbc.DropdownMenuItem([html.I(className="fas fa-pencil-alt me-2"), edit_label],
+                                 href=edit_url, external_link=True),
+            dbc.DropdownMenuItem([html.I(className="fas fa-check-double me-2"), "Makaleyi Kontrol Et"],
+                                 href=check_url, external_link=True),
+            dbc.DropdownMenuItem(divider=True),
+            dbc.DropdownMenuItem([html.I(className="fas fa-trash-alt me-2"), "Makale Sil"],
+                                 href=delete_url, external_link=True,
+                                 className="text-danger"),
+        ]
         action_icons.append(
-            html.A([html.I(className="fas fa-pencil-alt")],
-                   href=admin_edit_url, className="text-warning me-3 fs-5",
-                   title="Makaleyi Düzenle (Admin)")
-        )
-    elif is_owner:
-        # Normal kullanıcı (makale sahibi) → kullanıcı dostu edit sayfası
-        edit_url = reverse('blog:edit_article', args=[article.id])
-        action_icons.append(
-            html.A([html.I(className="fas fa-pencil-alt")],
-                   href=edit_url, className="text-warning me-3 fs-5",
-                   title="Makaleyi Düzenle")
+            dbc.DropdownMenu(
+                label="⋮",
+                children=menu_items,
+                nav=False,
+                in_navbar=False,
+                color="light",
+                align_end=True,
+                size="sm",
+                className="d-inline-block",
+                style={"fontSize": "1.3rem", "fontWeight": "bold"},
+            )
         )
 
     # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
@@ -673,7 +743,7 @@ def article_detail_view(request, article_id, slug):
 
                     html.Hr(className="my-5"),
                     html.H4("Kaynakça"),
-                    _build_reference_check_badge(article),
+                    (_build_reference_check_badge(article) if (is_owner or request.user.is_superuser) else html.Div()),
                     html.Ol(formatted_bibliography_items),
 
                 ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
