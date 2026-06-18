@@ -75,13 +75,34 @@
 </div>
 
 <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/translations/tr.js"></script>
 <script>
     let editorInstance;
     ClassicEditor
         .create(document.querySelector('#editor'), {
-            toolbar: ['heading', '|', 'bold', 'italic', 'link',
-                      'bulletedList', 'numberedList', '|',
-                      'blockQuote', 'insertTable', '|', 'undo', 'redo']
+            toolbar: {
+                items: [
+                    'undo', 'redo', '|',
+                    'heading', '|',
+                    'bold', 'italic', 'link', '|',
+                    'bulletedList', 'numberedList', '|',
+                    'outdent', 'indent', '|',
+                    'blockQuote', 'insertTable', 'mediaEmbed', '|',
+                ],
+                shouldNotGroupWhenFull: true
+            },
+            heading: {
+                options: [
+                    { model: 'paragraph', title: 'Paragraf', class: 'ck-heading_paragraph' },
+                    { model: 'heading1', view: 'h2', title: 'Başlık 1', class: 'ck-heading_heading1' },
+                    { model: 'heading2', view: 'h3', title: 'Başlık 2', class: 'ck-heading_heading2' },
+                    { model: 'heading3', view: 'h4', title: 'Başlık 3', class: 'ck-heading_heading3' }
+                ]
+            },
+            table: {
+                contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+            },
+            language: 'tr'
         })
         .then(editor => { editorInstance = editor; })
         .catch(error => { console.error(error); });
