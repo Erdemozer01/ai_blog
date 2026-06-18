@@ -333,9 +333,12 @@ def delete_article_view(request, article_id):
 @login_required
 def check_references_view(request, article_id):
     """
-    Makale sahibinin kendi makalesinin kaynaklarını doğrulaması.
+    Makale sahibinin kendi makalesinin kaynaklarını kontrol etmesi.
     CrossRef + AI içerik kontrolü çalıştırır (maliyetli + yavaş).
+    AI kullandığı için kredilidir ('makale_kontrol' servis anahtarı).
     """
+    from billing.services import can_use, charge
+
     article = get_object_or_404(GeneratedArticle, id=article_id)
 
     if article.owner_id != request.user.id and not request.user.is_superuser:
@@ -346,9 +349,20 @@ def check_references_view(request, article_id):
         messages.warning(request, "Bu makalede kaynakça bulunamadı.")
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
+    # Kredi kontrolü (superuser muaf)
+    if not request.user.is_superuser:
+        ok_credit, credit_msg = can_use(request.user, 'makale_kontrol', default_cost=5)
+        if not ok_credit:
+            messages.error(request, credit_msg)
+            return redirect('billing:credits')
+
     from .reference_check import clean_article_references
     ok, msg = clean_article_references(article)
     if ok:
+        # İşlem başarılı → krediyi düşür (superuser muaf)
+        if not request.user.is_superuser:
+            charge(request.user, 'makale_kontrol', default_cost=5,
+                   description=f"Makale kontrolü: {article.title[:50]}")
         messages.success(request, msg)
     else:
         messages.warning(request, f"Kontrol yapılamadı: {msg}")
@@ -643,10 +657,20 @@ def article_detail_view(request, article_id, slug):
         delete_url = reverse('blog:delete_article', args=[article.id])
         check_url = reverse('blog:check_references', args=[article.id])
 
+        # Kontrol kredisini DB'den oku (superuser'a kredi etiketi gösterme)
+        check_label = "Makaleyi Kontrol Et"
+        if not request.user.is_superuser:
+            try:
+                from billing.services import get_cost
+                kontrol_kredi = get_cost('makale_kontrol', default=5)
+                check_label = f"Makaleyi Kontrol Et ({kontrol_kredi} Kredi)"
+            except Exception:
+                pass
+
         menu_items = [
             dbc.DropdownMenuItem([html.I(className="fas fa-pencil-alt me-2"), edit_label],
                                  href=edit_url, external_link=True),
-            dbc.DropdownMenuItem([html.I(className="fas fa-check-double me-2"), "Makaleyi Kontrol Et"],
+            dbc.DropdownMenuItem([html.I(className="fas fa-check-double me-2"), check_label],
                                  href=check_url, external_link=True),
             dbc.DropdownMenuItem(divider=True),
             dbc.DropdownMenuItem([html.I(className="fas fa-trash-alt me-2"), "Makale Sil"],

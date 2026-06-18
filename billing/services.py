@@ -16,7 +16,7 @@ from .models import UserCredit, ServicePrice, AIServicePrice, CreditTransaction
 
 
 # AI servis anahtarları — bunlar AIServicePrice'tan, diğerleri ServicePrice'tan okunur
-AI_SERVICE_KEYS = {'makale_uretim', 'bio_tool_ai'}
+AI_SERVICE_KEYS = {'makale_uretim', 'bio_tool_ai', 'makale_kontrol'}
 
 
 def _price_model(service_key):
