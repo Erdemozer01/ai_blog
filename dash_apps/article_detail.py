@@ -135,6 +135,18 @@ def render_article_content(article_data):
     if not full_content:
         return html.P("Bu makale için içerik bulunamadı.")
 
+    # Manuel (CKEditor) makaleler HTML içerir ve placeholder kullanmaz.
+    # Bunları markdown'dan geçirmeden doğrudan HTML olarak göster.
+    has_placeholder = '_||_STRUCTURED_DATA_' in full_content
+    looks_like_html = bool(re.search(r'<(p|h[1-6]|div|figure|img|ul|ol|table|blockquote)\b', full_content, re.IGNORECASE))
+
+    if looks_like_html and not has_placeholder:
+        return html.Div(
+            dcc.Markdown(full_content, dangerously_allow_html=True,
+                         className="academic-text-format"),
+            className="academic-text-format"
+        )
+
     md_extensions = ['extra', 'attr_list']
     md = markdown.Markdown(extensions=md_extensions)
     pattern = r'(_\|\|_STRUCTURED_DATA_(\d+)_\|\|_)'
