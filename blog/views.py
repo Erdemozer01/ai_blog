@@ -286,6 +286,58 @@ def request_correction_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
+def _build_bibliography_items(article, references_list, apa_style):
+    """
+    Her kaynağı listeler; doğrulama yapıldıysa yanına durum işareti koyar:
+      ✓ yeşil  = CrossRef'te bulundu (+ içerik ilgili)
+      ⚠ sarı   = bulundu ama içerik alakasız (şüpheli atıf)
+      ? gri    = bulunamadı / doğrulanamadı
+    """
+    import re as _re
+
+    result = getattr(article, 'reference_check_result', None)
+    # num -> sonuç eşlemesi
+    status_by_num = {}
+    if result and isinstance(result, dict):
+        for r in result.get('results', []):
+            try:
+                status_by_num[int(r['num'])] = r
+            except (ValueError, KeyError, TypeError):
+                continue
+
+    items = []
+    for idx, ref in enumerate(references_list, start=1):
+        clean_ref = _re.sub(r'^\d+\.\s*', '', ref)
+        # Bu kaynağın numarasını metinden çıkar (varsa), yoksa sıra numarası
+        m = _re.match(r'^\[?(\d+)', ref)
+        num = int(m.group(1)) if m else idx
+
+        badge = None
+        info = status_by_num.get(num)
+        if info:
+            status = info.get('status')
+            relevance = info.get('content_relevance')
+            if status == 'verified':
+                if relevance == 'unrelated':
+                    badge = html.Span("⚠", title="Kaynak gerçek ama içerik alakasız görünüyor (şüpheli atıf)",
+                                      className="ms-2", style={'color': '#f0ad4e', 'cursor': 'help'})
+                else:
+                    badge = html.Span("✓", title="Kaynak CrossRef'te doğrulandı",
+                                      className="ms-2", style={'color': '#28a745', 'cursor': 'help'})
+            elif status == 'not_found':
+                badge = html.Span("?", title="Kaynak CrossRef'te bulunamadı (şüpheli)",
+                                  className="ms-2", style={'color': '#6c757d', 'cursor': 'help',
+                                                           'fontWeight': 'bold'})
+            # unreachable ise işaret koyma (doğrulama yapılamamış)
+
+        children = [clean_ref]
+        if badge is not None:
+            children.append(badge)
+        items.append(html.Li(children, style=apa_style, className="mb-2"))
+
+    return items
+
+
 def _build_reference_check_badge(article):
     """
     Kaynak doğrulama sonucunu şeffaf bir bilgi kutusu olarak gösterir.
@@ -444,8 +496,7 @@ def article_detail_view(request, article_id, slug):
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
-    formatted_bibliography_items = [html.Li(re.sub(r'^\d+\.\s*', '', ref), style=apa_style, className="mb-2") for ref in
-                                    references_list]
+    formatted_bibliography_items = _build_bibliography_items(article, references_list, apa_style)
 
     total_votes = article.likes + article.dislikes
     average_rating = 0
