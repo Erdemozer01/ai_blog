@@ -804,6 +804,41 @@ def download_article_as_pdf(request, article_id):
 
 
 @login_required
+def ckeditor_upload_image(request):
+    """
+    CKEditor simpleUpload endpoint'i. Resmi alır, media/article_images/ altına
+    kaydeder, CKEditor'ın beklediği {url: ...} JSON'ını döner.
+    """
+    from django.http import JsonResponse
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    import os
+    import uuid
+
+    if request.method != 'POST':
+        return JsonResponse({'error': {'message': 'Yalnızca POST.'}}, status=405)
+
+    upload = request.FILES.get('upload')
+    if not upload:
+        return JsonResponse({'error': {'message': 'Dosya bulunamadı.'}}, status=400)
+
+    # Tip ve boyut kontrolü
+    if not upload.content_type.startswith('image/'):
+        return JsonResponse({'error': {'message': 'Yalnızca resim dosyaları yüklenebilir.'}}, status=400)
+    if upload.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': {'message': 'Resim 5MB\'den küçük olmalı.'}}, status=400)
+
+    # Güvenli benzersiz ad
+    ext = os.path.splitext(upload.name)[1].lower() or '.jpg'
+    safe_name = f"article_images/{uuid.uuid4().hex}{ext}"
+    path = default_storage.save(safe_name, ContentFile(upload.read()))
+    url = default_storage.url(path)
+
+    # CKEditor simpleUpload formatı
+    return JsonResponse({'url': url})
+
+
+@login_required
 def create_article_view(request):
     """
     Manuel makale oluşturma (CKEditor ile). Kullanıcı başlık, özet, içerik,

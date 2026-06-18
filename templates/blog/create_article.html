@@ -87,7 +87,7 @@
                     'bold', 'italic', 'link', '|',
                     'bulletedList', 'numberedList', '|',
                     'outdent', 'indent', '|',
-                    'blockQuote', 'insertTable', 'mediaEmbed', '|',
+                    'blockQuote', 'insertTable', 'uploadImage', 'mediaEmbed', '|',
                 ],
                 shouldNotGroupWhenFull: true
             },
@@ -101,6 +101,16 @@
             },
             table: {
                 contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+            },
+            image: {
+                toolbar: ['imageTextAlternative', 'imageStyle:inline',
+                          'imageStyle:block', 'imageStyle:side']
+            },
+            simpleUpload: {
+                uploadUrl: '{% url "blog:ckeditor_upload" %}',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
             },
             language: 'tr'
         })
