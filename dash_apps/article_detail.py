@@ -141,10 +141,34 @@ def render_article_content(article_data):
     looks_like_html = bool(re.search(r'<(p|h[1-6]|div|figure|img|ul|ol|table|blockquote)\b', full_content, re.IGNORECASE))
 
     if looks_like_html and not has_placeholder:
-        return html.Div(
-            dcc.Markdown(full_content, dangerously_allow_html=True,
-                         className="academic-text-format"),
-            className="academic-text-format"
+        # CKEditor HTML'ini güvenli ve eksiksiz göstermek için iframe srcdoc.
+        # Bootstrap + temel stil enjekte edilir, yükseklik içeriğe göre ayarlanır.
+        srcdoc = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body {{ font-family: 'Georgia', serif; line-height: 1.8; color: #2c3e50; padding: 8px; margin: 0; }}
+  img {{ max-width: 100%; height: auto; border-radius: 8px; }}
+  figure {{ margin: 1.5rem 0; text-align: center; }}
+  h2, h3, h4 {{ color: #1a252f; margin-top: 1.5rem; font-family: 'Helvetica', sans-serif; }}
+  blockquote {{ border-left: 4px solid #3498db; padding-left: 1rem; color: #555; font-style: italic; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+  td, th {{ border: 1px solid #ddd; padding: 8px; }}
+</style></head>
+<body>{full_content}
+<script>
+  function sendHeight() {{
+    var h = document.body.scrollHeight;
+    parent.postMessage({{type: 'article-iframe-height', height: h}}, '*');
+  }}
+  window.addEventListener('load', sendHeight);
+  window.addEventListener('resize', sendHeight);
+  setTimeout(sendHeight, 500);
+</script>
+</body></html>"""
+        return html.Iframe(
+            srcDoc=srcdoc,
+            style={'width': '100%', 'minHeight': '600px', 'border': 'none'},
+            id='article-content-iframe',
         )
 
     md_extensions = ['extra', 'attr_list']
