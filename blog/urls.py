@@ -20,6 +20,8 @@ urlpatterns = [
     path('generate-article/', views.generate_article_view, name='generate_article'),
     path('create-article/', views.create_article_view, name='create_article'),
     path('ckeditor/upload-image/', views.ckeditor_upload_image, name='ckeditor_upload'),
+    path('article/<int:article_id>/delete/', views.delete_article_view, name='delete_article'),
+    path('article/<int:article_id>/check-references/', views.check_references_view, name='check_references'),
 
     path('contact/', views.contact_view, name='contact'),
 
