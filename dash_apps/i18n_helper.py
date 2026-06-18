@@ -150,7 +150,9 @@ TRANSLATIONS = {
 
     # ---- Navbar ----
     'nav_blog': {'tr': 'Blog', 'en': 'Blog'},
-    'nav_article_search': {'tr': 'Makale Arama', 'en': 'Article Search'},
+    'nav_article_search': {'tr': 'Makale Ara', 'en': 'Search Articles'},
+    'nav_makale': {'tr': 'Makale', 'en': 'Articles'},
+    'nav_create_article': {'tr': 'Makale Oluştur', 'en': 'Create Article'},
     'nav_biotools': {'tr': 'Biyoinformatik Araçları', 'en': 'Bioinformatics Tools'},
     'nav_basic_tools': {'tr': 'Temel Araçlar', 'en': 'Basic Tools'},
     'nav_precision_med': {'tr': 'Hassas Tıp', 'en': 'Precision Medicine'},
@@ -165,7 +167,7 @@ TRANSLATIONS = {
     'nav_pharma': {'tr': 'Farmakogenomik Analiz', 'en': 'Pharmacogenomic Analysis'},
     'nav_variant': {'tr': 'Varyant Önceliklendirme', 'en': 'Variant Prioritization'},
     'nav_federated': {'tr': 'Birleşik Öğrenme (FL)', 'en': 'Federated Learning (FL)'},
-    'nav_generate': {'tr': 'Yeni Makale Üret', 'en': 'Generate New Article'},
+    'nav_generate': {'tr': 'AI Makale Oluştur', 'en': 'AI Generate Article'},
     'nav_admin_dash': {'tr': 'Admin Dashboard', 'en': 'Admin Dashboard'},
     'nav_django_admin': {'tr': 'Django Admin', 'en': 'Django Admin'},
     'nav_profile': {'tr': 'Profil / Özgeçmiş', 'en': 'Profile / Resume'},
@@ -611,4 +613,3 @@ def credit_label(service_key, lang='en', default=5):
         cost = default
     word = 'Kredi' if lang == 'tr' else ('Credits' if cost != 1 else 'Credit')
     return f"({cost} {word})"
-

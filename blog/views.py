@@ -47,7 +47,31 @@ def create_main_navbar(request):
 
     # Herkesin görebileceği ana linkleri listeye ekle
     nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:anasayfa'), active="exact", external_link=True)))
-    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_article_search', lang), href=reverse('blog:article_search'), active="exact", external_link=True)))
+
+    # --- Makale dropdown'ı (AI oluştur / oluştur / ara) ---
+    makale_children = []
+    if request.user.is_authenticated and (request.user.is_superuser or request.user.is_staff):
+        makale_children.append(
+            dbc.DropdownMenuItem(t('nav_generate', lang),
+                                 href=reverse('blog:generate_article'),
+                                 external_link=True, id="nav_generate_item"))
+    if request.user.is_authenticated:
+        makale_children.append(
+            dbc.DropdownMenuItem(t('nav_create_article', lang),
+                                 href=reverse('blog:create_article'),
+                                 external_link=True, id="nav_create_item"))
+    makale_children.append(
+        dbc.DropdownMenuItem(t('nav_article_search', lang),
+                             href=reverse('blog:article_search'),
+                             external_link=True, id="nav_search_item"))
+
+    makale_dropdown = dbc.DropdownMenu(
+        label=t('nav_makale', lang),
+        children=makale_children,
+        nav=True,
+        in_navbar=True,
+    )
+    nav_items.append(makale_dropdown)
     bio_tools_dropdown = dbc.DropdownMenu(
         label=t('nav_biotools', lang),
         children=[
@@ -95,8 +119,6 @@ def create_main_navbar(request):
     if request.user.is_authenticated:
         # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
-        if request.user.is_superuser or request.user.is_staff:
-            dropdown_items.append(dbc.DropdownMenuItem(t('nav_generate', lang), href=reverse('blog:generate_article'), external_link=True))
         if request.user.is_superuser:
             dropdown_items.append(dbc.DropdownMenuItem(t('nav_admin_dash', lang), href=reverse('blog:admin_dashboard'), external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem(t('nav_django_admin', lang), href="/admin/", external_link=True))
@@ -779,6 +801,19 @@ def download_article_as_pdf(request, article_id):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{article.slug}.pdf"'
     return response
+
+
+@login_required
+def create_article_view(request):
+    """
+    Manuel makale oluşturma (CKEditor). Şimdilik geçici placeholder —
+    CKEditor entegrasyonu sonraki adımda yapılacak.
+    """
+    from django.http import HttpResponse
+    main_navbar = create_main_navbar(request)
+    return render(request, 'blog/create_article.html', {
+        'meta_title': 'Makale Oluştur',
+    })
 
 
 @login_required

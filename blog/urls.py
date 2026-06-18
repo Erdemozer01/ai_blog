@@ -18,6 +18,7 @@ urlpatterns = [
     path('resume/<str:username>/', views.resume_view, name='resume_user'),
 
     path('generate-article/', views.generate_article_view, name='generate_article'),
+    path('create-article/', views.create_article_view, name='create_article'),
 
     path('contact/', views.contact_view, name='contact'),
 
