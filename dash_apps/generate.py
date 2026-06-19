@@ -107,8 +107,12 @@ def validate_topic_ai(text):
         return True, ""
 
 
-def get_base_prompt(user_request_text, word_count=1500):
-    """Tüm modeller için ortak olan prompt metnini oluşturur."""
+def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
+    """Tüm modeller için ortak olan prompt metnini oluşturur.
+
+    real_sources: CrossRef'ten çekilmiş gerçek kaynaklar listesi (varsa).
+    Verilirse AI bu kaynaklara dayanarak yazar, kendi kaynak uydurmaz.
+    """
     current_year = date.today().year
     # Kelime sayısına göre ara başlık ve kaynakça sayısını ölçekle
     if word_count <= 500:
@@ -124,8 +128,28 @@ def get_base_prompt(user_request_text, word_count=1500):
         sections_hint = "6-8 ara başlık, alt başlıklar ve kapsamlı bir sonuç bölümü"
         ref_count = "20-30"
 
+    # Gerçek kaynaklar verildiyse, prompt'a kaynak listesi + özetleri eklenir
+    sources_block = ""
+    if real_sources:
+        lines = []
+        for i, s in enumerate(real_sources, start=1):
+            abs_short = (s.get('abstract') or '')[:400]
+            lines.append(
+                f"[{i}] {s['citation']}\n"
+                f"     ÖZET: {abs_short}"
+            )
+        sources_block = (
+            "\n\n=== KULLANILACAK GERÇEK KAYNAKLAR (CrossRef'ten doğrulanmış) ===\n"
+            "Aşağıda, bu konuda GERÇEKTEN VAR OLAN akademik kaynaklar ve özetleri var. "
+            "Makaleyi YALNIZCA bu kaynaklara dayanarak yaz. Her kaynağı özetindeki "
+            "bilgiye uygun bir cümlede [N] numarasıyla kullan. Bu listenin DIŞINDA "
+            "kaynak UYDURMA. Kaynakçaya bu kaynakları aynen, verilen numaralarla yaz.\n\n"
+            + "\n\n".join(lines) +
+            "\n=== GERÇEK KAYNAKLAR SONU ===\n"
+        )
+
     return f"""
-    İstek Konusu: "{user_request_text}"
+    İstek Konusu: "{user_request_text}"{sources_block}
     Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur.
     Oluşturulacak Bölümlerin Sırası:
     1.  Başlık: Spesifik, analitik ve akademik bir başlık.
@@ -136,16 +160,14 @@ def get_base_prompt(user_request_text, word_count=1500):
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
     7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, {ref_count} kaynakça maddesi.
         KAYNAK DOĞRULUĞU KURALLARI (ÇOK ÖNEMLİ):
-        - ASLA var olmayan, uydurma kaynak, yazar veya makale üretme. Emin olmadığın bir kaynağı yazma.
+        - Yukarıda "GERÇEK KAYNAKLAR" listesi verildiyse: SADECE o kaynakları kullan,
+          verilen numaralarla ve aynen yaz. Liste dışında HİÇBİR kaynak ekleme/uydurma.
+        - Liste verilmediyse: ASLA var olmayan, uydurma kaynak, yazar veya makale üretme.
         - Gelecek tarihli ({current_year}'dan sonraki) veya henüz yayınlanmamış kaynak verme.
-        - Yalnızca gerçekten var olduğundan emin olduğun, tanınmış ve doğrulanabilir kaynakları kullan.
-        - Eğer bir iddia için gerçek bir kaynak bilmiyorsan, o iddiaya atıf koyma; genel ifade kullan.
-        - Mümkün olduğunda her kaynağa gerçek DOI veya yayın bilgisi ekle. DOI uydurma.
+        - Yalnızca gerçekten var olduğundan emin olduğun, doğrulanabilir kaynakları kullan.
+        - Eğer bir iddia için gerçek bir kaynak bilmiyorsan, o iddiaya atıf koyma.
         - Az ama gerçek kaynak, çok ama uydurma kaynaktan iyidir.
-        - KAYNAK-İÇERİK UYUMU: Her kaynağı, makalenin İngilizce özetinde (abstract) belirtilen
-          ana konulara ve iddialara doğrudan ilişkili seç. Atıf yaptığın cümle ile kaynağın
-          konusu birebir örtüşmeli. Konuyla yalnızca dolaylı ilgili veya alakasız kaynak ekleme.
-          Kaynakçadaki HER kaynak, metinde en az bir [N] atfıyla kullanılmalı; metinde
+        - Kaynakçadaki HER kaynak, metinde en az bir [N] atfıyla kullanılmalı; metinde
           atıf yapılmayan kaynağı kaynakçaya koyma.
     8.  Yapısal Veri (JSON): Makale içindeki placeholder'larla eşleşen, anahtar-değer yapısında GEÇERLİ bir JSON nesnesi oluştur. Anahtarlar metindeki placeholder'daki sayılar olmalı (örn: "1", "2"). Sadece JSON nesnesini ver, başına veya sonuna "```json" gibi kod blokları ekleme.
         - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') kendin seç.
@@ -170,7 +192,17 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     """
     from ai_engine.services import generate_with_pool
 
-    base_prompt = get_base_prompt(user_request_text, word_count)
+    # Üretimden önce konuya göre CrossRef'ten gerçek kaynakları topla (abstract'lı)
+    real_sources = None
+    try:
+        from blog.reference_check import collect_real_sources_for_topic
+        real_sources = collect_real_sources_for_topic(user_request_text, target_count=8)
+        if not real_sources:
+            real_sources = None
+    except Exception:
+        real_sources = None
+
+    base_prompt = get_base_prompt(user_request_text, word_count, real_sources=real_sources)
     system_prompt = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
                      "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
                      "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "

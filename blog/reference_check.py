@@ -703,3 +703,116 @@ def find_real_reference_for_sentence(sentence, timeout=10, lang='tr'):
         return {'citation': citation, 'doi': doi, 'title': title}
     except Exception:
         return None
+
+def _ai_topic_to_keywords(topic, lang='tr'):
+    """
+    Makale konusunu, CrossRef'te aranacak 3-5 İngilizce anahtar kelime/öbeğe böler.
+    Liste döner (her biri ayrı bir arama sorgusu).
+    """
+    prompt = (
+        "Aşağıdaki makale konusu için, akademik literatür taramasında kullanılacak "
+        "3-5 farklı İngilizce arama sorgusu üret. Her sorgu 2-5 kelime olsun ve "
+        "konunun farklı bir yönünü kapsasın. Sadece sorguları her satıra bir tane "
+        "yaz, numara/açıklama ekleme.\n\n"
+        f"KONU: {topic}\n\n"
+        "İngilizce arama sorguları:"
+    )
+    try:
+        from ai_engine.services import generate_with_pool
+        answer, _ = generate_with_pool(prompt, service_name='Google Gemini',
+                                       model_name='gemini-2.5-flash')
+        if not answer:
+            return [topic]
+        queries = []
+        for line in answer.strip().split('\n'):
+            q = re.sub(r'^[\d\.\)\-\*\s]+', '', line).strip().strip('"')
+            if q and len(q) > 2:
+                queries.append(q[:100])
+        return queries[:5] if queries else [topic]
+    except Exception:
+        return [topic]
+
+
+def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr'):
+    """
+    Konuya göre CrossRef'te ABSTRACT'ı OLAN gerçek kaynaklar toplar.
+    AI konuyu anahtar kelimelere böler, her biri için CrossRef'te arar,
+    abstract'ı olanları seçer.
+
+    Döner: list of dict {
+        'title', 'authors' (str), 'year', 'container', 'doi', 'abstract', 'citation'
+    }
+    En fazla target_count kaynak. CrossRef erişilemezse boş liste.
+    """
+    queries = _ai_topic_to_keywords(topic, lang=lang)
+    collected = []
+    seen_dois = set()
+
+    for query in queries:
+        if len(collected) >= target_count:
+            break
+        try:
+            params = urllib.parse.urlencode({
+                'query.bibliographic': query,
+                'rows': 8,
+                'filter': 'has-abstract:true',  # SADECE abstract'ı olanlar
+            })
+            url = f"{CROSSREF_API}?{params}"
+            req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read().decode())
+        except Exception:
+            continue  # bu sorgu başarısız, diğerine geç
+
+        items = data.get('message', {}).get('items', [])
+        for top in items:
+            if len(collected) >= target_count:
+                break
+            doi = top.get('DOI', '')
+            if not doi or doi in seen_dois:
+                continue
+            abstract = _clean_abstract(top.get('abstract'))
+            if not abstract or len(abstract) < 80:
+                continue  # abstract yok/çok kısa → atla
+
+            title = (top.get('title') or [''])[0]
+            if not title:
+                continue
+
+            # Yazarlar
+            authors = top.get('author', [])
+            if authors:
+                first = authors[0]
+                author_str = (first.get('family') or first.get('name')
+                              or first.get('given') or '').strip()
+                if author_str and len(authors) > 1:
+                    author_str += ' et al.'
+            else:
+                author_str = (top.get('publisher') or 'Anonim')
+
+            # Yıl
+            year = ''
+            for k in ('published-print', 'published-online', 'created'):
+                dp = top.get(k, {}).get('date-parts', [[None]])
+                if dp and dp[0] and dp[0][0]:
+                    year = str(dp[0][0])
+                    break
+
+            container = (top.get('container-title') or [''])[0]
+            citation = f"{author_str} ({year}). {title}."
+            if container:
+                citation += f" {container}."
+            citation += f" https://doi.org/{doi}"
+
+            seen_dois.add(doi)
+            collected.append({
+                'title': title,
+                'authors': author_str,
+                'year': year,
+                'container': container,
+                'doi': doi,
+                'abstract': abstract,
+                'citation': citation,
+            })
+
+    return collected
