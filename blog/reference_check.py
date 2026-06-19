@@ -498,9 +498,30 @@ def clean_article_references(article, max_ai_checks=10):
         return False, ("CrossRef API'sine ulaşılamadı. api.crossref.org'un "
                        "whitelist'te olduğundan emin olun.")
 
-    # Bulunamayan (sahte) kaynak numaraları → tamamen silinecek (atıf dahil)
+    # Bulunamayan (sahte) kaynak numaraları
     not_found_nums = set(int(r['num']) for r in result['results']
                          if r['status'] == 'not_found' and str(r['num']).isdigit())
+
+    # --- 1b. Sahte kaynaklar için CrossRef'te GERÇEK değiştirme ara ---
+    # Atıf cümlesinin konusuyla ilgili gerçek bir makale bulunursa, sahte kaynağı
+    # onunla DEĞİŞTİR (kaynakçada kalır, atıf korunur). Bulunamazsa silinir.
+    replaced_refs = {}      # num -> yeni gerçek kaynak metni
+    replaced_count = 0
+    search_budget = 10      # en fazla 10 sahte kaynak için arama (maliyet/süre)
+    for num in sorted(not_found_nums):
+        if search_budget <= 0:
+            break
+        sentence = _extract_citation_context(article.full_content, num)
+        if not sentence:
+            continue
+        found = find_real_reference_for_sentence(sentence)
+        search_budget -= 1
+        if found and found.get('citation'):
+            replaced_refs[num] = found['citation']
+            replaced_count += 1
+
+    # Değiştirilenler artık "sahte" değil; silinecekler listesinden çıkar
+    not_found_nums = not_found_nums - set(replaced_refs.keys())
 
     # --- 2. Doğrulananlar için AI içerik kontrolü ---
     unrelated_nums = set()  # içerik uyuşmayan → kaynakçadan çıkar, atıf kalır
@@ -534,7 +555,7 @@ def clean_article_references(article, max_ai_checks=10):
         m = num_re.match(ln)
         if m:
             n = int(m.group(1))
-            refs[n] = m.group(2)
+            refs[n] = replaced_refs.get(n, m.group(2))  # değiştirildiyse gerçek kaynak
             order.append(n)
 
     # Kaynakçadan çıkarılacaklar: bulunamayanlar + içerik uyuşmayanlar
@@ -580,6 +601,7 @@ def clean_article_references(article, max_ai_checks=10):
     article.bibliography = new_bibliography
     article.reference_check_result = {
         'cleaned': True,
+        'replaced': replaced_count,
         'not_found_removed': sorted(not_found_nums & set(order)),
         'unrelated_removed': sorted(unrelated_nums & set(order)),
         'remaining': len(remap),
@@ -592,7 +614,90 @@ def clean_article_references(article, max_ai_checks=10):
     n_fake = len(not_found_nums & set(order))
     n_unrel = len(unrelated_nums & set(order))
     return True, (
-        f"Kontrol tamamlandı. {n_fake} bulunamayan kaynak silindi (atıfları da kaldırıldı). "
-        f"{n_unrel} içerik-uyuşmayan kaynak kaynakçadan çıkarıldı (metindeki bilgi korundu). "
-        f"{len(remap)} kaynak kaynakçada kaldı."
+        f"Kontrol tamamlandı. {replaced_count} sahte kaynak, konuyla ilgili GERÇEK "
+        f"kaynakla değiştirildi. {n_fake} kaynak için gerçek bulunamadı, silindi "
+        f"(atıfları da kaldırıldı). {n_unrel} içerik-uyuşmayan kaynak kaynakçadan "
+        f"çıkarıldı (metindeki bilgi korundu). {len(remap)} kaynak kaynakçada kaldı."
     )
+
+def _ai_extract_search_terms(sentence, lang='tr'):
+    """
+    Türkçe cümleden, CrossRef'te aranabilecek İngilizce anahtar arama
+    terimleri üretir (AI ile). Türkçe→İngilizce konu çevirisi.
+    """
+    if not sentence:
+        return None
+    prompt = (
+        "Aşağıdaki Türkçe akademik cümlenin ANA KONUSUNU İngilizce 3-6 kelimelik "
+        "bir akademik arama sorgusuna çevir. Sadece arama terimlerini ver, "
+        "açıklama veya noktalama ekleme.\n\n"
+        f"CÜMLE: {sentence}\n\n"
+        "İngilizce arama terimleri:"
+    )
+    try:
+        from ai_engine.services import generate_with_pool
+        answer, _ = generate_with_pool(prompt, service_name='Google Gemini',
+                                       model_name='gemini-2.5-flash')
+        if answer:
+            terms = answer.strip().strip('"').strip()
+            # İlk satırı al, kısalt
+            terms = terms.split('\n')[0][:120]
+            return terms or None
+    except Exception:
+        pass
+    return None
+
+
+def find_real_reference_for_sentence(sentence, timeout=10, lang='tr'):
+    """
+    Bir cümlenin konusuyla ilgili CrossRef'te GERÇEK bir makale arar.
+    Bulursa APA benzeri bir kaynak string'i + DOI döner, bulamazsa None.
+
+    Döner: dict {'citation': '...', 'doi': '...', 'title': '...'} | None
+    """
+    terms = _ai_extract_search_terms(sentence, lang=lang)
+    if not terms:
+        return None
+    try:
+        params = urllib.parse.urlencode({'query.bibliographic': terms, 'rows': 3})
+        url = f"{CROSSREF_API}?{params}"
+        req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.loads(r.read().decode())
+        items = data.get('message', {}).get('items', [])
+        if not items:
+            return None
+        top = items[0]
+        title = (top.get('title') or ['?'])[0]
+        doi = top.get('DOI', '')
+
+        # Yazarlar
+        authors = top.get('author', [])
+        if authors:
+            first = authors[0]
+            author_str = first.get('family', '')
+            if len(authors) > 1:
+                author_str += ' et al.'
+        else:
+            author_str = (top.get('publisher') or 'Unknown')
+
+        # Yıl
+        year = ''
+        for k in ('published-print', 'published-online', 'created'):
+            dp = top.get(k, {}).get('date-parts', [[None]])
+            if dp and dp[0] and dp[0][0]:
+                year = str(dp[0][0])
+                break
+
+        # Dergi
+        container = (top.get('container-title') or [''])[0]
+
+        citation = f"{author_str} ({year}). {title}."
+        if container:
+            citation += f" {container}."
+        if doi:
+            citation += f" https://doi.org/{doi}"
+
+        return {'citation': citation, 'doi': doi, 'title': title}
+    except Exception:
+        return None
