@@ -585,12 +585,12 @@ def clean_article_references(article, max_ai_checks=10):
     def _replace_citation(match):
         n = int(match.group(1))
         if n in not_found_nums:
-            return ''  # sahte → sil
+            return ''  # sahte → atıf işareti silinir
         if n in unrelated_nums:
-            return match.group(0)  # içerik uyuşmaz → metinde kalsın (eski haliyle)
+            return ''  # içerik uyuşmaz → kaynakçadan çıktı, atıf işareti de silinir (cümle kalır)
         if n in remap:
             return f'[{remap[n]}]'  # kalan → yeni numara
-        return match.group(0)
+        return ''  # kaynakçada karşılığı kalmayan diğer atıflar da temizlenir
 
     new_content = re.sub(r'\[(\d+)\]', _replace_citation, article.full_content or '')
     new_content = re.sub(r'  +', ' ', new_content)
