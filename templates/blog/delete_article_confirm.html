@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block stylesheet %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container my-5" style="max-width: 600px;">
+    <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+            <i class="fas fa-exclamation-triangle me-2"></i>Makaleyi Sil
+        </div>
+        <div class="card-body">
+            <p class="lead">Bu makaleyi silmek istediğinize emin misiniz?</p>
+            <p class="fw-bold">"{{ article.title }}"</p>
+            <p class="text-muted">Bu işlem geri alınamaz. Makale ve tüm verileri kalıcı olarak silinecektir.</p>
+
+            <form method="post" class="d-flex justify-content-end gap-2 mt-4">
+                {% csrf_token %}
+                <a href="{% url 'blog:article_detail' article_id=article.id slug=article.slug %}"
+                   class="btn btn-outline-secondary">İptal</a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-1"></i> Evet, Sil
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
