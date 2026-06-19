@@ -671,15 +671,17 @@ def find_real_reference_for_sentence(sentence, timeout=10, lang='tr'):
         title = (top.get('title') or ['?'])[0]
         doi = top.get('DOI', '')
 
-        # Yazarlar
+        # Yazarlar (family yoksa name/given'a, o da yoksa publisher'a düş)
         authors = top.get('author', [])
+        author_str = ''
         if authors:
             first = authors[0]
-            author_str = first.get('family', '')
-            if len(authors) > 1:
+            author_str = (first.get('family') or first.get('name')
+                          or first.get('given') or '').strip()
+            if author_str and len(authors) > 1:
                 author_str += ' et al.'
-        else:
-            author_str = (top.get('publisher') or 'Unknown')
+        if not author_str:
+            author_str = (top.get('publisher') or 'Anonim')
 
         # Yıl
         year = ''
