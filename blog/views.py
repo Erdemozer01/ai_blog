@@ -654,7 +654,7 @@ def article_detail_view(request, article_id, slug):
         else:
             edit_url = f"/article/{article.id}/duzenle/"
             edit_label = "Makale Düzenle"
-        delete_url = everse('blog:delete_article', args=[article.id])
+        delete_url = reverse('blog:delete_article', args=[article.id])
         check_url = f"/article/{article.id}/check-references/"
 
         # Kontrol kredisini DB'den oku (superuser'a kredi etiketi gösterme)
