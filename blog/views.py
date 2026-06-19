@@ -652,10 +652,10 @@ def article_detail_view(request, article_id, slug):
             edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
             edit_label = "Makaleyi Düzenle (Admin)"
         else:
-            edit_url = reverse('blog:edit_article', args=[article.id])
+            edit_url = f"/article/{article.id}/duzenle/"
             edit_label = "Makale Düzenle"
-        delete_url = reverse('blog:delete_article', args=[article.id])
-        check_url = reverse('blog:check_references', args=[article.id])
+        delete_url = f"/article/{article.id}/delete/"
+        check_url = f"/article/{article.id}/check-references/"
 
         # Kontrol kredisini DB'den oku (superuser'a kredi etiketi gösterme)
         check_label = "Makaleyi Kontrol Et"
