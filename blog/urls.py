@@ -12,7 +12,6 @@ urlpatterns = [
     path('article/<int:article_id>/duzeltme-talebi/', views.request_correction_view, name='request_correction'),
     path('article/<int:article_id>/duzenle/', views.edit_article_view, name='edit_article'),
     path('article/<int:article_id>/delete/', views.delete_article_view, name='delete_article'),
-    path('article/<int:article_id>/check-references/', views.check_references_view, name='check_references'),
 
     re_path(r'^article/(?P<article_id>[0-9]+)/(?P<slug>[^/]+)/$', views.article_detail_view, name='article_detail'),
 
