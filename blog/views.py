@@ -699,10 +699,14 @@ def article_detail_view(request, article_id, slug):
                                     html.Span(" | ", className="mx-2"),
                                     html.Span([html.I(className="fas fa-eye me-1"), f" {article.view_count} Okunma"]),
                                     html.Span(" | ", className="mx-2"),
-                                    yayin_icon if yayin_icon else "",
                                     menu_dropdown,
                                 ], className="text-muted small mb-0 d-flex flex-wrap align-items-center"),
                                 width="auto"
+                            ),
+                            dbc.Col(
+                                yayin_icon if yayin_icon else "",
+                                width="auto",
+                                className="ms-auto fs-5"
                             ),
                         ], align="center", className="border-bottom pb-3 mb-4")
                     ]),
