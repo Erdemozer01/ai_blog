@@ -704,8 +704,7 @@ def article_detail_view(request, article_id, slug):
                                 width="auto"
                             ),
                             dbc.Col(
-                                html.Div([menu_dropdown, yayin_icon] if yayin_icon else [menu_dropdown],
-                                         className="d-flex align-items-center gap-2"),
+                                yayin_icon if yayin_icon else "",
                                 width="auto",
                                 className="ms-auto fs-5"
                             ),
