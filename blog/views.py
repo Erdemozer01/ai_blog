@@ -566,7 +566,7 @@ def article_detail_view(request, article_id, slug):
         toc_links.append(dbc.Nav(nav_items, vertical=True, pills=True))
     toc_sidebar = html.Div(
         toc_links,
-        className="sticky-top p-5 shadow-lg mb-4",
+        className="sticky-top p-4 shadow-sm mb-4 toc-sidebar rounded-3",
         style={"top": "11.5%"},
     )
 
@@ -776,7 +776,7 @@ def article_detail_view(request, article_id, slug):
                         html.Hr(className="my-3"),
                         html.H4("Özet"),
                         html.P(html.Em(article.turkish_abstract or "Türkçe özet mevcut değil."))
-                    ], className="p-4 bg-light rounded mb-4"),
+                    ], className="p-4 rounded mb-4 article-abstract-box"),
 
                     html.Div([
                         html.H5("Anahtar Kelimeler:", className="d-inline-block me-2"),
@@ -790,9 +790,9 @@ def article_detail_view(request, article_id, slug):
                     (_build_reference_check_badge(article) if (is_owner or request.user.is_superuser) else html.Div()),
                     html.Ol(formatted_bibliography_items),
 
-                ], lg=9, className="bg-white p-3 p-md-4 my-4 rounded shadow-lg article-content-col"),
+                ], lg=9, className="bg-white px-4 px-md-5 py-5 my-4 rounded-3 shadow-sm article-content-col"),
             ])
-        ], fluid=True, className="px-2 px-md-4"),
+        ], className="article-detail-container py-4"),
         dbc.Container([
             dbc.Row([
                 dbc.Col(feedback_buttons, md=6, className="mb-3"),
