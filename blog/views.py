@@ -644,48 +644,32 @@ def article_detail_view(request, article_id, slug):
                                  className="text-danger"),
         ]
 
-    action_icons.append(
-        dbc.DropdownMenu(
-            label="⋮",
-            children=menu_items,
-            nav=False,
-            in_navbar=False,
-            align_end=True,
-            size="sm",
-            caret=False,
-            color="link",
-            toggle_class_name="article-menu-toggle",
-            className="d-inline-block",
-            style={"fontSize": "1.3rem", "fontWeight": "bold"},
-        )
+    menu_dropdown = dbc.DropdownMenu(
+        label="Menü",
+        children=menu_items,
+        nav=False,
+        in_navbar=False,
+        align_end=True,
+        size="sm",
+        color="link",
+        toggle_class_name="article-menu-toggle",
+        className="d-inline-block",
     )
 
     # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
+    yayin_icon = None
     if is_owner and not request.user.is_superuser:
         if article.is_published:
-            action_icons.append(
-                html.Span([html.I(className="fas fa-check-circle")],
-                          className="text-success fs-5", title="Anasayfada yayında")
-            )
+            yayin_icon = html.Span([html.I(className="fas fa-check-circle")],
+                                   className="text-success", title="Anasayfada yayında")
         elif article.yayin_talebi:
-            action_icons.append(
-                html.Span([html.I(className="fas fa-clock")],
-                          className="text-info fs-5", title="Yayın talebiniz inceleniyor")
-            )
+            yayin_icon = html.Span([html.I(className="fas fa-clock")],
+                                   className="text-info", title="Yayın talebiniz inceleniyor")
         else:
-            # Talep gönderme — Bootstrap modal'ı açar (template'teki #publishModal)
-            action_icons.append(
-                html.A([html.I(className="fas fa-paper-plane")],
-                       href="#",
-                       className="text-primary fs-5",
-                       title="Yayınlanması için talep gönder",
-                       **{"data-bs-toggle": "modal", "data-bs-target": "#publishModal"})
-            )
-
-    edit_button = html.Div(
-        action_icons,
-        className="float-end d-flex align-items-center gap-2"
-    ) if action_icons else None
+            yayin_icon = html.A([html.I(className="fas fa-paper-plane")],
+                                href="#", className="text-primary",
+                                title="Yayınlanması için talep gönder",
+                                **{"data-bs-toggle": "modal", "data-bs-target": "#publishModal"})
 
     full_layout = html.Div([
         dcc.Store(id='article-data-store', data=article_data_for_dash),
@@ -714,11 +698,13 @@ def article_detail_view(request, article_id, slug):
                                                f" Kategori: {article.category.name if article.category else 'Yok'}"]),
                                     html.Span(" | ", className="mx-2"),
                                     html.Span([html.I(className="fas fa-eye me-1"), f" {article.view_count} Okunma"]),
-                                ], className="text-muted small mb-0"),
+                                    html.Span(" | ", className="mx-2"),
+                                    yayin_icon if yayin_icon else "",
+                                    menu_dropdown,
+                                ], className="text-muted small mb-0 d-flex flex-wrap align-items-center"),
                                 width="auto"
                             ),
-                            dbc.Col(edit_button if edit_button else ""),
-                        ], justify="between", align="center", className="border-bottom pb-3 mb-4")
+                        ], align="center", className="border-bottom pb-3 mb-4")
                     ]),
 
                     html.Div([

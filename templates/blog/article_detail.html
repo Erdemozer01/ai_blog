@@ -143,23 +143,24 @@
                 overflow-wrap: anywhere;
             }
         }
-        /* ⋮ aksiyon menüsü: arka plansız, caret'siz, sade */
+        /* "Menü" dropdown — meta satırına uygun, sade, link tarzı */
         .article-menu-toggle {
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
-            color: #444 !important;
-            padding: 0.25rem 0.5rem !important;
+            color: #6c757d !important;
+            padding: 0 !important;
+            font-size: 0.875rem !important;
+            vertical-align: baseline !important;
+            text-decoration: none !important;
         }
         .article-menu-toggle:hover,
         .article-menu-toggle:focus,
         .article-menu-toggle:active {
-            background: rgba(0,0,0,0.05) !important;
-            color: #000 !important;
+            background: transparent !important;
+            color: #0d6efd !important;
             box-shadow: none !important;
-        }
-        .article-menu-toggle::after {
-            display: none !important;
+            text-decoration: underline !important;
         }
         /* AI inceleme tetikleyici buton — mobilde taşmasın */
         .ai-review-trigger span {
