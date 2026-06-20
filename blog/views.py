@@ -650,9 +650,11 @@ def article_detail_view(request, article_id, slug):
             children=menu_items,
             nav=False,
             in_navbar=False,
-            color="light",
             align_end=True,
             size="sm",
+            caret=False,
+            color="link",
+            toggle_class_name="article-menu-toggle",
             className="d-inline-block",
             style={"fontSize": "1.3rem", "fontWeight": "bold"},
         )

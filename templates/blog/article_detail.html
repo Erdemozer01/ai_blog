@@ -143,6 +143,24 @@
                 overflow-wrap: anywhere;
             }
         }
+        /* ⋮ aksiyon menüsü: arka plansız, caret'siz, sade */
+        .article-menu-toggle {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #444 !important;
+            padding: 0.25rem 0.5rem !important;
+        }
+        .article-menu-toggle:hover,
+        .article-menu-toggle:focus,
+        .article-menu-toggle:active {
+            background: rgba(0,0,0,0.05) !important;
+            color: #000 !important;
+            box-shadow: none !important;
+        }
+        .article-menu-toggle::after {
+            display: none !important;
+        }
     </style>
 {% endblock %}
 
