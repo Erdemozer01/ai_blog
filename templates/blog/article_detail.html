@@ -10,6 +10,15 @@
             max-width: 1100px;
         }
 
+        /* Dash render zincirinde sticky'yi bozan overflow/height kısıtlarını temizle */
+        #react-entry-point,
+        ._dash-loading,
+        .dash-app-content,
+        [data-refresh-on-navigation] {
+            overflow: visible !important;
+            height: auto !important;
+        }
+
         /* Uzun kelimeler ve DOI linkleri satıra sığmazsa kırılsın (taşma önleme) */
         .article-content-col,
         .article-content-col p,
@@ -256,6 +265,31 @@
 
 {% block js %}
 <script>
+    // Sticky sidebar'ı engelleyen parent overflow'larını otomatik temizle.
+    // CSS kuralı: bir ata elementte overflow:hidden/auto/scroll varsa,
+    // içindeki position:sticky çalışmaz. Bu script o engelleri kaldırır.
+    function fixStickyAncestors() {
+        var sidebar = document.querySelector('.toc-sidebar');
+        if (!sidebar) return;
+        var el = sidebar.parentElement;
+        while (el && el !== document.body) {
+            var st = window.getComputedStyle(el);
+            var ox = st.overflowX, oy = st.overflowY;
+            if (ox === 'hidden' || ox === 'auto' || ox === 'scroll' ||
+                oy === 'hidden' || oy === 'auto' || oy === 'scroll') {
+                el.style.overflow = 'visible';
+            }
+            // Sabit yükseklik de sticky'yi kısıtlayabilir
+            if (st.height && st.height !== 'auto' && el.classList.contains('dash-app-content')) {
+                el.style.height = 'auto';
+            }
+            el = el.parentElement;
+        }
+    }
+    document.addEventListener('DOMContentLoaded', fixStickyAncestors);
+    window.addEventListener('load', fixStickyAncestors);
+    setTimeout(fixStickyAncestors, 800);
+
     // Makale içeriği iframe'inin yüksekliğini içeriğe göre ayarla
     window.addEventListener('message', function (e) {
         if (e.data && e.data.type === 'article-iframe-height') {
