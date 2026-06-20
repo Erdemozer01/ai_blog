@@ -83,20 +83,55 @@ def _parse_ai_response(text):
         return None
 
 
+def _get_review_models():
+    """
+    İnceleme için denenecek modelleri sırayla döndürür:
+    (service_name, model_name) tuple listesi.
+    Önce gemini-2.5-flash (tercih), sonra kayıtlı diğer aktif modeller.
+    """
+    preferred = [("Google Gemini", "gemini-2.5-flash")]
+    try:
+        from ai_engine.models import AIModel
+        actives = (AIModel.objects
+                   .filter(is_active=True, provider__is_active=True)
+                   .select_related('provider'))
+        for m in actives:
+            pair = (m.provider.service_name, m.model_name)
+            if pair not in preferred:
+                preferred.append(pair)
+    except Exception:
+        pass
+    return preferred
+
+
 def review_article(article):
     """
     Makaleyi AI ile inceler, sonucu kaydeder ve sahibine e-posta gönderir.
+    Bir model hata verirse kayıtlı diğer aktif modelleri sırayla dener.
     (ok: bool, mesaj: str) döner.
     """
     from ai_engine.services import generate_with_pool
 
-    try:
-        prompt = _build_review_prompt(article)
-        response_text, _key = generate_with_pool(
-            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash"
-        )
-    except Exception as e:
-        return False, f"AI çağrısı başarısız: {e}"
+    prompt = _build_review_prompt(article)
+
+    response_text = None
+    last_error = None
+    tried = []
+    for service_name, model_name in _get_review_models():
+        try:
+            response_text, _key = generate_with_pool(
+                prompt, service_name=service_name, model_name=model_name
+            )
+            if response_text:
+                break  # başarılı, dur
+        except Exception as e:
+            last_error = e
+            tried.append(f"{service_name}/{model_name}")
+            continue  # sıradaki modeli dene
+
+    if not response_text:
+        denenen = ", ".join(tried) if tried else "yok"
+        return False, f"AI çağrısı başarısız (denenen modeller: {denenen}). Son hata: {last_error}"
 
     result = _parse_ai_response(response_text)
     if result is None:

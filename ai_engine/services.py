@@ -171,3 +171,46 @@ def generate_json_with_pool(prompt, service_name="Google Gemini", model_name=Non
     text, key_obj = generate_with_pool(
         prompt, service_name=service_name, model_name=model_name, **kwargs)
     return _parse_json(text), key_obj
+
+
+def get_fallback_models(preferred_service=None, preferred_model=None):
+    """
+    Fallback için denenecek (service_name, model_name) listesini döndürür.
+
+    SADECE SEÇİLEN SAĞLAYICI: Kullanıcı bir sağlayıcı seçtiyse (örn. 'Anthropic'),
+    YALNIZCA o sağlayıcının modelleri denenir. Seçilen model en başta, sonra aynı
+    sağlayıcının diğer aktif modelleri. BAŞKA sağlayıcıya ASLA geçilmez.
+
+    Örnek: Kullanıcı Google seçtiyse sadece Google modelleri + Google API'leri;
+    Claude seçtiyse sadece Anthropic; OpenAI seçtiyse sadece OpenAI denenir.
+
+    Döner: [(service_name, model_name), ...] sıralı liste.
+    """
+    ordered = []
+
+    # 1. Seçilen sağlayıcı + model en başta
+    if preferred_service and preferred_model:
+        ordered.append((preferred_service, preferred_model))
+
+    try:
+        from ai_engine.models import AIModel
+        actives = (AIModel.objects
+                   .filter(is_active=True, provider__is_active=True)
+                   .select_related('provider'))
+
+        # 2. SADECE seçilen sağlayıcının diğer aktif modelleri
+        if preferred_service:
+            for m in actives:
+                if m.provider.service_name == preferred_service:
+                    pair = (m.provider.service_name, m.model_name)
+                    if pair not in ordered:
+                        ordered.append(pair)
+        # NOT: Diğer sağlayıcılara GEÇİLMEZ. Seçilen sağlayıcı tükenirse hata döner.
+    except Exception:
+        pass
+
+    # Hiçbir şey bulunamadıysa en azından seçileni dene
+    if not ordered and preferred_service:
+        ordered.append((preferred_service, preferred_model))
+
+    return ordered
