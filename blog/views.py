@@ -13,10 +13,8 @@ from django.template.loader import render_to_string
 from django.utils.text import slugify
 from django.db.models import F
 
-from weasyprint import HTML, CSS
 import markdown
 import re
-import plotly.express as px
 import base64
 import dash_bootstrap_components as dbc
 from dash import html, dcc
@@ -825,6 +823,10 @@ def download_article_as_pdf(request, article_id):
     WeasyPrint kullanarak, istenmeyen numaralandırma hatası giderilmiş,
     nihai PDF oluşturan fonksiyon.
     """
+    # Ağır kütüphaneler sadece PDF üretiminde yüklenir (lazy import — hız için)
+    from weasyprint import HTML, CSS
+    import plotly.express as px
+
     article = get_object_or_404(
         GeneratedArticle.objects.select_related('owner__profile'),
         id=article_id

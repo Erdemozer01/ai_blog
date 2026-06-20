@@ -5,6 +5,11 @@ Canlı (Production) ve Geliştirme (Development) ortamları için ayrılmış ay
 """
 import locale
 import os
+
+# NumExpr/pandas performans: thread sayısını sabitle, gereksiz log/yeniden başlatmayı azalt
+os.environ.setdefault('NUMEXPR_MAX_THREADS', '4')
+os.environ.setdefault('NUMEXPR_NUM_THREADS', '4')
+
 import platform  # Bu hala veritabanı ayrımı için kullanılabilir, ancak ENV daha iyidir
 from pathlib import Path
 from dotenv import load_dotenv
