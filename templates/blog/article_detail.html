@@ -8,6 +8,21 @@
         /* === Makale okuma düzeni === */
         .article-detail-container {
             max-width: 1100px;
+            overflow-x: hidden;
+        }
+
+        /* Uzun kelimeler ve DOI linkleri satıra sığmazsa kırılsın (taşma önleme) */
+        .article-content-col,
+        .article-content-col p,
+        .article-content-col li,
+        #dynamic-article-content,
+        #dynamic-article-content p {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        .article-content-col a {
+            word-break: break-all;
         }
 
         /* İçerik sütunu: okunabilir genişlik, ortalanmış */
@@ -88,15 +103,30 @@
 
         /* Mobil */
         @media (max-width: 768px) {
+            .article-detail-container {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
             .article-content-col {
-                padding-left: 1.25rem !important;
-                padding-right: 1.25rem !important;
+                max-width: 100%;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
                 padding-top: 2rem !important;
                 border-radius: 0 !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
             }
             .article-content-col h2 { font-size: 1.6rem; }
             #dynamic-article-content,
             .article-content-col > div p { font-size: 1.05rem; line-height: 1.75; }
+            /* Mobilde DOI/uzun link taşmasını kesin engelle */
+            .article-content-col a,
+            #dynamic-article-content a {
+                word-break: break-all;
+                overflow-wrap: anywhere;
+            }
         }
     </style>
 {% endblock %}
