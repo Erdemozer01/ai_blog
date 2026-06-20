@@ -114,10 +114,7 @@
             color: #4f46e5;
             font-size: 0.92rem;
         }
-        /* Sidebar sütunu içeriğin tepesine hizalansın (uzamasın) */
-        .toc-col {
-            align-self: flex-start;
-        }
+        /* toc-col sütunu içerik kadar uzar (sticky'nin kayma alanı için gerekli) */
 
         /* Mobil */
         @media (max-width: 768px) {
@@ -267,36 +264,11 @@
 
 {% block js %}
 <script>
-    // Sticky sidebar'ı engelleyen parent özelliklerini otomatik temizle.
-    // Engeller: overflow (hidden/auto/scroll), sabit height, transform/filter/contain.
-    function fixStickyAncestors() {
-        var sidebar = document.querySelector('.toc-sidebar');
-        if (!sidebar) return;
-        var el = sidebar.parentElement;
-        while (el && el !== document.body) {
-            var st = window.getComputedStyle(el);
-            // overflow engeli
-            if (st.overflowX !== 'visible' || st.overflowY !== 'visible') {
-                el.style.setProperty('overflow', 'visible', 'important');
-            }
-            // transform/filter/perspective/contain sticky bağlamını bozar
-            if (st.transform !== 'none') el.style.setProperty('transform', 'none', 'important');
-            if (st.filter !== 'none') el.style.setProperty('filter', 'none', 'important');
-            if (st.perspective !== 'none') el.style.setProperty('perspective', 'none', 'important');
-            if (st.contain && st.contain !== 'none') el.style.setProperty('contain', 'none', 'important');
-            el = el.parentElement;
-        }
-        // Sidebar'ın doğrudan sütununun (toc-col) yüksekliği içeriği kısıtlamasın
-        var col = sidebar.closest('.toc-col');
-        if (col) {
-            col.style.setProperty('align-self', 'flex-start', 'important');
-            col.style.setProperty('height', 'auto', 'important');
-        }
-    }
-    document.addEventListener('DOMContentLoaded', fixStickyAncestors);
-    window.addEventListener('load', fixStickyAncestors);
-    setTimeout(fixStickyAncestors, 500);
-    setTimeout(fixStickyAncestors, 1500);
+    // Sidebar 'fixed' konumlu — parent overflow/transform'dan etkilenmez.
+    // Konumunu (sol, genişlik) içerik konteynerine göre JS ile ayarlarız.
+    // Sidebar artık saf CSS sticky ile çalışıyor (align-self kaldırıldı,
+    // sütun içerik kadar uzadığı için sticky kayma alanı buluyor). JS gerekmez.
+
 
     // Makale içeriği iframe'inin yüksekliğini içeriğe göre ayarla
     window.addEventListener('message', function (e) {
