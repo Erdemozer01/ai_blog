@@ -357,8 +357,42 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
         return dbc.Alert("Geçersiz kullanıcı kimliği.", color="danger"), no_update
     except Exception as e:
         import traceback
+        tb = traceback.format_exc()
         traceback.print_exc()
-        return dbc.Alert(f"Beklenmedik bir hata oluştu: {e}", color="danger"), no_update
+
+        # Hatayı bildirim olarak kaydet (ham detay sadece superuser admin'de görünür)
+        try:
+            from blog.models import create_notification
+            uid = user_data.get('user_id') if isinstance(user_data, dict) else None
+            ruser = None
+            if uid:
+                try:
+                    ruser = User.objects.get(id=uid)
+                except Exception:
+                    ruser = None
+            create_notification(
+                category='makale_hatasi',
+                title=f"Makale oluşturma hatası: {str(request_text)[:60]}",
+                message=f"Konu: {request_text}",
+                technical_detail=tb,
+                related_user=ruser,
+            )
+        except Exception:
+            pass
+
+        # Kullanıcıya nazik, teknik olmayan mesaj + geri bildirim butonu
+        friendly = dbc.Alert([
+            html.Div([
+                html.I(className="fas fa-exclamation-circle me-2"),
+                html.Strong("Sistem şu an çok yoğun."),
+            ]),
+            html.P("Lütfen birkaç dakika sonra tekrar deneyin. Sorun devam ederse "
+                   "geri bildirimde bulunabilirsiniz.", className="mb-2 mt-2"),
+            dbc.Button("Geri bildirim için tıklayın", id="gen-feedback-btn",
+                       color="link", size="sm", className="p-0"),
+            html.Div(id="gen-feedback-result", className="mt-2 text-success"),
+        ], color="warning")
+        return friendly, no_update
 
 
 @app.callback(
@@ -370,3 +404,14 @@ def toggle_navbar_collapse(n_clicks, is_open):
     if n_clicks:
         return not is_open
     return is_open
+
+@app.callback(
+    Output("gen-feedback-result", "children"),
+    Input("gen-feedback-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def gen_feedback_thanks(n_clicks):
+    """Geri bildirim butonuna tıklanınca teşekkür mesajı (hata zaten kaydedildi)."""
+    if not n_clicks:
+        return no_update
+    return "Geri bildiriminiz için teşekkürler."

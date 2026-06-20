@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.contrib import messages
 
 from .models import (GeneratedArticle, Category, ContactMessage,
-                     Profile, WorkExperience, Education, Skill)
+                     Profile, WorkExperience, Education, Skill, Notification)
 
 
 class OnayBekleyenFilter(admin.SimpleListFilter):
@@ -359,3 +359,43 @@ class ProfileAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             ro.append('user')
         return ro
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('renkli_kategori', 'title', 'related_user', 'okundu_durum', 'created_at')
+    list_filter = ('category', 'is_read', 'created_at')
+    search_fields = ('title', 'message', 'technical_detail')
+    readonly_fields = ('created_at',)
+    list_per_page = 30
+    actions = ['okundu_isaretle', 'okunmadi_isaretle']
+
+    fieldsets = (
+        (None, {'fields': ('category', 'title', 'message', 'related_user', 'is_read', 'created_at')}),
+        ('Teknik Detay (ham hata)', {'fields': ('technical_detail',), 'classes': ('collapse',)}),
+    )
+
+    @admin.display(description="Kategori")
+    def renkli_kategori(self, obj):
+        colors = {
+            'makale_hatasi': '#dc3545', 'ai_inceleme_hatasi': '#fd7e14',
+            'kaynak_hatasi': '#ffc107', 'iletisim': '#0d6efd',
+            'sistem': '#6c757d', 'diger': '#adb5bd',
+        }
+        color = colors.get(obj.category, '#adb5bd')
+        return format_html('<span style="background:{};color:#fff;padding:2px 8px;'
+                           'border-radius:4px;font-size:0.8em;">{}</span>',
+                           color, obj.get_category_display())
+
+    @admin.display(description="Durum", boolean=True)
+    def okundu_durum(self, obj):
+        return obj.is_read
+
+    @admin.action(description="Okundu olarak işaretle")
+    def okundu_isaretle(self, request, queryset):
+        n = queryset.update(is_read=True)
+        self.message_user(request, f"{n} bildirim okundu olarak işaretlendi.")
+
+    @admin.action(description="Okunmadı olarak işaretle")
+    def okunmadi_isaretle(self, request, queryset):
+        n = queryset.update(is_read=False)
+        self.message_user(request, f"{n} bildirim okunmadı olarak işaretlendi.")

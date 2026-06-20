@@ -36,6 +36,17 @@ def submit_contact_form(n_clicks, name, email, subject, message, **kwargs):
             name=name, email=email, subject=subject, message=message
         )
 
+        # Bildirim oluştur (navbar + admin'de görünsün)
+        try:
+            from blog.models import create_notification
+            create_notification(
+                category='iletisim',
+                title=f"Yeni iletişim mesajı: {subject}",
+                message=f"Gönderen: {name} ({email})\n\n{message}",
+            )
+        except Exception:
+            pass
+
         try:
             # --- BU BÖLÜM GÜNCELLENDİ ---
             current_site = Site.objects.get_current()

@@ -138,6 +138,28 @@ def create_main_navbar(request):
             align_end=True,
         )
         nav_items.append(user_menu)
+
+        # Bildirim çanı (sadece superuser) — okunmamış sayısı rozetiyle
+        if request.user.is_superuser:
+            try:
+                from blog.models import Notification
+                unread = Notification.objects.filter(is_read=False).count()
+            except Exception:
+                unread = 0
+            bell_children = [html.I(className="fas fa-bell")]
+            if unread > 0:
+                bell_children.append(
+                    dbc.Badge(str(unread), color="danger", pill=True,
+                              className="ms-1",
+                              style={"fontSize": "0.65rem", "verticalAlign": "top"})
+                )
+            nav_items.append(dbc.NavItem(dbc.NavLink(
+                bell_children,
+                href="/admin/blog/notification/",
+                external_link=True,
+                title=f"{unread} okunmamış bildirim" if unread else "Bildirimler",
+            )))
+
         nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_contact', lang), href=reverse('blog:contact'), external_link=True, active="exact")))
 
     else:
