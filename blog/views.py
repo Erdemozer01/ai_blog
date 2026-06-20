@@ -743,7 +743,7 @@ def article_detail_view(request, article_id, slug):
         main_navbar,
         dbc.Container([
             dbc.Row([
-                dbc.Col(toc_sidebar, lg=2, className="d-none d-lg-block toc-col"),
+                dbc.Col(toc_sidebar, lg=3, className="d-none d-lg-block toc-col"),
                 dbc.Col([
                     html.Header([
                         html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5"),
@@ -789,7 +789,7 @@ def article_detail_view(request, article_id, slug):
                     (_build_reference_check_badge(article) if (is_owner or request.user.is_superuser) else html.Div()),
                     html.Ol(formatted_bibliography_items),
 
-                ], lg=10, className="bg-white px-4 px-md-5 py-5 my-4 rounded-3 shadow-sm article-content-col"),
+                ], lg=9, className="bg-white px-4 px-md-5 py-5 my-4 rounded-3 shadow-sm article-content-col"),
             ])
         ], className="article-detail-container py-4"),
         dbc.Container([

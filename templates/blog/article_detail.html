@@ -103,10 +103,12 @@
 
         /* İçindekiler sidebar - sticky (kaydırınca sabit kalır) */
         .toc-sidebar {
+            position: -webkit-sticky;
             position: sticky;
             top: 90px;
             max-height: calc(100vh - 110px);
             overflow-y: auto;
+            z-index: 10;
         }
         .toc-sidebar a {
             color: #4f46e5;
@@ -265,30 +267,36 @@
 
 {% block js %}
 <script>
-    // Sticky sidebar'ı engelleyen parent overflow'larını otomatik temizle.
-    // CSS kuralı: bir ata elementte overflow:hidden/auto/scroll varsa,
-    // içindeki position:sticky çalışmaz. Bu script o engelleri kaldırır.
+    // Sticky sidebar'ı engelleyen parent özelliklerini otomatik temizle.
+    // Engeller: overflow (hidden/auto/scroll), sabit height, transform/filter/contain.
     function fixStickyAncestors() {
         var sidebar = document.querySelector('.toc-sidebar');
         if (!sidebar) return;
         var el = sidebar.parentElement;
         while (el && el !== document.body) {
             var st = window.getComputedStyle(el);
-            var ox = st.overflowX, oy = st.overflowY;
-            if (ox === 'hidden' || ox === 'auto' || ox === 'scroll' ||
-                oy === 'hidden' || oy === 'auto' || oy === 'scroll') {
-                el.style.overflow = 'visible';
+            // overflow engeli
+            if (st.overflowX !== 'visible' || st.overflowY !== 'visible') {
+                el.style.setProperty('overflow', 'visible', 'important');
             }
-            // Sabit yükseklik de sticky'yi kısıtlayabilir
-            if (st.height && st.height !== 'auto' && el.classList.contains('dash-app-content')) {
-                el.style.height = 'auto';
-            }
+            // transform/filter/perspective/contain sticky bağlamını bozar
+            if (st.transform !== 'none') el.style.setProperty('transform', 'none', 'important');
+            if (st.filter !== 'none') el.style.setProperty('filter', 'none', 'important');
+            if (st.perspective !== 'none') el.style.setProperty('perspective', 'none', 'important');
+            if (st.contain && st.contain !== 'none') el.style.setProperty('contain', 'none', 'important');
             el = el.parentElement;
+        }
+        // Sidebar'ın doğrudan sütununun (toc-col) yüksekliği içeriği kısıtlamasın
+        var col = sidebar.closest('.toc-col');
+        if (col) {
+            col.style.setProperty('align-self', 'flex-start', 'important');
+            col.style.setProperty('height', 'auto', 'important');
         }
     }
     document.addEventListener('DOMContentLoaded', fixStickyAncestors);
     window.addEventListener('load', fixStickyAncestors);
-    setTimeout(fixStickyAncestors, 800);
+    setTimeout(fixStickyAncestors, 500);
+    setTimeout(fixStickyAncestors, 1500);
 
     // Makale içeriği iframe'inin yüksekliğini içeriğe göre ayarla
     window.addEventListener('message', function (e) {
