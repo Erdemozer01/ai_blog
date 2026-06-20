@@ -123,8 +123,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'kaynaklari_dogrula',
-               'kaynaklari_icerik_dogrula', 'uydurma_kaynaklari_temizle']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -159,57 +158,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✗ '{article.title}': {msg}", level='error')
         self.message_user(request, f"İnceleme bitti: {basarili} başarılı, {hatali} hatalı.")
 
-    @admin.action(description="📚 Kaynakları Doğrula (CrossRef ile gerçeklik kontrolü)")
-    def kaynaklari_dogrula(self, request, queryset):
-        if not request.user.is_superuser:
-            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
-            return
-        from .reference_check import check_article_references
-        basarili, hatali = 0, 0
-        for article in queryset:
-            ok, msg = check_article_references(article)
-            if ok:
-                basarili += 1
-                self.message_user(request, f"✓ '{article.title}': {msg}")
-            else:
-                hatali += 1
-                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
-        self.message_user(request, f"Doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
-
-    @admin.action(description="🔍 Kaynakları + İçerik Doğrula (AI ile atıf-kaynak ilgisi)")
-    def kaynaklari_icerik_dogrula(self, request, queryset):
-        if not request.user.is_superuser:
-            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
-            return
-        from .reference_check import check_article_references_with_content
-        basarili, hatali = 0, 0
-        for article in queryset:
-            ok, msg = check_article_references_with_content(article)
-            if ok:
-                basarili += 1
-                self.message_user(request, f"✓ '{article.title}': {msg}")
-            else:
-                hatali += 1
-                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
-        self.message_user(request, f"İçerik doğrulama bitti: {basarili} başarılı, {hatali} atlandı.")
-
-    @admin.action(description="🧹 Uydurma Kaynakları Temizle (yalnızca superuser makaleleri)")
-    def uydurma_kaynaklari_temizle(self, request, queryset):
-        if not request.user.is_superuser:
-            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
-            return
-        from .reference_check import clean_superuser_article_references
-        temizlenen, atlanan = 0, 0
-        for article in queryset:
-            ok, msg = clean_superuser_article_references(article)
-            if ok:
-                temizlenen += 1
-                self.message_user(request, f"✓ '{article.title}': {msg}")
-            else:
-                atlanan += 1
-                self.message_user(request, f"✗ '{article.title}': {msg}", level='warning')
-        self.message_user(request, f"Temizlik bitti: {temizlenen} işlendi, {atlanan} atlandı.")
-
     def get_actions(self, request):
         """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
         actions = super().get_actions(request)
@@ -217,9 +165,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayinla', None)
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
-            actions.pop('kaynaklari_dogrula', None)
-            actions.pop('kaynaklari_icerik_dogrula', None)
-            actions.pop('uydurma_kaynaklari_temizle', None)
         return actions
 
 
