@@ -128,6 +128,10 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
         sections_hint = "6-8 ara başlık, alt başlıklar ve kapsamlı bir sonuç bölümü"
         ref_count = "20-30"
 
+    # Gerçek kaynaklar verildiyse, kaynakça TAM o sayıda olmalı (uydurma/eksik olmasın)
+    if real_sources:
+        ref_count = f"tam olarak {len(real_sources)}"
+
     # Gerçek kaynaklar verildiyse, prompt'a kaynak listesi + özetleri eklenir
     sources_block = ""
     if real_sources:
@@ -158,7 +162,10 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
     4.  Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik kategori adı.
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
-    7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, {ref_count} kaynakça maddesi.
+    7.  Kaynakça (ZORUNLU - ASLA ATLAMA): Makalenin SONUNDA, metindeki atıflara karşılık gelen,
+        numaralı, {ref_count} kaynakça maddesini MUTLAKA yaz. Makale içeriğini kaynakça için
+        yer kalacak şekilde planla; içeriği uzatıp kaynakçayı yarıda BIRAKMA. Kaynakça
+        bölümü eksik veya kesik OLAMAZ.
         KAYNAK DOĞRULUĞU KURALLARI (ÇOK ÖNEMLİ):
         - Yukarıda "GERÇEK KAYNAKLAR" listesi verildiyse: SADECE o kaynakları kullan,
           verilen numaralarla ve aynen yaz. Liste dışında HİÇBİR kaynak ekleme/uydurma.
@@ -214,7 +221,9 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
                      "Cevabını, istenen "
                      "8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka "
                      "hiçbir açıklama olmadan sunmalısın.")
-    max_tokens = min(int(word_count * 2.2) + 2000, 16384)
+    # Token bütçesi: içerik + kaynakça (15 kaynak ~2000 token) için bol yer bırak.
+    # Kaynakça yarıda kesilmesin diye cömert tutulur.
+    max_tokens = min(int(word_count * 2.8) + 4000, 32768)
 
     response_text, used_key = generate_with_pool(
         base_prompt, service_name=service_name, model_name=model_name,
