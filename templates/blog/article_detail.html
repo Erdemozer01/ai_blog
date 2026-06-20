@@ -161,6 +161,11 @@
         .article-menu-toggle::after {
             display: none !important;
         }
+        /* AI inceleme tetikleyici buton — mobilde taşmasın */
+        .ai-review-trigger span {
+            white-space: normal;
+            word-break: break-word;
+        }
     </style>
 {% endblock %}
 
@@ -174,10 +179,10 @@
     {% if user.is_authenticated and article.owner_id == user.id and article.ai_review_score is not None %}
     {# Navbar altında tetikleyici buton — modalı tekrar açar #}
     <div class="container mt-3">
-        <button type="button" class="btn btn-info text-white shadow-sm w-100 d-flex justify-content-between align-items-center"
+        <button type="button" class="btn btn-info text-white shadow-sm w-100 d-flex flex-column flex-sm-row justify-content-sm-between align-items-center gap-2 text-center ai-review-trigger"
                 data-bs-toggle="modal" data-bs-target="#aiReviewModal">
             <span><i class="fas fa-robot me-2"></i>AI Yayınlanabilirlik İncelemesi — Önerileri Görüntüle</span>
-            <span class="badge bg-light text-dark fs-6">Skor: {{ article.ai_review_score }}/100</span>
+            <span class="badge bg-light text-dark fs-6 flex-shrink-0">Skor: {{ article.ai_review_score }}/100</span>
         </button>
     </div>
 
