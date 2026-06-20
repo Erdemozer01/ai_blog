@@ -158,6 +158,15 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
     4.  Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik kategori adı.
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
+        DERİNLİK VE SOMUTLUK KURALLARI (makale yüzeysel kalmasın):
+        - Her ana bölümde SOMUT ÖRNEKLER ver: genel ifadeler ("önemli rol oynar", "etkili olabilir") yerine spesifik vakalar, çalışma adları, yöntemler, sayısal bulgular kullan.
+        - Klinik/tıbbi konularda: spesifik hastalıklar, tedavi stratejileri (in vivo/ex vivo gibi), karşılaşılan zorluklar (yan etkiler, dağıtım, bağışıklık yanıtı) ve varsa başarı oranlarından bahset — ANCAK yalnızca verilen gerçek kaynakların özetlerinde geçen bilgilerle sınırlı kal, uydurma sayı/sonuç ekleme.
+        - Tarım/biyoteknoloji konularında: spesifik ürünler/mahsuller, hedeflenen özellikler (direnç, verim, besin değeri), çevresel ve ekonomik etkilerden somut örneklerle bahset.
+        - Etik/toplumsal boyut varsa: spesifik tartışma konularını (erişim eşitliği, patent, biyogüvenlik, düzenleme vb.) yüzeysel geçmeden, kaynaklardaki bilgiye dayanarak işle.
+        - Her bölümde ELEŞTİREL ANALİZ yap: sadece bilgi sıralama, aynı zamanda sınırlılıkları, çözülmemiş sorunları ve gelecek araştırma yönlerini değerlendir.
+        - Zaman ifadelerini netleştir: "son 5 yılda" gibi bir dönem belirtiyorsan, bunun neye işaret ettiğini (örn. klinik uygulamadaki hızlanma) açıkça yaz.
+        - Atıfları cümlenin ilgili bilgisinin hemen ardından, tutarlı bir düzende yerleştir.
+        - ÖNEMLİ: Tüm somut iddialar verilen gerçek kaynakların kapsamı içinde olmalı. Kaynakta olmayan spesifik sayı, oran veya çalışma adı UYDURMA.
     7.  Kaynakça: Metindeki atıflara karşılık gelen, numaralı, {ref_count} kaynakça maddesi.
         KAYNAK DOĞRULUĞU KURALLARI (ÇOK ÖNEMLİ):
         - Yukarıda "GERÇEK KAYNAKLAR" listesi verildiyse: SADECE o kaynakları kullan,
@@ -196,7 +205,7 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     real_sources = None
     try:
         from blog.reference_check import collect_real_sources_for_topic
-        real_sources = collect_real_sources_for_topic(user_request_text, target_count=8)
+        real_sources = collect_real_sources_for_topic(user_request_text, target_count=15)
         if not real_sources:
             real_sources = None
     except Exception:
