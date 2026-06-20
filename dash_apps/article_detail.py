@@ -147,6 +147,7 @@ def render_article_content(article_data):
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
   body {{ font-family: Georgia, 'Source Serif 4', serif; font-size: 1.15rem; line-height: 1.85; color: #2d2d2d; padding: 0; margin: 0; }}
+  p {{ text-align: justify; hyphens: auto; }}
   img {{ max-width: 100%; height: auto; border-radius: 8px; }}
   figure {{ margin: 1.5rem 0; text-align: center; }}
   h2, h3, h4 {{ color: #1a252f; margin-top: 1.5rem; font-family: 'Helvetica', sans-serif; }}

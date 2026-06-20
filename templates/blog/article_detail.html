@@ -58,7 +58,14 @@
         }
         #dynamic-article-content p {
             margin-bottom: 1.4rem;
-            text-align: left;
+            text-align: justify;
+            hyphens: auto;
+        }
+        /* Tüm makale gövde metni iki yana yaslı */
+        .article-content-col p,
+        .article-content-col li {
+            text-align: justify;
+            hyphens: auto;
         }
 
         /* Atıf numaraları [1] hafif vurgulu */
