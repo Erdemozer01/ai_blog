@@ -566,8 +566,7 @@ def article_detail_view(request, article_id, slug):
         toc_links.append(dbc.Nav(nav_items, vertical=True, pills=True))
     toc_sidebar = html.Div(
         toc_links,
-        className="sticky-top p-4 shadow-sm mb-4 toc-sidebar rounded-3",
-        style={"top": "11.5%"},
+        className="p-4 shadow-sm mb-4 toc-sidebar rounded-3",
     )
 
     GeneratedArticle.objects.filter(pk=article.id).update(view_count=F('view_count') + 1)
@@ -744,7 +743,7 @@ def article_detail_view(request, article_id, slug):
         main_navbar,
         dbc.Container([
             dbc.Row([
-                dbc.Col(toc_sidebar, lg=3, className="d-none d-lg-block"),
+                dbc.Col(toc_sidebar, lg=3, className="d-none d-lg-block toc-col"),
                 dbc.Col([
                     html.Header([
                         html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5"),

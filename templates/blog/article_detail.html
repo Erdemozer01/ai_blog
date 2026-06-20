@@ -25,11 +25,9 @@
             word-break: break-all;
         }
 
-        /* İçerik sütunu: okunabilir genişlik, ortalanmış */
+        /* İçerik sütunu: Bootstrap grid genişliğini kullanır */
         .article-content-col {
-            max-width: 760px;
-            margin-left: auto;
-            margin-right: auto;
+            min-width: 0;
         }
 
         /* Başlık tipografisi */
@@ -95,10 +93,20 @@
             border-radius: 0 8px 8px 0;
         }
 
-        /* İçindekiler sidebar */
+        /* İçindekiler sidebar - sticky (kaydırınca sabit kalır) */
+        .toc-sidebar {
+            position: sticky;
+            top: 90px;
+            max-height: calc(100vh - 110px);
+            overflow-y: auto;
+        }
         .toc-sidebar a {
             color: #4f46e5;
             font-size: 0.92rem;
+        }
+        /* Sidebar sütunu içeriğin tepesine hizalansın (uzamasın) */
+        .toc-col {
+            align-self: flex-start;
         }
 
         /* Mobil */
