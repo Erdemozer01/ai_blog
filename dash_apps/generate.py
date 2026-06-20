@@ -96,7 +96,7 @@ def validate_topic_ai(text):
         )
         result, _key = generate_with_pool(
             prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
-            max_tokens=10, temperature=0.0)
+            max_tokens=10, temperature=0.4)
         answer = (result or "").strip().upper()
         if "GECERSIZ" in answer or "GEÇERSIZ" in answer or "INVALID" in answer:
             return False, ("Girdiğiniz metin geçerli bir makale konusu olarak "
@@ -196,7 +196,7 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     real_sources = None
     try:
         from blog.reference_check import collect_real_sources_for_topic
-        real_sources = collect_real_sources_for_topic(user_request_text, target_count=8)
+        real_sources = collect_real_sources_for_topic(user_request_text, target_count=10)
         if not real_sources:
             real_sources = None
     except Exception:
