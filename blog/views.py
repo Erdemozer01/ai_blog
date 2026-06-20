@@ -157,7 +157,6 @@ def create_main_navbar(request):
                 bell_children,
                 href="/admin/blog/notification/",
                 external_link=True,
-                title=f"{unread} okunmamış bildirim" if unread else "Bildirimler",
             )))
 
         nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_contact', lang), href=reverse('blog:contact'), external_link=True, active="exact")))
