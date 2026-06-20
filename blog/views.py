@@ -13,10 +13,8 @@ from django.template.loader import render_to_string
 from django.utils.text import slugify
 from django.db.models import F
 
-from weasyprint import HTML, CSS
 import markdown
 import re
-import plotly.express as px
 import base64
 import dash_bootstrap_components as dbc
 from dash import html, dcc
@@ -351,46 +349,6 @@ def delete_article_view(request, article_id):
     })
 
 
-@login_required
-def check_references_view(request, article_id):
-    """
-    Makale sahibinin kendi makalesinin kaynaklarını kontrol etmesi.
-    CrossRef + AI içerik kontrolü çalıştırır (maliyetli + yavaş).
-    AI kullandığı için kredilidir ('makale_kontrol' servis anahtarı).
-    """
-    from billing.services import can_use, charge
-
-    article = get_object_or_404(GeneratedArticle, id=article_id)
-
-    if article.owner_id != request.user.id and not request.user.is_superuser:
-        messages.error(request, "Bu makalenin kaynaklarını kontrol etme yetkiniz yok.")
-        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-
-    if not article.bibliography:
-        messages.warning(request, "Bu makalede kaynakça bulunamadı.")
-        return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-
-    # Kredi kontrolü (superuser muaf)
-    if not request.user.is_superuser:
-        ok_credit, credit_msg = can_use(request.user, 'makale_kontrol', default_cost=5)
-        if not ok_credit:
-            messages.error(request, credit_msg)
-            return redirect('billing:credits')
-
-    from .reference_check import clean_article_references
-    ok, msg = clean_article_references(article)
-    if ok:
-        # İşlem başarılı → krediyi düşür (superuser muaf)
-        if not request.user.is_superuser:
-            charge(request.user, 'makale_kontrol', default_cost=5,
-                   description=f"Makale kontrolü: {article.title[:50]}")
-        messages.success(request, msg)
-    else:
-        messages.warning(request, f"Kontrol yapılamadı: {msg}")
-
-    return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
-
-
 def _build_bibliography_items(article, references_list, apa_style, show_badges=True):
     """
     Her kaynağı listeler; doğrulama yapıldıysa yanına durum işareti koyar:
@@ -566,8 +524,7 @@ def article_detail_view(request, article_id, slug):
         toc_links.append(dbc.Nav(nav_items, vertical=True, pills=True))
     toc_sidebar = html.Div(
         toc_links,
-        className="sticky-top p-5 shadow-lg mb-4",
-        style={"top": "11.5%"},
+        className="p-4 shadow-sm mb-4 toc-sidebar rounded-3",
     )
 
     GeneratedArticle.objects.filter(pk=article.id).update(view_count=F('view_count') + 1)
@@ -631,17 +588,12 @@ def article_detail_view(request, article_id, slug):
     encoded_title = quote_plus(article.title or "AI Blog Makalesi")
 
     share_buttons = html.Div([
-        html.H5("İşlemler:", className="mb-3"),
+        html.H6("Paylaş:", className="mb-2"),
         dbc.ButtonGroup([
-            dbc.Button(
-                [html.I(className="fas fa-file-pdf me-1"), " PDF İndir"],
-                href=reverse('blog:download_article_pdf', args=[article.id]),
-                external_link=True, color="danger", outline=True, size="sm", className="me-2"
-            ),
             dbc.Button(
                 [html.I(className="fab fa-twitter me-1"), " Twitter"],
                 href=f"https://twitter.com/intent/tweet?url={page_url}&text={encoded_title}",
-                target="_blank", color="info", outline=True, size="sm"
+                target="_blank", color="info", outline=True, size="sm", className="me-2"
             ),
             dbc.Button(
                 [html.I(className="fab fa-linkedin-in me-1"), " LinkedIn"],
@@ -662,12 +614,18 @@ def article_detail_view(request, article_id, slug):
                          outline=True, size="sm", n_clicks=0)])]
     )
 
-    # --- Makale sahibi için aksiyon ikonları (düzenle + yayın talebi) ---
+    # --- Aksiyon menüsü (⋮): PDF İndir herkese, Düzenle/Sil sadece yetkililere ---
     action_icons = []
     is_owner = request.user.is_authenticated and article.owner_id == request.user.id
 
+    # PDF İndir herkese açık → menüye her zaman eklenir
+    pdf_url = reverse('blog:download_article_pdf', args=[article.id])
+    menu_items = [
+        dbc.DropdownMenuItem([html.I(className="fas fa-file-pdf me-2"), "PDF İndir"],
+                             href=pdf_url, external_link=True),
+    ]
+
     if request.user.is_superuser or is_owner:
-        # Superuser ve makale sahibi → 3 nokta menüsü
         # Superuser düzenlemeyi admin panelinden, sahip edit sayfasından yapar
         if request.user.is_superuser:
             edit_url = reverse('admin:blog_generatedarticle_change', args=[article.id])
@@ -676,41 +634,29 @@ def article_detail_view(request, article_id, slug):
             edit_url = f"/article/{article.id}/duzenle/"
             edit_label = "Makale Düzenle"
         delete_url = f"/article/{article.id}/delete/"
-        check_url = f"/article/{article.id}/check-references/"
 
-        # Kontrol kredisini DB'den oku (superuser'a kredi etiketi gösterme)
-        check_label = "Makaleyi Kontrol Et"
-        if not request.user.is_superuser:
-            try:
-                from billing.services import get_cost
-                kontrol_kredi = get_cost('makale_kontrol', default=5)
-                check_label = f"Makaleyi Kontrol Et ({kontrol_kredi} Kredi)"
-            except Exception:
-                pass
-
-        menu_items = [
+        menu_items += [
+            dbc.DropdownMenuItem(divider=True),
             dbc.DropdownMenuItem([html.I(className="fas fa-pencil-alt me-2"), edit_label],
                                  href=edit_url, external_link=True),
-            dbc.DropdownMenuItem([html.I(className="fas fa-check-double me-2"), check_label],
-                                 href=check_url, external_link=True),
-            dbc.DropdownMenuItem(divider=True),
             dbc.DropdownMenuItem([html.I(className="fas fa-trash-alt me-2"), "Makale Sil"],
                                  href=delete_url, external_link=True,
                                  className="text-danger"),
         ]
-        action_icons.append(
-            dbc.DropdownMenu(
-                label="⋮",
-                children=menu_items,
-                nav=False,
-                in_navbar=False,
-                color="light",
-                align_end=True,
-                size="sm",
-                className="d-inline-block",
-                style={"fontSize": "1.3rem", "fontWeight": "bold"},
-            )
+
+    action_icons.append(
+        dbc.DropdownMenu(
+            label="⋮",
+            children=menu_items,
+            nav=False,
+            in_navbar=False,
+            color="light",
+            align_end=True,
+            size="sm",
+            className="d-inline-block",
+            style={"fontSize": "1.3rem", "fontWeight": "bold"},
         )
+    )
 
     # Yayın talep ikonu (uçak) — sadece sahip, superuser değil, henüz yayında/talep yoksa
     if is_owner and not request.user.is_superuser:
@@ -734,7 +680,10 @@ def article_detail_view(request, article_id, slug):
                        **{"data-bs-toggle": "modal", "data-bs-target": "#publishModal"})
             )
 
-    edit_button = html.Div(action_icons, className="float-end") if action_icons else None
+    edit_button = html.Div(
+        action_icons,
+        className="float-end d-flex align-items-center gap-2"
+    ) if action_icons else None
 
     full_layout = html.Div([
         dcc.Store(id='article-data-store', data=article_data_for_dash),
@@ -744,11 +693,10 @@ def article_detail_view(request, article_id, slug):
         main_navbar,
         dbc.Container([
             dbc.Row([
-                dbc.Col(toc_sidebar, lg=2, className="d-none d-lg-block"),
+                dbc.Col(toc_sidebar, lg=3, className="d-none d-lg-block toc-col"),
                 dbc.Col([
                     html.Header([
-                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5",
-                                style={"text-align": "justify"}),
+                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5"),
                         dbc.Row([
                             dbc.Col(
                                 html.P([
@@ -777,7 +725,7 @@ def article_detail_view(request, article_id, slug):
                         html.Hr(className="my-3"),
                         html.H4("Özet"),
                         html.P(html.Em(article.turkish_abstract or "Türkçe özet mevcut değil."))
-                    ], className="p-4 bg-light rounded mb-4"),
+                    ], className="p-4 rounded mb-4 article-abstract-box"),
 
                     html.Div([
                         html.H5("Anahtar Kelimeler:", className="d-inline-block me-2"),
@@ -791,9 +739,9 @@ def article_detail_view(request, article_id, slug):
                     (_build_reference_check_badge(article) if (is_owner or request.user.is_superuser) else html.Div()),
                     html.Ol(formatted_bibliography_items),
 
-                ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
+                ], lg=9, className="bg-white px-4 px-md-5 py-5 my-4 rounded-3 shadow-sm article-content-col"),
             ])
-        ], fluid=True, className="px-md-5"),
+        ], className="article-detail-container py-4"),
         dbc.Container([
             dbc.Row([
                 dbc.Col(feedback_buttons, md=6, className="mb-3"),
@@ -827,6 +775,10 @@ def download_article_as_pdf(request, article_id):
     WeasyPrint kullanarak, istenmeyen numaralandırma hatası giderilmiş,
     nihai PDF oluşturan fonksiyon.
     """
+    # Ağır kütüphaneler sadece PDF üretiminde yüklenir (lazy import — hız için)
+    from weasyprint import HTML, CSS
+    import plotly.express as px
+
     article = get_object_or_404(
         GeneratedArticle.objects.select_related('owner__profile'),
         id=article_id
