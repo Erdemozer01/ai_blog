@@ -1,216 +1,256 @@
-"""
-ai_engine.services — Genel amaçlı yapay zeka motoru.
-
-Tüm site bu modülü import ederek AI çağrısı yapar.
-
-Mimari:
-  Provider (sağlayıcı) → API anahtarı havuzu (model'den bağımsız)
-                       → birden çok Model (gemini-2.5-flash, ...)
-
-Ana giriş noktaları:
-  generate_with_pool(prompt, service_name=..., model_name=...)  -> (str, key)
-      Sağlayıcının anahtar havuzunu 'en az kullanılan önce' dener; biri
-      hata verirse (429/kota) diğerine geçer. model_name verilmezse
-      sağlayıcının ilk aktif modeli kullanılır.
-
-  generate_json_with_pool(...) -> (dict, key)
-      Yanıtı JSON olarak ayrıştırır.
-
-Örnek (bio-tool, model sabit):
-    from ai_engine.services import generate_with_pool
-    text, key = generate_with_pool("Özetle...", service_name="Google Gemini",
-                                   model_name="gemini-2.5-flash")
-
-Örnek (makale, kullanıcı modeli seçti):
-    text, key = generate_with_pool(prompt, service_name="Google Gemini",
-                                   model_name=secilen_model)
-"""
-import json
-import re
-
-try:
-    import google.generativeai as genai
-except Exception:
-    genai = None
-try:
-    import openai
-except Exception:
-    openai = None
-try:
-    import anthropic
-except Exception:
-    anthropic = None
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils.text import slugify
+from autoslug.fields import AutoSlugField
+from django.urls import reverse
+from .utils import custom_slugify
 
 
-DEFAULT_MAX_TOKENS = 8192
-DEFAULT_TEMPERATURE = 0.7
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name="Kategori Adı")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self): return self.name
+
+    class Meta: verbose_name = "Kategori"; verbose_name_plural = "Kategoriler"; ordering = ['name']
 
 
-def _call_service(service_name, model_name, api_key, prompt,
-                  system_prompt=None, max_tokens=DEFAULT_MAX_TOKENS,
-                  temperature=DEFAULT_TEMPERATURE, safety_settings=None):
-    """Tek bir servise ham istek gönderir, düz metin döndürür."""
-    if service_name == 'Google Gemini':
-        if genai is None:
-            raise RuntimeError("google.generativeai kurulu değil.")
-        genai.configure(api_key=api_key)
-        generation_config = {"temperature": temperature, "max_output_tokens": max_tokens}
-        model = genai.GenerativeModel(model_name=model_name,
-                                      generation_config=generation_config)
-        full = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        if safety_settings:
-            response = model.generate_content(full, safety_settings=safety_settings)
-        else:
-            response = model.generate_content(full)
-        return response.text
-
-    elif service_name == 'OpenAI':
-        if openai is None:
-            raise RuntimeError("openai kurulu değil.")
-        client = openai.OpenAI(api_key=api_key)
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        response = client.chat.completions.create(
-            model=model_name, messages=messages, max_tokens=max_tokens,
-            temperature=temperature)
-        return response.choices[0].message.content
-
-    elif service_name == 'Anthropic':
-        if anthropic is None:
-            raise RuntimeError("anthropic kurulu değil.")
-        client = anthropic.Anthropic(api_key=api_key)
-        kwargs = {"model": model_name, "max_tokens": max_tokens,
-                  "temperature": temperature,
-                  "messages": [{"role": "user", "content": prompt}]}
-        if system_prompt:
-            kwargs["system"] = system_prompt
-        response = client.messages.create(**kwargs)
-        return response.content[0].text
-
-    raise ValueError(f"Bilinmeyen servis: {service_name}")
+class GeneratedArticle(models.Model):
+    STATUS_CHOICES = (('beklemede', 'Beklemede'), ('tamamlandi', 'Tamamlandı'), ('hata', 'Hata'))
+    user_request = models.TextField(verbose_name="Kullanıcı İsteği")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='beklemede', verbose_name="Durum")
+    title = models.CharField(max_length=255, blank=True, null=True, verbose_name="Üretilen Başlık")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Kategori")
+    keywords = models.CharField(max_length=255, blank=True, null=True, verbose_name="Anahtar Kelimeler")
+    english_abstract = models.TextField(blank=True, null=True, verbose_name="İngilizce Özet (Abstract)")
+    turkish_abstract = models.TextField(blank=True, null=True, verbose_name="Türkçe Özet")
+    full_content = models.TextField(blank=True, null=True, verbose_name="Üretilen Tam İçerik")
+    bibliography = models.TextField(blank=True, null=True, verbose_name="Üretilen Kaynakça")
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True, slugify=custom_slugify, max_length=255)
+    cover_image = models.ImageField(
+        upload_to='article_covers/',
+        blank=True,
+        null=True,
+        verbose_name="Kapak Fotoğrafı",
+        help_text="Makale listeleme ve paylaşım için kullanılacak kapak fotoğrafı."
+    )
 
 
-def _resolve_model_name(provider, model_name=None):
+    structured_data = models.JSONField(blank=True, null=True, verbose_name="Grafik/Tablo Verileri")
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Sahibi")
+    view_count = models.PositiveIntegerField(default=0, verbose_name="Okunma Sayısı")
+
+    # --- Yayın onay sistemi ---
+    yayin_talebi = models.BooleanField(
+        default=False,
+        verbose_name="Yayın için başvuruldu",
+        help_text="Makalenizin anasayfada yayınlanması için başvurmak istiyorsanız işaretleyin."
+    )
+    is_published = models.BooleanField(
+        default=False,
+        verbose_name="Anasayfada Yayında",
+        help_text="Yalnızca yöneticiler değiştirebilir. İşaretliyse makale anasayfada görünür."
+    )
+
+    # --- AI Yayınlanabilirlik İncelemesi ---
+    ai_review_score = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name="AI Yayınlanabilirlik Skoru",
+        help_text="0-100 arası. AI'ın makaleyi yayına uygunluk değerlendirmesi."
+    )
+    ai_review_notes = models.TextField(
+        null=True, blank=True,
+        verbose_name="AI Düzeltme Önerileri",
+        help_text="AI'ın tespit ettiği hatalar ve düzeltme önerileri."
+    )
+    ai_reviewed_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="AI İnceleme Tarihi"
+    )
+
+    # --- Kaynak Doğrulama (CrossRef) ---
+    reference_check_result = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Kaynak Doğrulama Sonucu",
+        help_text="CrossRef ile kaynakların varlık doğrulaması (özet + her kaynağın durumu)."
+    )
+    reference_checked_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Kaynak Doğrulama Tarihi"
+    )
+
+    # Kullanıcının son düzenleme zamanı (tekrar inceleme talebi kontrolü için)
+    last_edited_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Son Düzenleme Tarihi"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    likes = models.PositiveIntegerField(default=0, verbose_name="Faydalı Oy Sayısı")
+    dislikes = models.PositiveIntegerField(default=0, verbose_name="Faydasız Oy Sayısı")
+
+    def get_absolute_url(self):
+        return reverse('blog:article_detail', kwargs={'article_id': self.id, 'slug': self.slug})
+
+    def save(self, *args, **kwargs):
+        # Eğer slug boşsa veya başlık değiştiyse, slug'ı başlıktan yeniden oluştur
+        if not self.slug or self.title != self._get_original_title():
+            self.slug = slugify(self.title, allow_unicode=True)
+        super().save(*args, **kwargs)
+
+    def _get_original_title(self):
+        # Bu, modelin veritabanındaki mevcut halini alarak başlığın değişip değişmediğini kontrol eder
+        if self.pk:
+            return GeneratedArticle.objects.get(pk=self.pk).title
+        return ""
+
+    def __str__(self): return self.title or f"'{self.user_request[:20]}...' için istek"
+
+    class Meta: ordering = ['-created_at']; verbose_name = "AI Makalesi"; verbose_name_plural = "AI Makaleleri"
+
+
+class ArticleFeedback(models.Model):
+    VOTE_CHOICES = (('like', 'Faydalı'), ('dislike', 'Faydasız'))
+    article = models.ForeignKey(GeneratedArticle, on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Makale")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Kullanıcı")
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES, verbose_name="Oy")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('article', 'user')  # Kullanıcı başına 1 oy
+        verbose_name = "Makale Geri Bildirimi"
+        verbose_name_plural = "Makale Geri Bildirimleri"
+
+    def __str__(self):
+        return f"{self.user.username} → {self.article.title[:30]} ({self.vote})"
+
+
+class ContactMessage(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Gönderenin Adı")
+    email = models.EmailField(verbose_name="Gönderenin E-postası")
+    subject = models.CharField(max_length=200, verbose_name="Konu")
+    message = models.TextField(verbose_name="Mesaj")
+    is_read = models.BooleanField(default=False, verbose_name="Okundu olarak işaretle")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Gönderilme Tarihi")
+
+    def __str__(self):
+        return f"'{self.subject}' - {self.name}"
+
+    class Meta:
+        verbose_name = "İletişim Mesajı"
+        verbose_name_plural = "İletişim Mesajları"
+        ordering = ['-created_at']
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Kullanıcı")
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True,
+                                        verbose_name="Profil Resmi")
+    first_name = models.CharField(max_length=150, blank=True, verbose_name="Ad")
+    last_name = models.CharField(max_length=150, blank=True, verbose_name="Soyad")
+    title = models.CharField(max_length=100, verbose_name="Ünvan")
+    summary = models.TextField(verbose_name="Özet")
+    email = models.EmailField(verbose_name="E-posta")
+    linkedin_url = models.URLField(blank=True, null=True, verbose_name="LinkedIn URL")
+    github_url = models.URLField(blank=True, null=True, verbose_name="GitHub URL")
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+    class Meta:
+        verbose_name = "Profil"
+        verbose_name_plural = "Profiller"
+
+
+class WorkExperience(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="experience")
+    job_title = models.CharField(max_length=100, verbose_name="İş Ünvanı")
+    company = models.CharField(max_length=100, verbose_name="Şirket")
+    start_date = models.DateField(verbose_name="Başlangıç Tarihi")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Bitiş Tarihi")
+    description = models.TextField(verbose_name="Açıklama")
+    order = models.PositiveIntegerField(default=0, verbose_name="Sıralama")
+
+    def __str__(self):
+        return f"{self.job_title} @ {self.company}"
+
+    class Meta:
+        ordering = ['-start_date']
+        verbose_name = "İş Deneyimi"
+        verbose_name_plural = "İş Deneyimleri"
+
+
+class Education(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="education")
+    degree = models.CharField(max_length=100, verbose_name="Bölüm/Derece")
+    institution = models.CharField(max_length=100, verbose_name="Okul/Kurum")
+    graduation_year = models.PositiveIntegerField(verbose_name="Mezuniyet Yılı")
+
+    def __str__(self):
+        return f"{self.degree} - {self.institution}"
+
+    class Meta:
+        ordering = ['-graduation_year']
+        verbose_name = "Eğitim"
+        verbose_name_plural = "Eğitim Bilgileri"
+
+
+class Skill(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="skills")
+    name = models.CharField(max_length=50, verbose_name="Yetenek Adı")
+    level = models.PositiveIntegerField(default=80, verbose_name="Seviye (1-100)")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['-level']
+        verbose_name = "Yetenek"
+        verbose_name_plural = "Yetenekler"
+
+class Notification(models.Model):
     """
-    model_name verilmemişse sağlayıcının ilk aktif modelini seçer.
-    Verilmişse aynen döndürür (kodda sabit kullanım için).
+    Sistem bildirimi. Superuser'ın admin panelinde ve navbar'da göreceği,
+    kategorize edilmiş, okundu/okunmadı durumu olan bildirimler.
+    İletişim mesajları, AI hataları vb. burada toplanır.
     """
-    if model_name:
-        return model_name
-    first = provider.ai_models.filter(is_active=True).order_by('id').first()
-    if not first:
-        raise ValueError(
-            f"'{provider.service_name}' için aktif bir model tanımı yok. "
-            "Admin panelinden model ekleyin.")
-    return first.model_name
+    CATEGORY_CHOICES = (
+        ('makale_hatasi', 'Makale Oluşturma Hatası'),
+        ('ai_inceleme_hatasi', 'AI İnceleme Hatası'),
+        ('kaynak_hatasi', 'Kaynak Kontrol Hatası'),
+        ('iletisim', 'İletişim Mesajı'),
+        ('sistem', 'Sistem Bildirimi'),
+        ('diger', 'Diğer'),
+    )
+
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES,
+                                default='diger', verbose_name="Kategori")
+    title = models.CharField(max_length=200, verbose_name="Başlık")
+    message = models.TextField(blank=True, verbose_name="Mesaj / Detay")
+    # Ham teknik hata (sadece superuser görür)
+    technical_detail = models.TextField(blank=True, verbose_name="Teknik Detay (ham hata)")
+    is_read = models.BooleanField(default=False, verbose_name="Okundu")
+    # İsteğe bağlı: bildirimi tetikleyen kullanıcı
+    related_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='notifications', verbose_name="İlgili Kullanıcı")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma")
+
+    def __str__(self):
+        return f"[{self.get_category_display()}] {self.title}"
+
+    class Meta:
+        verbose_name = "Bildirim"
+        verbose_name_plural = "Bildirimler"
+        ordering = ['-created_at']
 
 
-def generate_with_pool(prompt, service_name="Google Gemini", model_name=None,
-                       system_prompt=None, max_tokens=DEFAULT_MAX_TOKENS,
-                       temperature=DEFAULT_TEMPERATURE, safety_settings=None):
-    """
-    Havuz/fallback ile üretir.
-
-    İlgili sağlayıcının aktif anahtarlarını 'en az kullanılan önce' sırasıyla
-    dener. Bir anahtar hata verirse (kota/429) sıradakine geçer. Başarılı
-    olanın usage_count'u artırılır.
-
-    model_name verilmezse sağlayıcının ilk aktif modeli kullanılır.
-
-    Döner: (text, used_key)
-    """
-    from django.utils import timezone
-    from ai_engine.models import Provider
-
+def create_notification(category, title, message='', technical_detail='', related_user=None):
+    """Bildirim oluşturmak için kısa yardımcı. Hata olursa sessizce geçer."""
     try:
-        provider = Provider.objects.get(service_name=service_name, is_active=True)
-    except Provider.DoesNotExist:
-        raise ValueError(f"'{service_name}' adlı aktif bir sağlayıcı yok.")
-
-    resolved_model = _resolve_model_name(provider, model_name)
-
-    keys = list(provider.api_keys.filter(is_active=True).order_by('usage_count', 'id'))
-    if not keys:
-        raise ValueError(f"'{service_name}' sağlayıcısında hiç aktif anahtar yok.")
-
-    last_error = None
-    for key_obj in keys:
-        try:
-            text = _call_service(
-                service_name, resolved_model, key_obj.key,
-                prompt, system_prompt, max_tokens, temperature, safety_settings)
-            key_obj.usage_count = (key_obj.usage_count or 0) + 1
-            key_obj.last_used = timezone.now()
-            key_obj.save(update_fields=['usage_count', 'last_used'])
-            return text, key_obj
-        except Exception as e:
-            last_error = e
-            print(f"[ai_engine] {service_name}/{resolved_model} "
-                  f"anahtar #{key_obj.id} başarısız: {e}")
-            continue
-
-    raise RuntimeError(
-        f"Havuzdaki {len(keys)} anahtarın tümü başarısız oldu. Son hata: {last_error}")
-
-
-def _parse_json(text):
-    """```json fence'lerini temizleyip ilk geçerli JSON nesnesini döndürür."""
-    cleaned = text.strip()
-    cleaned = re.sub(r'^```(?:json)?', '', cleaned).strip()
-    cleaned = re.sub(r'```$', '', cleaned).strip()
-    match = re.search(r'\{.*\}', cleaned, re.DOTALL)
-    if match:
-        cleaned = match.group(0)
-    return json.loads(cleaned)
-
-
-def generate_json_with_pool(prompt, service_name="Google Gemini", model_name=None, **kwargs):
-    """generate_with_pool() çağırır, (dict, key) döndürür."""
-    text, key_obj = generate_with_pool(
-        prompt, service_name=service_name, model_name=model_name, **kwargs)
-    return _parse_json(text), key_obj
-
-
-def get_fallback_models(preferred_service=None, preferred_model=None):
-    """
-    Fallback için denenecek (service_name, model_name) listesini döndürür.
-
-    SADECE SEÇİLEN SAĞLAYICI: Kullanıcı bir sağlayıcı seçtiyse (örn. 'Anthropic'),
-    YALNIZCA o sağlayıcının modelleri denenir. Seçilen model en başta, sonra aynı
-    sağlayıcının diğer aktif modelleri. BAŞKA sağlayıcıya ASLA geçilmez.
-
-    Örnek: Kullanıcı Google seçtiyse sadece Google modelleri + Google API'leri;
-    Claude seçtiyse sadece Anthropic; OpenAI seçtiyse sadece OpenAI denenir.
-
-    Döner: [(service_name, model_name), ...] sıralı liste.
-    """
-    ordered = []
-
-    # 1. Seçilen sağlayıcı + model en başta
-    if preferred_service and preferred_model:
-        ordered.append((preferred_service, preferred_model))
-
-    try:
-        from ai_engine.models import AIModel
-        actives = (AIModel.objects
-                   .filter(is_active=True, provider__is_active=True)
-                   .select_related('provider'))
-
-        # 2. SADECE seçilen sağlayıcının diğer aktif modelleri
-        if preferred_service:
-            for m in actives:
-                if m.provider.service_name == preferred_service:
-                    pair = (m.provider.service_name, m.model_name)
-                    if pair not in ordered:
-                        ordered.append(pair)
-        # NOT: Diğer sağlayıcılara GEÇİLMEZ. Seçilen sağlayıcı tükenirse hata döner.
+        return Notification.objects.create(
+            category=category, title=title, message=message,
+            technical_detail=technical_detail, related_user=related_user)
     except Exception:
-        pass
-
-    # Hiçbir şey bulunamadıysa en azından seçileni dene
-    if not ordered and preferred_service:
-        ordered.append((preferred_service, preferred_model))
-
-    return ordered
+        return None
