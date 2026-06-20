@@ -3,6 +3,33 @@
 
 {% block stylesheet %}
     <link rel="icon" type="image/png" href="{% static 'images/favicon.ico' %}">
+    <style>
+        /* Makale içeriği: düz, okunabilir, responsive */
+        .article-content-col p,
+        .article-content-col li {
+            text-align: left;
+            line-height: 1.8;
+        }
+        #dynamic-article-content {
+            font-size: 1.05rem;
+        }
+        /* Mobilde boşlukları iyice azalt, içerik tam genişlik aksın */
+        @media (max-width: 768px) {
+            .article-content-col {
+                padding: 1rem !important;
+                border-radius: 0 !important;
+            }
+            .article-content-col h2 {
+                font-size: 1.5rem;
+            }
+            .article-content-col h4 {
+                font-size: 1.2rem;
+            }
+            #dynamic-article-content {
+                font-size: 1rem;
+            }
+        }
+    </style>
 {% endblock %}
 
 

@@ -744,11 +744,10 @@ def article_detail_view(request, article_id, slug):
         main_navbar,
         dbc.Container([
             dbc.Row([
-                dbc.Col(toc_sidebar, lg=2, className="d-none d-lg-block"),
+                dbc.Col(toc_sidebar, lg=3, className="d-none d-lg-block"),
                 dbc.Col([
                     html.Header([
-                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5",
-                                style={"text-align": "justify"}),
+                        html.H2(article.title or "Başlık Belirtilmemiş", className="mb-4 mt-5"),
                         dbc.Row([
                             dbc.Col(
                                 html.P([
@@ -791,9 +790,9 @@ def article_detail_view(request, article_id, slug):
                     (_build_reference_check_badge(article) if (is_owner or request.user.is_superuser) else html.Div()),
                     html.Ol(formatted_bibliography_items),
 
-                ], lg=8, className="bg-white p-4 p-md-5 my-4 rounded shadow-lg"),
+                ], lg=9, className="bg-white p-3 p-md-4 my-4 rounded shadow-lg article-content-col"),
             ])
-        ], fluid=True, className="px-md-5"),
+        ], fluid=True, className="px-2 px-md-4"),
         dbc.Container([
             dbc.Row([
                 dbc.Col(feedback_buttons, md=6, className="mb-3"),
