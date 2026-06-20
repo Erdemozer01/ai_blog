@@ -710,10 +710,11 @@ def _ai_topic_to_keywords(topic, lang='tr'):
     Liste döner (her biri ayrı bir arama sorgusu).
     """
     prompt = (
-        "Aşağıdaki makale konusu için, akademik literatür taramasında kullanılacak "
-        "3-5 farklı İngilizce arama sorgusu üret. Her sorgu 2-5 kelime olsun ve "
-        "konunun farklı bir yönünü kapsasın. Sadece sorguları her satıra bir tane "
-        "yaz, numara/açıklama ekleme.\n\n"
+        "Aşağıdaki makale konusu için, uluslararası akademik literatür taramasında "
+        "kullanılacak 3-5 farklı arama sorgusu üret. ÇOK ÖNEMLİ: Sorgular MUTLAKA "
+        "İngilizce olmalı (uluslararası dergiler İngilizce yayınlanır). Türkçe kelime "
+        "KULLANMA. Her sorgu 2-5 kelime olsun ve konunun farklı bir yönünü kapsasın. "
+        "Sadece İngilizce sorguları her satıra bir tane yaz, numara/açıklama ekleme.\n\n"
         f"KONU: {topic}\n\n"
         "İngilizce arama sorguları:"
     )
@@ -748,14 +749,23 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
     collected = []
     seen_dois = set()
 
+    # Güncellik: son 6 yıldan itibaren yayınları öncele
+    from datetime import date
+    from_year = date.today().year - 6
+    from_date = f"{from_year}-01-01"
+
     for query in queries:
         if len(collected) >= target_count:
             break
         try:
             params = urllib.parse.urlencode({
                 'query.bibliographic': query,
-                'rows': 8,
-                'filter': 'has-abstract:true',  # SADECE abstract'ı olanlar
+                'rows': 12,
+                # SADECE abstract'ı olan + güncel (son 6 yıl) yayınlar
+                'filter': f'has-abstract:true,from-pub-date:{from_date}',
+                # En çok atıf alan (etkili/okunabilirliği yüksek) önce
+                'sort': 'is-referenced-by-count',
+                'order': 'desc',
             })
             url = f"{CROSSREF_API}?{params}"
             req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
