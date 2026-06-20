@@ -754,7 +754,7 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
         try:
             params = urllib.parse.urlencode({
                 'query.bibliographic': query,
-                'rows': 10,
+                'rows': 8,
                 'filter': 'has-abstract:true',  # SADECE abstract'ı olanlar
             })
             url = f"{CROSSREF_API}?{params}"
