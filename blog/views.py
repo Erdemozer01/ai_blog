@@ -948,7 +948,7 @@ def create_article_view(request):
 
 
 @login_required
-@check_credits('makale_uretim', default_cost=10)
+@check_credits('makale_uretim', default_cost=15)
 def generate_article_view(request):
     try:
         profile = request.user.profile
