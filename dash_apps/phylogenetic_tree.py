@@ -150,10 +150,13 @@ def on_upload(contents, filename):
 )
 def toggle_tree_modal(open_click, cancel_click, confirm_click, stored_fasta, paste_text, lang, **kwargs):
     """Ağaç Oluştur butonu → onay modalını aç. İptal/Onay → kapat."""
-    from dash import ctx
+    import dash
     from billing.dash_helpers import confirm_modal_body
     lang = lang or 'tr'
-    if ctx.triggered_id == 'ph-build-btn':
+    # django-plotly-dash uyumlu: tetikleyen bileşeni prop_id'den çöz
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'ph-build-btn':
         # FASTA yoksa modal açma, doğrudan uyarı yerine modalda bilgi ver
         if not stored_fasta and not paste_text:
             from dash_apps.i18n_helper import t
@@ -288,11 +291,12 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
 )
 def toggle_interpret_modal(open_click, cancel_click, confirm_click, tree_data, lang, **kwargs):
     """AI yorum butonu → onay modalını aç. İptal/Onay → kapat."""
-    from dash import ctx
+    import dash
     from dash_apps.i18n_helper import t
     from billing.dash_helpers import confirm_modal_body
     lang = lang or 'tr'
-    trig = ctx.triggered_id
+    triggered = dash.callback_context.triggered
+    trig = triggered[0]['prop_id'].split('.')[0] if triggered else ''
 
     if trig == 'ph-interpret-btn':
         if not tree_data:
@@ -352,10 +356,12 @@ def interpret_phylo_ai(n_clicks, tree_data, lang, **kwargs):
 )
 def toggle_publish_modal(open_click, cancel_click, confirm_click, tree_data, lang, **kwargs):
     """Makaleye dönüştür butonu → onay modalını aç. İptal/Onay → kapat."""
-    from dash import ctx
+    import dash
     from billing.dash_helpers import confirm_modal_body
     lang = lang or 'tr'
-    if ctx.triggered_id == 'ph-publish-btn':
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'ph-publish-btn':
         if not tree_data:
             return False, "", True
         body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim',
