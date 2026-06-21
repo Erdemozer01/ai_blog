@@ -43,6 +43,15 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
             results['transcribed_rna'] = str(dna_seq.transcribe())
             results['complement'] = str(dna_seq.complement())
             results['reverse_complement'] = str(dna_seq.reverse_complement())
+            # Protein çevirisi (santral dogma: DNA → RNA → protein).
+            # Dizi 3'ün katı değilse kalan baz(lar) çeviriye dahil edilmez.
+            try:
+                usable_len = len(dna_seq) - (len(dna_seq) % 3)
+                if usable_len >= 3:
+                    coding = dna_seq[:usable_len]
+                    results['protein_translation'] = str(coding.translate())
+            except Exception:
+                pass
 
         elif seq_type == 'rna':
             rna_seq = Seq(sequence)

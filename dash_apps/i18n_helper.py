@@ -141,7 +141,7 @@ TRANSLATIONS = {
                           'en': 'Reverse Complement DNA:'},
     'sa_rev_transcription': {'tr': 'Ters Transkripsiyon (RNA → DNA):',
                              'en': 'Reverse Transcription (RNA → DNA):'},
-    'sa_translation': {'tr': 'Translasyon (RNA → Protein):', 'en': 'Translation (RNA → Protein):'},
+    'sa_translation': {'tr': 'Protein Çevirisi (Amino Asit Dizisi):', 'en': 'Protein Translation (Amino Acid Sequence):'},
     'sa_amino_acid': {'tr': 'Amino Asit', 'en': 'Amino Acid'},
     'sa_percent': {'tr': 'Yüzde', 'en': 'Percentage'},
     'sa_gc_content': {'tr': 'GC İçeriği', 'en': 'GC Content'},
