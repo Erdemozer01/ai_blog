@@ -711,12 +711,23 @@ def _ai_topic_to_keywords(topic, lang='tr'):
     """
     prompt = (
         "Aşağıdaki makale konusu için, uluslararası akademik literatür taramasında "
-        "kullanılacak 3-5 farklı arama sorgusu üret. ÇOK ÖNEMLİ: Sorgular MUTLAKA "
-        "İngilizce olmalı (uluslararası dergiler İngilizce yayınlanır). Türkçe kelime "
-        "KULLANMA. Her sorgu 2-5 kelime olsun ve konunun farklı bir yönünü kapsasın. "
-        "Sadece İngilizce sorguları her satıra bir tane yaz, numara/açıklama ekleme.\n\n"
+        "kullanılacak 3-5 arama sorgusu üret.\n\n"
+        "KURALLAR:\n"
+        "1. Sorgular MUTLAKA İngilizce olmalı. Türkçe kelime KULLANMA.\n"
+        "2. ÇOK ÖNEMLİ — KONUYA SADIK KAL: Sorgular, konunun ÇEKİRDEK/SPESİFİK "
+        "terimlerini korumalı. Konuda spesifik bir gen (örn. rpl16), organizma "
+        "(örn. Opuntia, cactus), yapı (örn. chloroplast, intron) veya hastalık varsa, "
+        "bu terimleri sorgulara MUTLAKA dahil et.\n"
+        "3. GENELLEMEDEN KAÇIN: 'DNA analysis', 'genomics', 'sequencing technology', "
+        "'bioinformatics' gibi AŞIRI GENEL terimler TEK BAŞINA kullanma. Bunlar konuyla "
+        "alakasız sonuçlar getirir. Genel terim kullanacaksan bile spesifik terimle "
+        "birleştir (örn. 'chloroplast genome evolution' iyi, sadece 'genomics' kötü).\n"
+        "4. Amaç: konuyla DOĞRUDAN alakalı, atıf yapılabilecek kaynaklar bulmak. "
+        "Konudan uzaklaşan genel sorgu, alakasız makale getirir — bundan kaçın.\n"
+        "5. Her sorgu 2-5 kelime olsun. Sadece sorguları her satıra bir tane yaz, "
+        "numara/açıklama ekleme.\n\n"
         f"KONU: {topic}\n\n"
-        "İngilizce arama sorguları:"
+        "Konuya sadık, spesifik İngilizce arama sorguları:"
     )
     try:
         from ai_engine.services import generate_with_pool, get_fallback_models
@@ -767,6 +778,41 @@ def _has_numeric_data(abstract):
     return hits >= 1
 
 
+def _topic_core_terms(topic):
+    """
+    Konudan, alaka kontrolünde kullanılacak ayırt edici çekirdek terimleri çıkarır.
+    Çok genel/dolgu kelimeleri eler, spesifik isimleri (gen, organizma, yapı) tutar.
+    """
+    import re
+    if not topic:
+        return []
+    stop = {
+        'analizi', 'analiz', 'dizisi', 'dizi', 've', 'ile', 'bir', 'bu', 'için',
+        'üzerine', 'güncel', 'yaklaşımlar', 'değerlendirme', 'biyolojik', 'önemi',
+        'genomik', 'genom', 'gen', 'dna', 'rna', 'sequence', 'analysis', 'gene',
+        'study', 'review', 'current', 'biological', 'importance', 'the', 'and',
+        'of', 'in', 'for', 'on', 'with', 'genomics', 'genome',
+        'ışığında', 'bakış', 'açısı', 'açısından', 'karakterizasyonu',
+    }
+    terms = []
+    for w in re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]+", topic):
+        wl = w.lower()
+        if len(wl) >= 4 and wl not in stop:
+            terms.append(wl)
+    return terms
+
+
+def _abstract_is_relevant(abstract, title, core_terms):
+    """
+    Abstract/başlık, konunun çekirdek terimlerinden en az biriyle örtüşüyor mu?
+    core_terms boşsa (genel konu) True döner (filtre uygulanmaz).
+    """
+    if not core_terms:
+        return True
+    text = ((abstract or '') + ' ' + (title or '')).lower()
+    return any(term in text for term in core_terms)
+
+
 def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr'):
     """
     Konuya göre CrossRef'te ABSTRACT'ı OLAN gerçek kaynaklar toplar.
@@ -779,7 +825,9 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
     En fazla target_count kaynak. CrossRef erişilemezse boş liste.
     """
     queries = _ai_topic_to_keywords(topic, lang=lang)
+    core_terms = _topic_core_terms(topic)
     collected = []
+    fallback_pool = []  # alaka şartını geçemeyen ama geçerli kaynaklar (yedek)
     seen_dois = set()
 
     # Güncellik: son 6 yıldan itibaren yayınları öncele
@@ -848,7 +896,7 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
             citation += f" https://doi.org/{doi}"
 
             seen_dois.add(doi)
-            collected.append({
+            record = {
                 'title': title,
                 'authors': author_str,
                 'year': year,
@@ -857,7 +905,18 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
                 'abstract': abstract,
                 'citation': citation,
                 '_has_numeric': _has_numeric_data(abstract),
-            })
+            }
+            # Alaka kontrolü: konunun çekirdek terimleriyle örtüşüyor mu?
+            if _abstract_is_relevant(abstract, title, core_terms):
+                collected.append(record)
+            else:
+                fallback_pool.append(record)  # alakasız → yedek havuza
+
+    # Alakalı kaynaklar hedefi karşılamıyorsa (niş konu), yedek havuzdan tamamla.
+    # Böylece makale kaynaksız kalmaz ama önce HER ZAMAN alakalılar gelir.
+    if len(collected) < target_count and fallback_pool:
+        need = target_count - len(collected)
+        collected.extend(fallback_pool[:need])
 
     # Veri-zengin kaynakları öne al (tablo/grafik için gerçek sayı bulunsun),
     # ama sayısal verisi olmayanları da koru (yeterli kaynak kalsın).
