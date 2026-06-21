@@ -391,7 +391,7 @@ def publish_bio_to_article(n_clicks, bio_results, lang, **kwargs):
     # Kredi kontrolü (makale üretimi — superuser muaf)
     from billing.services import can_use, charge
     if not user.is_superuser:
-        ok_credit, credit_msg = can_use(user, 'makale_uretim', default_cost=10)
+        ok_credit, credit_msg = can_use(user, 'makale_uretim', default_cost=15)
         if not ok_credit:
             return dbc.Alert(credit_msg, color="danger")
 
@@ -461,7 +461,7 @@ def publish_bio_to_article(n_clicks, bio_results, lang, **kwargs):
         # Makale başarılı → krediyi düş (superuser muaf)
         if not user.is_superuser:
             try:
-                charge(user, 'makale_uretim', default_cost=10,
+                charge(user, 'makale_uretim', default_cost=15,
                        description=f"Bio-makale: {ai_data.get('title', '')[:50]}")
             except Exception:
                 pass
