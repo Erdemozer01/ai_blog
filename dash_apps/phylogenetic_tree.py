@@ -156,7 +156,7 @@ def toggle_tree_modal(open_click, cancel_click, confirm_click, stored_fasta, pas
     # django-plotly-dash uyumlu: tetikleyen bileşeni prop_id'den çöz
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
-    if trig_id == 'ph-build-btn':
+    if trig_id == 'ph-build-btn' and open_click:
         # FASTA yoksa modal açma, doğrudan uyarı yerine modalda bilgi ver
         if not stored_fasta and not paste_text:
             from dash_apps.i18n_helper import t
@@ -298,7 +298,7 @@ def toggle_interpret_modal(open_click, cancel_click, confirm_click, tree_data, l
     triggered = dash.callback_context.triggered
     trig = triggered[0]['prop_id'].split('.')[0] if triggered else ''
 
-    if trig == 'ph-interpret-btn':
+    if trig == 'ph-interpret-btn' and open_click:
         if not tree_data:
             return False, "", True
         body, can_proceed = confirm_modal_body(kwargs, 'bio_phylo_interpret',
@@ -361,7 +361,7 @@ def toggle_publish_modal(open_click, cancel_click, confirm_click, tree_data, lan
     lang = lang or 'tr'
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
-    if trig_id == 'ph-publish-btn':
+    if trig_id == 'ph-publish-btn' and open_click:
         if not tree_data:
             return False, "", True
         body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim',
