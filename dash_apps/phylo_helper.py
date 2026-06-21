@@ -109,6 +109,26 @@ def build_phylo_tree(records, method='nj'):
         # Mesafe matrisi özeti (en yakın/uzak çiftler)
         dist_summary = _distance_summary(dm, taxa)
 
+        # Her taksonun (yaprağın) terminal dal uzunluğu — akrabalık göstergesi
+        branch_lengths = []
+        for leaf in tree.get_terminals():
+            bl = leaf.branch_length or 0.0
+            branch_lengths.append({'taxon': leaf.name, 'branch_length': round(bl, 4)})
+        # Uzun dal = daha ayrık/farklı; kısa dal = diğerlerine yakın
+        branch_lengths.sort(key=lambda x: x['branch_length'])
+
+        # İkili mesafe tablosu (taksonlar arası tüm uzaklıklar)
+        pairwise = []
+        for i in range(len(taxa)):
+            for j in range(i + 1, len(taxa)):
+                try:
+                    d = dm[taxa[i], taxa[j]]
+                    pairwise.append({'a': taxa[i], 'b': taxa[j],
+                                     'distance': round(d, 4)})
+                except Exception:
+                    pass
+        pairwise.sort(key=lambda x: x['distance'])
+
         return {
             'success': True,
             'tree': tree,
@@ -118,6 +138,8 @@ def build_phylo_tree(records, method='nj'):
             'n_taxa': len(taxa),
             'aln_length': min_len,
             'distance_summary': dist_summary,
+            'branch_lengths': branch_lengths,
+            'pairwise_distances': pairwise,
         }
     except Exception as e:
         return {'success': False, 'error': f'Ağaç oluşturulamadı: {e}'}
@@ -231,26 +253,36 @@ def interpret_tree_ai(tree_result, lang='tr'):
         from ai_engine.services import generate_with_pool, get_fallback_models
 
         taxa = tree_result.get('taxa', [])
-        prompt = (
-            "Aşağıda bir filogenetik analiz sonucu var. Bunu bilimsel olarak yorumla.\n\n"
-            f"Yöntem: {tree_result.get('method')}\n"
-            f"Takson (tür/dizi) sayısı: {tree_result.get('n_taxa')}\n"
-            f"Hizalama uzunluğu: {tree_result.get('aln_length')} pozisyon\n"
-            f"Taksonlar: {', '.join(taxa)}\n"
-            f"Mesafe özeti: {tree_result.get('distance_summary', '')}\n"
-            f"Newick: {tree_result.get('newick', '')}\n\n"
-            "GÖREV: 2-3 paragraf halinde evrimsel yorum yap:\n"
-            "1. Hangi taksonlar birbirine daha yakın akraba (kümeleniyor)?\n"
-            "2. En uzak/ayrık takson hangisi?\n"
-            "3. Bu evrimsel ilişkiler ne anlama gelebilir (tür ayrımı, korunmuşluk)?\n"
-            "Sadece yorumu yaz, başlık veya madde işareti ekleme."
-        )
+        if lang == 'en':
+            prompt = (
+                "Below is a phylogenetic analysis result. Write a SHORT interpretation "
+                "in English: just 1-2 complete sentences summarizing the key evolutionary "
+                "relationship (which taxa cluster, which is most divergent).\n\n"
+                f"Method: {tree_result.get('method')}\n"
+                f"Number of taxa: {tree_result.get('n_taxa')}\n"
+                f"Taxa: {', '.join(taxa)}\n"
+                f"Distance summary: {tree_result.get('distance_summary', '')}\n\n"
+                "Write only 1-2 complete sentences. No headings, no bullet points, "
+                "no lists. Finish every sentence."
+            )
+        else:
+            prompt = (
+                "Aşağıda bir filogenetik analiz sonucu var. KISA bir yorum yaz: "
+                "sadece 1-2 tam cümleyle temel evrimsel ilişkiyi özetle (hangi taksonlar "
+                "kümeleniyor, hangisi en ayrık).\n\n"
+                f"Yöntem: {tree_result.get('method')}\n"
+                f"Takson sayısı: {tree_result.get('n_taxa')}\n"
+                f"Taksonlar: {', '.join(taxa)}\n"
+                f"Mesafe özeti: {tree_result.get('distance_summary', '')}\n\n"
+                "Sadece 1-2 TAM cümle yaz. Başlık, madde işareti veya liste KULLANMA. "
+                "Her cümleyi tamamla. Uzun yazma."
+            )
         for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash",
                                             cross_provider=True):
             try:
                 text, _ = generate_with_pool(prompt, service_name=svc, model_name=mdl,
-                                             max_tokens=800, temperature=0.5)
-                if text:
+                                             max_tokens=512, temperature=0.5)
+                if text and len(text.strip()) > 30:
                     return text.strip()
             except Exception:
                 continue
