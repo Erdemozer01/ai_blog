@@ -76,9 +76,14 @@ def create_phylo_layout(lang='tr'):
         ),
     ], md=8, className="p-4", style={'height': '100vh', 'overflowY': 'auto'})
 
+    from billing.dash_helpers import build_confirm_modal
     return dbc.Container([
         dcc.Location(id='ph-url', refresh=False),
         dcc.Store(id='ph-lang-store', data=lang),
+        # Kredi onay modalları
+        build_confirm_modal('ph-tree-modal', lang=lang),
+        build_confirm_modal('ph-interpret-modal', lang=lang),
+        build_confirm_modal('ph-publish-modal', lang=lang),
         html.H2([html.I(className="fas fa-sitemap me-2"), t('ph_title', lang)],
                 className="mt-4"),
         html.P(t('ph_page_desc', lang), className="text-muted"),
@@ -132,9 +137,39 @@ def on_upload(contents, filename):
 
 
 @app.callback(
+    Output('ph-tree-modal', 'is_open'),
+    Output('ph-tree-modal-body', 'children'),
+    Output('ph-tree-modal-confirm', 'disabled'),
+    Input('ph-build-btn', 'n_clicks'),
+    Input('ph-tree-modal-cancel', 'n_clicks'),
+    Input('ph-tree-modal-confirm', 'n_clicks'),
+    State('ph-fasta-store', 'data'),
+    State('ph-paste', 'value'),
+    State('ph-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_tree_modal(open_click, cancel_click, confirm_click, stored_fasta, paste_text, lang, **kwargs):
+    """Ağaç Oluştur butonu → onay modalını aç. İptal/Onay → kapat."""
+    from dash import ctx
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    if ctx.triggered_id == 'ph-build-btn':
+        # FASTA yoksa modal açma, doğrudan uyarı yerine modalda bilgi ver
+        if not stored_fasta and not paste_text:
+            from dash_apps.i18n_helper import t
+            import dash_bootstrap_components as dbc
+            return True, dbc.Alert(t('ph_no_input', lang), color="warning",
+                                   className="mb-0"), True
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_phylogenetics',
+                                               cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, no_update, no_update
+
+
+@app.callback(
     Output('ph-result', 'children'),
     Output('ph-tree-store', 'data'),
-    Input('ph-build-btn', 'n_clicks'),
+    Input('ph-tree-modal-confirm', 'n_clicks'),
     State('ph-fasta-store', 'data'),
     State('ph-paste', 'value'),
     State('ph-method', 'value'),
@@ -241,14 +276,43 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
 
 
 @app.callback(
-    Output('ph-interpret-result', 'children'),
+    Output('ph-interpret-modal', 'is_open'),
+    Output('ph-interpret-modal-body', 'children'),
+    Output('ph-interpret-modal-confirm', 'disabled'),
     Input('ph-interpret-btn', 'n_clicks'),
+    Input('ph-interpret-modal-cancel', 'n_clicks'),
+    Input('ph-interpret-modal-confirm', 'n_clicks'),
+    State('ph-tree-store', 'data'),
+    State('ph-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_interpret_modal(open_click, cancel_click, confirm_click, tree_data, lang, **kwargs):
+    """AI yorum butonu → onay modalını aç. İptal/Onay → kapat."""
+    from dash import ctx
+    from dash_apps.i18n_helper import t
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    trig = ctx.triggered_id
+
+    if trig == 'ph-interpret-btn':
+        if not tree_data:
+            return False, "", True
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_phylo_interpret',
+                                               cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    # cancel veya confirm → modalı kapat
+    return False, no_update, no_update
+
+
+@app.callback(
+    Output('ph-interpret-result', 'children'),
+    Input('ph-interpret-modal-confirm', 'n_clicks'),
     State('ph-tree-store', 'data'),
     State('ph-lang-store', 'data'),
     prevent_initial_call=True
 )
 def interpret_phylo_ai(n_clicks, tree_data, lang, **kwargs):
-    """İsteğe bağlı AI evrimsel yorum (kredi karşılığı)."""
+    """Onay sonrası: AI evrimsel yorum (kredi düşülür)."""
     from dash_apps.i18n_helper import t
     lang = lang or 'tr'
     if not n_clicks or not tree_data:
@@ -276,14 +340,39 @@ def interpret_phylo_ai(n_clicks, tree_data, lang, **kwargs):
 
 
 @app.callback(
-    Output('ph-publish-result', 'children'),
+    Output('ph-publish-modal', 'is_open'),
+    Output('ph-publish-modal-body', 'children'),
+    Output('ph-publish-modal-confirm', 'disabled'),
     Input('ph-publish-btn', 'n_clicks'),
+    Input('ph-publish-modal-cancel', 'n_clicks'),
+    Input('ph-publish-modal-confirm', 'n_clicks'),
+    State('ph-tree-store', 'data'),
+    State('ph-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_publish_modal(open_click, cancel_click, confirm_click, tree_data, lang, **kwargs):
+    """Makaleye dönüştür butonu → onay modalını aç. İptal/Onay → kapat."""
+    from dash import ctx
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    if ctx.triggered_id == 'ph-publish-btn':
+        if not tree_data:
+            return False, "", True
+        body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim',
+                                               cost=15, lang=lang)
+        return True, body, (not can_proceed)
+    return False, no_update, no_update
+
+
+@app.callback(
+    Output('ph-publish-result', 'children'),
+    Input('ph-publish-modal-confirm', 'n_clicks'),
     State('ph-tree-store', 'data'),
     State('ph-lang-store', 'data'),
     prevent_initial_call=True
 )
 def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
-    """Filogenetik analizi akademik makaleye dönüştürür."""
+    """Onay sonrası: filogenetik analizi akademik makaleye dönüştürür."""
     from dash_apps.i18n_helper import t
     lang = lang or 'tr'
     if not n_clicks or not tree_data:
