@@ -926,3 +926,4 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
         s.pop('_has_numeric', None)
 
     return collected
+
