@@ -9,7 +9,7 @@
 [![Django](https://img.shields.io/badge/Django-5.2.7-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Plotly Dash](https://img.shields.io/badge/Plotly_Dash-2.5-3F4F75?logo=plotly&logoColor=white)](https://dash.plotly.com/)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![License: All Rights Reserved](https://img.shields.io/badge/License-All_Rights_Reserved-red.svg)](LICENSE)
 
 🌐 **Canlı Demo / Live Demo:** [aiblog.pythonanywhere.com](https://aiblog.pythonanywhere.com)
 
@@ -126,7 +126,9 @@ python manage.py runserver
 
 ### 📜 Lisans
 
-Bu proje **Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC 4.0)** lisansı altında sunulmaktadır. Eğitim ve akademik amaçlarla, **atıf vermek koşuluyla** incelenebilir ve kullanılabilir; **ticari kullanım için yazarın izni gereklidir**. Ayrıntılar için [LICENSE](LICENSE) dosyasına bakınız.
+**© 2024-2026 Mehmet Erdem Özer — Tüm Hakları Saklıdır.**
+
+Bu depo yalnızca **görüntüleme ve inceleme** amacıyla herkese açıktır. Kod, yazarın **önceden yazılı izni olmadan** kopyalanamaz, kullanılamaz, değiştirilemez, dağıtılamaz veya herhangi bir projeye dahil edilemez. Lisanslama, işbirliği veya kullanım izni için yazarla iletişime geçiniz. Ayrıntılar için [LICENSE](LICENSE) dosyasına bakınız.
 
 ### 👤 Yazar
 
@@ -226,7 +228,9 @@ python manage.py runserver
 
 ### 📜 License
 
-This project is licensed under **Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC 4.0)**. It may be studied and used for educational and academic purposes **with attribution**; **commercial use requires the author's permission**. See the [LICENSE](LICENSE) file for details.
+**© 2024-2026 Mehmet Erdem Özer — All Rights Reserved.**
+
+This repository is made public solely for **viewing and review** purposes. The code may not be copied, used, modified, distributed, or incorporated into any project **without the prior written permission** of the author. For licensing, collaboration, or usage permission, please contact the author. See the [LICENSE](LICENSE) file for details.
 
 ### 👤 Author
 
@@ -240,6 +244,8 @@ This project is licensed under **Creative Commons Attribution-NonCommercial 4.0 
 
 <div align="center">
 
-⭐ Bu proje işinize yaradıysa yıldız vermeyi unutmayın! / If you find this project useful, consider giving it a star!
+📌 Bu proje aktif geliştirme aşamasındadır. / This project is under active development.
+
+İşbirliği ve lisanslama için: **ozer246@gmail.com** / For collaboration & licensing: **ozer246@gmail.com**
 
 </div>
