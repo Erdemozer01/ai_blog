@@ -145,6 +145,7 @@ def create_sequence_analyzer_layout(lang='en'):
         dcc.Location(id='url', refresh=False),
         dcc.Store(id='sequence-file-store'),
         dcc.Store(id='sa-lang-store', data=lang),
+        dcc.Store(id='sa-bio-results-store'),
         html.H2(t('sa_title', lang), className="mt-4"),
         html.P(t('sa_subtitle', lang),
                className="text-muted"),
@@ -181,6 +182,7 @@ def update_file_content(contents, filename):
 
 @app.callback(
     Output("analysis-results-container", "children"),
+    Output("sa-bio-results-store", "data"),
     Input("analyze-button", "n_clicks"),
     State("sequence-input", "value"),
     State("file-type-input", "value"),
@@ -192,18 +194,18 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
     from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not sequence_content:
-        return dbc.Alert(t('sa_no_input', lang), color="warning")
+        return dbc.Alert(t('sa_no_input', lang), color="warning"), no_update
 
     from billing.dash_helpers import try_charge
     ok, msg, _u = try_charge(kwargs, 'bio_sequence_analyzer', cost=5, lang=lang,
                              description="Sekans analizi")
     if not ok:
-        return msg
+        return msg, no_update
 
     results = parse_and_analyze_sequence(sequence_content, file_type, seq_type, lang=lang)
 
     if "error" in results:
-        return dbc.Alert(results["error"], color="danger")
+        return dbc.Alert(results["error"], color="danger"), no_update
 
     result_items = [
         dbc.ListGroupItem([html.Strong(f"{t('sa_file_id', lang)} "), html.Span(results.get('id', 'N/A'))]),
@@ -259,11 +261,152 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
             dbc.Row([dbc.Col(aa_table, md=6)])
         ])
 
-    return dbc.Card([
-        dbc.CardHeader(html.H5(t('sa_results_title', lang))),
-        dbc.CardBody(output_card_body)
+    # Makaleye dönüştürme bölümü — sonuçların altında
+    publish_section = html.Div([
+        html.Hr(className="my-4"),
+        dbc.Alert([
+            html.H6([html.I(className="fas fa-file-medical-alt me-2"),
+                     "Bu analizi akademik makaleye dönüştür"], className="mb-2"),
+            html.P("Yapay zeka, bu sonuçları yorumlayıp ilgili literatürü (CrossRef) "
+                   "tarayarak gerçek kaynaklı bir makale oluşturur.",
+                   className="small text-muted mb-3"),
+            dbc.Button([html.I(className="fas fa-magic me-2"), "Sonuçları Yayına Dönüştür"],
+                       id="sa-publish-btn", color="primary", className="w-100"),
+        ], color="light", className="border"),
+        dcc.Loading(
+            id="sa-publish-loading",
+            children=html.Div(id="sa-publish-result", className="mt-3"),
+            type="default",
+        ),
     ])
 
+    result_card = dbc.Card([
+        dbc.CardHeader(html.H5(t('sa_results_title', lang))),
+        dbc.CardBody(output_card_body + [publish_section])
+    ])
+
+    return result_card, results
+
+
+
+@app.callback(
+    Output("sa-publish-result", "children"),
+    Input("sa-publish-btn", "n_clicks"),
+    State("sa-bio-results-store", "data"),
+    State("sa-lang-store", "data"),
+    prevent_initial_call=True
+)
+def publish_bio_to_article(n_clicks, bio_results, lang, **kwargs):
+    """
+    Sekans analizi sonucunu akademik makaleye dönüştürür:
+    1) AI sonucu yorumlar + konu üretir
+    2) CrossRef'te o konuyla gerçek literatür toplanır (üretim içinde)
+    3) Sonuç + literatür bağdaştırılıp makale yazılır ve kaydedilir
+    4) "Makaleye Git" linki gösterilir
+    """
+    lang = lang or 'tr'
+    if not n_clicks or not bio_results:
+        return no_update
+
+    # Kullanıcı kimliği (Dash request context'ten)
+    from billing.dash_helpers import get_request_user
+    try:
+        user = get_request_user(kwargs)
+    except Exception:
+        user = None
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return dbc.Alert("Makale oluşturmak için giriş yapmanız gerekiyor.", color="warning")
+
+    # Kredi kontrolü (makale üretimi — superuser muaf)
+    from billing.services import can_use, charge
+    if not user.is_superuser:
+        ok_credit, credit_msg = can_use(user, 'makale_uretim', default_cost=10)
+        if not ok_credit:
+            return dbc.Alert(credit_msg, color="danger")
+
+    try:
+        from dash_apps.generate import (generate_topic_from_bio_result,
+                                         run_ai_generation_with_pool)
+        from blog.models import GeneratedArticle, Category
+
+        # 1) AI sonucu yorumla + konu üret
+        topic, interpretation = generate_topic_from_bio_result(
+            "Sekans Analizi", bio_results, lang=lang)
+
+        # Bio bağlamı: yorum + ham sonuç özeti
+        bio_context_lines = [f"Analiz türü: Sekans Analizi"]
+        if interpretation:
+            bio_context_lines.append(f"AI yorumu: {interpretation}")
+        for k in ('type', 'length', 'gc_content', 'molecular_weight', 'id', 'description'):
+            if k in bio_results:
+                bio_context_lines.append(f"{k}: {bio_results[k]}")
+        bio_context = "\n".join(bio_context_lines)
+
+        # 2+3) CrossRef + makale üretimi (sonuç literatürle bağdaştırılır)
+        ai_data, _used = run_ai_generation_with_pool(
+            topic, word_count=1500, bio_context=bio_context)
+
+        if not isinstance(ai_data, dict) or "content" not in ai_data:
+            raise TypeError("Yapay zekadan beklenen formatta yanıt alınamadı.")
+
+        category_name = ai_data.get("category_name", "Biyoinformatik").strip().title()
+        category_obj, _ = Category.objects.get_or_create(name=category_name)
+
+        new_article = GeneratedArticle.objects.create(
+            owner=user,
+            user_request=topic,
+            title=ai_data.get("title"),
+            category=category_obj,
+            keywords=ai_data.get("keywords", ""),
+            english_abstract=ai_data.get("english_abstract"),
+            turkish_abstract=ai_data.get("turkish_abstract"),
+            full_content=ai_data.get("content"),
+            bibliography=ai_data.get("bibliography"),
+            structured_data=ai_data.get("structured_data"),
+            status='tamamlandi',
+            is_published=bool(user.is_superuser),
+        )
+
+        # Makale başarılı → krediyi düş (superuser muaf)
+        if not user.is_superuser:
+            try:
+                charge(user, 'makale_uretim', default_cost=10,
+                       description=f"Bio-makale: {ai_data.get('title', '')[:50]}")
+            except Exception:
+                pass
+
+        # 4) Başarı + Makaleye Git linki
+        try:
+            article_url = new_article.get_absolute_url()
+        except Exception:
+            article_url = f"/article/{new_article.id}/{new_article.slug}/"
+        return dbc.Alert([
+            html.H6([html.I(className="fas fa-check-circle me-2"),
+                     "Makaleniz oluşturuldu!"], className="mb-2"),
+            html.P(f"Başlık: {ai_data.get('title', '')}", className="small mb-3"),
+            dbc.Button([html.I(className="fas fa-arrow-right me-2"), "Makaleye Git"],
+                       href=article_url, external_link=True, color="success",
+                       className="w-100"),
+        ], color="success")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Hatayı bildirim olarak kaydet (superuser admin'de görür)
+        try:
+            from blog.models import create_notification
+            create_notification(
+                category='makale_hatasi',
+                title="Bio-makale üretim hatası (Sekans Analizi)",
+                message=f"Konu: {topic if 'topic' in dir() else 'bilinmiyor'}",
+                technical_detail=traceback.format_exc(),
+                related_user=user if user and getattr(user, 'is_authenticated', False) else None,
+            )
+        except Exception:
+            pass
+        return dbc.Alert(
+            "Sistem şu an yoğun, makale oluşturulamadı. Lütfen biraz sonra tekrar deneyin.",
+            color="warning")
 
 
 @app.callback(
