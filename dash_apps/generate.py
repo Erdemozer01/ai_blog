@@ -510,7 +510,7 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
         if not user.is_superuser:
             try:
                 from billing.services import charge
-                remaining = charge(user, 'makale_uretim', default_cost=10,
+                remaining = charge(user, 'makale_uretim', default_cost=15,
                                    description=f"Makale üretimi: {ai_data.get('title', '')[:50]}")
                 if remaining is not None:
                     remaining_note = f" (Kalan krediniz: {remaining})"
