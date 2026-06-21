@@ -165,8 +165,7 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
         return dbc.Alert(t('ph_need3', lang), color="warning"), no_update
 
     try:
-        from dash_apps.phylo_helper import (build_phylo_tree, tree_to_plotly,
-                                            interpret_tree_ai)
+        from dash_apps.phylo_helper import build_phylo_tree, tree_to_plotly
         tree_result = build_phylo_tree(records, method=method or 'nj')
         if not tree_result.get('success'):
             return dbc.Alert(tree_result.get('error', t('ph_error', lang)),
@@ -187,14 +186,19 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
             children.append(html.P(tree_result['distance_summary'],
                                    className="text-muted small mt-2"))
 
-        # AI evrimsel yorum
-        interpretation = interpret_tree_ai(tree_result, lang=lang)
-        if interpretation:
-            children.append(html.Hr())
-            children.append(html.H5([html.I(className="fas fa-dna me-2"),
-                                     t('ph_interpret', lang)]))
-            children.append(html.P(interpretation,
-                                   style={'whiteSpace': 'pre-wrap'}))
+        # AI evrimsel yorum — İSTEĞE BAĞLI (buton ile, kredi karşılığı)
+        children.append(html.Hr())
+        children.append(dbc.Card([
+            dbc.CardBody([
+                html.H6([html.I(className="fas fa-dna me-2"),
+                         t('ph_interpret', lang)], className="mb-2"),
+                html.P(t('ph_interpret_desc', lang), className="small text-muted mb-2"),
+                dbc.Button(
+                    [html.I(className="fas fa-magic me-2"), t('ph_interpret_btn', lang)],
+                    id='ph-interpret-btn', color='info', size='sm', className='w-100'),
+                dcc.Loading(html.Div(id='ph-interpret-result', className="mt-3")),
+            ])
+        ], className="border-info mt-2"))
 
         # Newick (katlanabilir)
         children.append(html.Details([
@@ -237,6 +241,41 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
 
 
 @app.callback(
+    Output('ph-interpret-result', 'children'),
+    Input('ph-interpret-btn', 'n_clicks'),
+    State('ph-tree-store', 'data'),
+    State('ph-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def interpret_phylo_ai(n_clicks, tree_data, lang, **kwargs):
+    """İsteğe bağlı AI evrimsel yorum (kredi karşılığı)."""
+    from dash_apps.i18n_helper import t
+    lang = lang or 'tr'
+    if not n_clicks or not tree_data:
+        return no_update
+
+    # Kredi kontrolü ve düşme (filogeni AI yorumu)
+    from billing.dash_helpers import try_charge
+    ok, msg, _u = try_charge(kwargs, 'bio_phylo_interpret', cost=5, lang=lang,
+                             description="Filogenetik AI yorum")
+    if not ok:
+        return msg
+
+    try:
+        from dash_apps.phylo_helper import interpret_tree_ai
+        # Store JSON-uyumlu alanları içeriyor; interpret_tree_ai bunları kullanır
+        interpretation = interpret_tree_ai(tree_data, lang=lang)
+        if not interpretation:
+            return dbc.Alert(t('ph_interpret_fail', lang), color="warning")
+        return html.P(interpretation, style={'whiteSpace': 'pre-wrap'},
+                      className="mt-2")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return dbc.Alert(f"{t('ph_interpret_fail', lang)}: {e}", color="danger")
+
+
+@app.callback(
     Output('ph-publish-result', 'children'),
     Input('ph-publish-btn', 'n_clicks'),
     State('ph-tree-store', 'data'),
@@ -257,7 +296,7 @@ def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
 
     from billing.services import can_use, charge
     if not user.is_superuser:
-        ok_credit, credit_msg = can_use(user, 'makale_uretim', default_cost=10)
+        ok_credit, credit_msg = can_use(user, 'makale_uretim', default_cost=15)
         if not ok_credit:
             return dbc.Alert(credit_msg, color="danger")
 
@@ -309,7 +348,7 @@ def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
 
         if not user.is_superuser:
             try:
-                charge(user, 'makale_uretim', default_cost=10,
+                charge(user, 'makale_uretim', default_cost=15,
                        description=f"Filogeni makale: {ai_data.get('title','')[:50]}")
             except Exception:
                 pass
