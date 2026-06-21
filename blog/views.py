@@ -666,7 +666,7 @@ def article_detail_view(request, article_id, slug):
             yayin_icon = html.Span([html.I(className="fas fa-clock")],
                                    className="text-info", title="Yayın talebiniz inceleniyor")
         else:
-            yayin_icon = html.A([html.I(className="fas fa-envelope-open-text")],
+            yayin_icon = html.A([html.I(className="fas fa-paper-plane")],
                                 href="#", className="text-primary",
                                 title="Yayınlanması için talep gönder",
                                 **{"data-bs-toggle": "modal", "data-bs-target": "#publishModal"})
@@ -700,13 +700,9 @@ def article_detail_view(request, article_id, slug):
                                     html.Span([html.I(className="fas fa-eye me-1"), f" {article.view_count} Okunma"]),
                                     html.Span(" | ", className="mx-2"),
                                     menu_dropdown,
-                                ], className="text-muted small mb-0 d-flex flex-wrap align-items-center"),
+                                ] + ([html.Span(" | ", className="mx-2"), yayin_icon] if yayin_icon else []),
+                                   className="text-muted small mb-0 d-flex flex-wrap align-items-center"),
                                 width="auto"
-                            ),
-                            dbc.Col(
-                                yayin_icon if yayin_icon else "",
-                                width="auto",
-                                className="ms-auto fs-5"
                             ),
                         ], align="center", className="border-bottom pb-3 mb-4")
                     ]),
