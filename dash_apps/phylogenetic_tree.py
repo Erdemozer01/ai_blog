@@ -243,28 +243,55 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
                 html.Tbody(bl_rows),
             ], bordered=True, hover=True, size="sm", responsive=True, className="mb-3"))
 
-        # İkili mesafe tablosu — taksonlar arası evrimsel uzaklıklar (en yakından uzağa)
-        pairwise = tree_result.get('pairwise_distances') or []
-        if pairwise:
-            pw_rows = [html.Tr([
-                html.Td(p['a']),
-                html.Td(p['b']),
-                html.Td(f"{p['distance']:.4f}"),
-            ]) for p in pairwise]
+        # Mesafe MATRİSİ — taksonlar arası uzaklıklar (kare tablo)
+        matrix = tree_result.get('distance_matrix') or []
+        taxa_list = tree_result.get('taxa') or []
+        if matrix and taxa_list:
+            n = len(taxa_list)
+            # Kısa etiketler (matris başlığı için): T1, T2...
+            short_labels = [f"T{i+1}" for i in range(n)]
+
+            # Üst başlık satırı: boş köşe + T1..Tn
+            header = html.Thead(html.Tr(
+                [html.Th("", style={'minWidth': '110px'})] +
+                [html.Th(short_labels[j], className="text-center small",
+                         style={'minWidth': '60px'}) for j in range(n)]
+            ))
+
+            # Gövde: her satır = bir takson; ilk hücre tam ad, sonra mesafeler
+            body_rows = []
+            for i in range(n):
+                cells = [html.Th([
+                    html.Span(short_labels[i], className="fw-bold me-1 text-primary"),
+                    html.Span(taxa_list[i], className="small text-muted"),
+                ], className="text-nowrap", style={'fontSize': '0.75rem'})]
+                for j in range(n):
+                    val = matrix[i][j]
+                    if i == j:
+                        # köşegen
+                        cells.append(html.Td("—", className="text-center text-muted"))
+                    elif val is None:
+                        cells.append(html.Td("·", className="text-center"))
+                    else:
+                        # Yakınlığa göre renklendir: küçük mesafe = yeşil tonu
+                        intensity = max(0, min(1, val))  # 0..1 aralığına sıkıştır
+                        # küçük mesafe -> daha koyu yeşil arkaplan
+                        green = int(220 - (1 - intensity) * 90)
+                        bg = f"rgb({green},{240 - int((1-intensity)*40)},{green})"
+                        cells.append(html.Td(
+                            f"{val:.3f}", className="text-center small",
+                            style={'backgroundColor': bg if val < 0.5 else 'transparent'}))
+                body_rows.append(html.Tr(cells))
+
             children.append(html.Details([
-                html.Summary([html.I(className="fas fa-table me-2"),
-                              t('ph_pairwise_title', lang)],
+                html.Summary([html.I(className="fas fa-border-all me-2"),
+                              t('ph_matrix_title', lang)],
                              className="fw-bold mb-2"),
-                dbc.Table([
-                    html.Thead(html.Tr([
-                        html.Th(t('ph_taxon', lang) + " 1"),
-                        html.Th(t('ph_taxon', lang) + " 2"),
-                        html.Th(t('ph_distance', lang)),
-                    ])),
-                    html.Tbody(pw_rows),
-                ], bordered=True, hover=True, size="sm", responsive=True,
-                   className="mt-2"),
-            ], className="mb-2"))
+                html.P(t('ph_matrix_desc', lang), className="text-muted small mb-2"),
+                dbc.Table([header, html.Tbody(body_rows)],
+                          bordered=True, hover=True, size="sm", responsive=True,
+                          className="mt-2", style={'fontSize': '0.8rem'}),
+            ], open=True, className="mb-2"))
 
         # Newick (katlanabilir)
         children.append(html.Details([
@@ -297,6 +324,8 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
             'n_taxa': tree_result.get('n_taxa'),
             'aln_length': tree_result.get('aln_length'),
             'distance_summary': tree_result.get('distance_summary'),
+            'branch_lengths': tree_result.get('branch_lengths'),
+            'distance_matrix': tree_result.get('distance_matrix'),
         }
         return html.Div(children), tree_store
 
@@ -364,9 +393,15 @@ def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
 
         taxa = tree_data.get('taxa', [])
         method = tree_data.get('method', 'NJ')
+        branch_lengths = tree_data.get('branch_lengths') or []
+        matrix = tree_data.get('distance_matrix') or []
         # Konu: filogenetik karşılaştırma
         sample = ', '.join(taxa[:4])
         topic = f"{sample} filogenetik analizi ve evrimsel ilişkileri"
+
+        # Dal uzunluklarını metne dök
+        bl_text = "; ".join(
+            f"{b['taxon']}: {b['branch_length']:.4f}" for b in branch_lengths)
 
         bio_context_lines = [
             "Analiz türü: Filogenetik Ağaç Analizi",
@@ -375,11 +410,18 @@ def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
             f"Taksonlar: {', '.join(taxa)}",
             f"Hizalama uzunluğu: {tree_data.get('aln_length')} pozisyon",
             f"Mesafe özeti: {tree_data.get('distance_summary', '')}",
+            f"Dal uzunlukları (terminal): {bl_text}",
             f"Newick: {tree_data.get('newick', '')}",
             "ÖNEMLİ: Makale, bu filogenetik analizi temel almalı; taksonların "
             "evrimsel akrabalık ilişkilerini, kümelenmelerini ve bunların biyolojik "
             "anlamını literatür ışığında değerlendirmelidir. Ayrı bir "
             "'Filogenetik ve Evrimsel Analiz' bölümü içermelidir.",
+            "TABLO YERLEŞTİRME: Makalenin filogenetik analiz bölümünde, dal "
+            "uzunlukları ve tür-arası mesafe matrisi için tam olarak şu iki "
+            "placeholder'ı uygun yerlere ekle: `_||_STRUCTURED_DATA_91_||_` "
+            "(dal uzunlukları tablosu) ve `_||_STRUCTURED_DATA_92_||_` "
+            "(mesafe matrisi). Bu iki placeholder'ı MUTLAKA kullan; verilerini "
+            "ben hazır sağlayacağım, sen sadece yerleştir.",
         ]
         bio_context = "\n".join(bio_context_lines)
 
@@ -388,6 +430,60 @@ def publish_phylo_to_article(n_clicks, tree_data, lang, **kwargs):
 
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta yanıt alınamadı.")
+
+        # --- FİLOGENİ TABLOLARINI MAKALEYE ENJEKTE ET ---
+        # Dal uzunlukları + mesafe matrisi tablolarını structured_data'ya ekle.
+        sdata = ai_data.get("structured_data") or {}
+        if not isinstance(sdata, dict):
+            sdata = {}
+        content = ai_data.get("content") or ""
+
+        # 1) Dal uzunlukları tablosu (placeholder 91)
+        if branch_lengths:
+            sdata["91"] = {
+                "type": "table",
+                "title": ("Tablo: Taksonların Terminal Dal Uzunlukları" if lang == 'tr'
+                          else "Table: Terminal Branch Lengths of Taxa"),
+                "columns": (["Takson", "Dal Uzunluğu"] if lang == 'tr'
+                            else ["Taxon", "Branch Length"]),
+                "data": [[b['taxon'], f"{b['branch_length']:.4f}"]
+                         for b in branch_lengths],
+                "description": ("Kısa dal = diğerlerine yakın/benzer; uzun dal = daha ayrık."
+                                if lang == 'tr'
+                                else "Short branch = close/similar; long branch = more divergent."),
+            }
+        # 2) Mesafe matrisi tablosu (placeholder 92)
+        if matrix and taxa:
+            # Matris başlıkları: kısa etiket + tam ad alt satırda olmadığından T1.. kullan
+            short = [f"T{i+1}" for i in range(len(taxa))]
+            cols = [("Takson" if lang == 'tr' else "Taxon")] + short
+            mrows = []
+            for i, row in enumerate(matrix):
+                cells = [f"{short[i]} = {taxa[i]}"]
+                for v in row:
+                    cells.append("—" if (v == 0.0) else (f"{v:.4f}" if v is not None else "·"))
+                mrows.append(cells)
+            sdata["92"] = {
+                "type": "table",
+                "title": ("Tablo: Türler Arası Mesafe Matrisi" if lang == 'tr'
+                          else "Table: Inter-Taxon Distance Matrix"),
+                "columns": cols,
+                "data": mrows,
+                "description": ("Hücreler taksonlar arası evrimsel uzaklığı gösterir "
+                                "(0 = aynı, küçük değer = yakın akraba)." if lang == 'tr'
+                                else "Cells show evolutionary distance between taxa "
+                                "(0 = identical, smaller = closer)."),
+            }
+
+        # AI placeholder'ları koymadıysa, makale sonuna manuel ekle (garanti)
+        if "_||_STRUCTURED_DATA_91_||_" not in content and branch_lengths:
+            content += "\n\n_||_STRUCTURED_DATA_91_||_\n"
+        if "_||_STRUCTURED_DATA_92_||_" not in content and matrix:
+            content += "\n\n_||_STRUCTURED_DATA_92_||_\n"
+
+        ai_data["content"] = content
+        ai_data["structured_data"] = sdata
+        # --- ENJEKSİYON BİTTİ ---
 
         category_obj, _ = Category.objects.get_or_create(
             name=ai_data.get("category_name", "Biyoinformatik").strip().title())
