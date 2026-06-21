@@ -231,13 +231,25 @@ def generate_topic_from_bio_result(bio_tool, bio_results, lang='tr'):
 
 {results_text}
 
-Görevin:
-1. Bu sonuçları bilimsel olarak KISA yorumla (2-3 cümle): ne anlama geliyor, dikkat çeken nokta ne?
-2. Bu sonuçlardan yola çıkarak, akademik literatürde aranabilecek BİR makale konusu öner (Türkçe, 1 cümle başlık).
+GÖREV: Bu analiz sonucundan yola çıkarak BİYOLOJİK/TIBBİ bir makale konusu üret.
+
+ÇOK ÖNEMLİ KURALLAR:
+- Konu, dizinin BİYOLOJİK KİMLİĞİNE odaklanmalı: hangi gen/protein, hangi organizma,
+  hangi biyolojik işlev, hangi hastalık/süreçle ilişkili.
+- Eğer dizi kimliği (id/description) bilinen bir geni gösteriyorsa (örn. 'INS'=insülin,
+  'TP53'=tümör baskılayıcı, 'BRCA1'=meme kanseri geni), KONUYU O GENİN BİYOLOJİSİNE göre
+  belirle (örn. 'İnsülin geninin yapısı, ekspresyonu ve diyabetteki rolü').
+- ASLA 'sekans analiz yöntemleri', 'biyoinformatik araçlar', 'genomik veri işleme',
+  'hesaplamalı yöntemler' gibi ARAÇ/YÖNTEM odaklı bir konu üretme. Konu, biyolojik
+  içerik hakkında olmalı — analizi yapan yazılımlar hakkında DEĞİL.
+- GC içeriği, uzunluk gibi özellikler biyolojik bağlamda yorumlanmalı (gen düzenlenmesi,
+  protein işlevi, evrim, hastalık), araç tanıtımına dönüşmemeli.
+
+Önce sonuçları 2-3 cümleyle BİYOLOJİK olarak yorumla, sonra konuyu öner.
 
 Yanıtını TAM olarak şu formatta ver (başka hiçbir şey ekleme):
-YORUM: <bilimsel yorum>
-KONU: <makale konusu / başlık>"""
+YORUM: <biyolojik yorum>
+KONU: <biyolojik/tıbbi makale konusu - Türkçe, 1 cümle başlık>"""
 
     # Model fallback ile dene (kota dolarsa diğer kayıtlı modele geç)
     from ai_engine.services import get_fallback_models
@@ -310,6 +322,16 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
             f"ve bu sonucu aşağıda toplanan literatürle BAĞDAŞTIRMALIDIR. Kullanıcının elde ettiği "
             f"bu somut bulguyu bilimsel literatür ışığında yorumlamalı, benzer çalışmalarla "
             f"karşılaştırmalıdır.\n\n"
+            f"⚠️ ODAK KURALI: Makale, dizinin BİYOLOJİK İÇERİĞİNE odaklanmalı (hangi gen/protein, "
+            f"işlevi, ilişkili hastalık/süreç). Analizi yapan YAZILIM ARAÇLARINI (SciPy, IQ-TREE, "
+            f"DIAMOND, ColabFold vb.) makalenin konusu HALİNE GETİRME — bunlar sadece yöntem, "
+            f"konu değil. Konuyla alakasız araç/yöntem/teknoloji tanıtımına SAPMA.\n\n"
+            f"⚠️ TABLO/GRAFİK KURALI: Bu makalede tablo/grafik SADECE şunları gösterebilir: "
+            f"(a) kullanıcının yukarıdaki gerçek analiz sonucu (örn. GC içeriği, uzunluk gibi), "
+            f"(b) toplanan kaynakların özetlerinde AÇIKÇA geçen gerçek sayısal veriler. "
+            f"Yazılım kütüphanesi istatistiği (GitHub yıldızı, indirme sayısı, katkıcı sayısı vb.) "
+            f"gibi konuyla ALAKASIZ veya UYDURMA grafikler KESİNLİKLE OLUŞTURMA. Uygun gerçek "
+            f"veri yoksa tablo/grafik koyma.\n\n"
             + base_prompt
         )
     system_prompt = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
