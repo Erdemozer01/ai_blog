@@ -1,23 +1,59 @@
-MIT License
+================================================================================
+TÜM HAKLARI SAKLIDIR / ALL RIGHTS RESERVED
+================================================================================
 
-Copyright (c) 2025 Mehmet Erdem ÖZER
+Telif Hakkı (Copyright) © 2024-2026 Mehmet Erdem Özer
+İletişim / Contact: ozer246@gmail.com
 
-Email : mozer232@posta.paü.edu.tr, ozer246@gmail.com
+--------------------------------------------------------------------------------
+TÜRKÇE
+--------------------------------------------------------------------------------
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Bu depodaki tüm kaynak kodları, belgeler, tasarımlar ve diğer içerikler
+("Eser"), Mehmet Erdem Özer'in münhasır mülkiyetindedir ve telif hakkı
+yasalarıyla korunmaktadır. TÜM HAKLARI SAKLIDIR.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Bu Eser, yalnızca GÖRÜNTÜLEME ve İNCELEME amacıyla herkese açık (public) olarak
+yayınlanmıştır. Bu durum, aşağıdaki hakların hiçbirini vermez.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Yazarın ÖNCEDEN YAZILI İZNİ OLMADAN, bu Eserin tamamı veya herhangi bir kısmı:
+
+  * Kopyalanamaz, çoğaltılamaz veya indirilip kullanılamaz,
+  * Değiştirilemez, uyarlanamaz veya türev çalışmalar oluşturulamaz,
+  * Dağıtılamaz, yeniden yayınlanamaz veya kamuya iletilemez,
+  * Ticari veya ticari olmayan hiçbir amaçla kullanılamaz,
+  * Başka projelere (açık kaynak dahil) dahil edilemez.
+
+Bu Eseri görüntülemek, yukarıdaki yasakları ihlal etme hakkı vermez. İzinsiz
+her türlü kullanım, telif hakkı ihlali teşkil eder ve yasal yaptırıma tabidir.
+
+Lisans, işbirliği veya kullanım izni talepleri için yazarla iletişime geçiniz:
+ozer246@gmail.com
+
+--------------------------------------------------------------------------------
+ENGLISH
+--------------------------------------------------------------------------------
+
+All source code, documentation, designs, and other content in this repository
+(the "Work") are the exclusive property of Mehmet Erdem Özer and are protected
+by copyright law. ALL RIGHTS RESERVED.
+
+This Work is made publicly visible solely for VIEWING and REVIEW purposes. This
+does NOT grant any of the rights below.
+
+Without the PRIOR WRITTEN PERMISSION of the author, no part of this Work may be:
+
+  * Copied, reproduced, downloaded, or used,
+  * Modified, adapted, or used to create derivative works,
+  * Distributed, republished, or communicated to the public,
+  * Used for any commercial or non-commercial purpose,
+  * Incorporated into other projects (including open-source projects).
+
+Viewing this Work does not grant any right to violate the prohibitions above.
+Any unauthorized use constitutes copyright infringement and is subject to legal
+action.
+
+For licensing, collaboration, or usage permission requests, contact the author:
+ozer246@gmail.com
+
+================================================================================
