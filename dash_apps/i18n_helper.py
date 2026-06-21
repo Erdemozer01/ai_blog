@@ -160,6 +160,9 @@ TRANSLATIONS = {
     'ph_taxa': {'tr': 'takson', 'en': 'taxa'},
     'ph_positions': {'tr': 'pozisyon', 'en': 'positions'},
     'ph_interpret': {'tr': 'Evrimsel Yorum (AI)', 'en': 'Evolutionary Interpretation (AI)'},
+    'ph_interpret_desc': {'tr': 'Yapay zeka, ağacı evrimsel olarak yorumlar (akrabalık, kümelenme, anlam). Bu işlem kredi gerektirir.', 'en': 'AI interprets the tree evolutionarily (relationships, clustering, meaning). This action requires credits.'},
+    'ph_interpret_btn': {'tr': 'AI ile Yorumla', 'en': 'Interpret with AI'},
+    'ph_interpret_fail': {'tr': 'Yorum oluşturulamadı', 'en': 'Could not generate interpretation'},
     'ph_need3': {'tr': 'Filogenetik ağaç için en az 3 dizi gerekir.', 'en': 'At least 3 sequences are required.'},
     'ph_no_input': {'tr': 'Lütfen FASTA dosyası yükleyin veya yapıştırın.', 'en': 'Please upload or paste a FASTA file.'},
     'ph_error': {'tr': 'Ağaç oluşturma hatası', 'en': 'Tree building error'},
@@ -642,3 +645,4 @@ def credit_label(service_key, lang='en', default=5):
         cost = default
     word = 'Kredi' if lang == 'tr' else ('Credits' if cost != 1 else 'Credit')
     return f"({cost} {word})"
+
