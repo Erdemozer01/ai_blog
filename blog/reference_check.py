@@ -734,7 +734,34 @@ def _ai_topic_to_keywords(topic, lang='tr'):
         return [topic]
 
 
-def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr'):
+def _has_numeric_data(abstract):
+    """
+    Abstract'ta tablo/grafik için kullanılabilecek sayısal veri var mı?
+    Yüzde, oran, ölçüm, istatistik gibi anlamlı sayılar arar.
+    Basit yıl/atıf numarası gibi değerleri elemeye çalışır.
+    """
+    import re
+    if not abstract:
+        return False
+    text = abstract
+    # Güçlü sinyaller: yüzde, p-değeri, oran, ölçüm birimleri, "n="
+    strong_patterns = [
+        r'\d+(?:\.\d+)?\s*%',           # 45%, 12.3%
+        r'\bp\s*[<=>]\s*0?\.\d+',       # p<0.05, p=0.001
+        r'\b(?:OR|HR|RR|CI)\b',         # odds ratio, hazard ratio, confidence interval
+        r'\bn\s*=\s*\d+',               # n=120
+        r'\d+(?:\.\d+)?\s*(?:mg|kg|ml|mmol|µg|ng|nm|mm|cm|kDa|fold|kat)',  # ölçü birimleri
+        r'\d+(?:\.\d+)?\s*-\s*fold',    # 2-fold
+        r'\b\d{2,}(?:\.\d+)?\b.*\b\d{2,}(?:\.\d+)?\b',  # metinde birden fazla 2+ haneli sayı
+    ]
+    hits = 0
+    for pat in strong_patterns:
+        if re.search(pat, text, re.IGNORECASE):
+            hits += 1
+    return hits >= 1
+
+
+
     """
     Konuya göre CrossRef'te ABSTRACT'ı OLAN gerçek kaynaklar toplar.
     AI konuyu anahtar kelimelere böler, her biri için CrossRef'te arar,
@@ -823,6 +850,14 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
                 'doi': doi,
                 'abstract': abstract,
                 'citation': citation,
+                '_has_numeric': _has_numeric_data(abstract),
             })
+
+    # Veri-zengin kaynakları öne al (tablo/grafik için gerçek sayı bulunsun),
+    # ama sayısal verisi olmayanları da koru (yeterli kaynak kalsın).
+    collected.sort(key=lambda s: 0 if s.get('_has_numeric') else 1)
+    # İç etiketi temizle (prompt'a sızmasın)
+    for s in collected:
+        s.pop('_has_numeric', None)
 
     return collected
