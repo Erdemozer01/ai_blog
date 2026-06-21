@@ -173,16 +173,15 @@ def generate_json_with_pool(prompt, service_name="Google Gemini", model_name=Non
     return _parse_json(text), key_obj
 
 
-def get_fallback_models(preferred_service=None, preferred_model=None):
+def get_fallback_models(preferred_service=None, preferred_model=None, cross_provider=False):
     """
     Fallback için denenecek (service_name, model_name) listesini döndürür.
 
-    SADECE SEÇİLEN SAĞLAYICI: Kullanıcı bir sağlayıcı seçtiyse (örn. 'Anthropic'),
-    YALNIZCA o sağlayıcının modelleri denenir. Seçilen model en başta, sonra aynı
-    sağlayıcının diğer aktif modelleri. BAŞKA sağlayıcıya ASLA geçilmez.
-
-    Örnek: Kullanıcı Google seçtiyse sadece Google modelleri + Google API'leri;
-    Claude seçtiyse sadece Anthropic; OpenAI seçtiyse sadece OpenAI denenir.
+    cross_provider=False (varsayılan): SADECE seçilen sağlayıcının modelleri denenir.
+        Kullanıcı bir sağlayıcı seçtiyse (örn. 'Anthropic'), o seçime sadık kalınır.
+    cross_provider=True: Seçilen sağlayıcı önce, sonra DİĞER aktif sağlayıcılar da
+        denenir. Sistem-içi otomatik çağrılar (kota dolunca devam etmesi gereken
+        keyword/yorum üretimi vb.) için kullanılır.
 
     Döner: [(service_name, model_name), ...] sıralı liste.
     """
@@ -198,14 +197,20 @@ def get_fallback_models(preferred_service=None, preferred_model=None):
                    .filter(is_active=True, provider__is_active=True)
                    .select_related('provider'))
 
-        # 2. SADECE seçilen sağlayıcının diğer aktif modelleri
+        # 2. Seçilen sağlayıcının diğer aktif modelleri
         if preferred_service:
             for m in actives:
                 if m.provider.service_name == preferred_service:
                     pair = (m.provider.service_name, m.model_name)
                     if pair not in ordered:
                         ordered.append(pair)
-        # NOT: Diğer sağlayıcılara GEÇİLMEZ. Seçilen sağlayıcı tükenirse hata döner.
+
+        # 3. cross_provider=True ise DİĞER sağlayıcıların modelleri (son çare)
+        if cross_provider:
+            for m in actives:
+                pair = (m.provider.service_name, m.model_name)
+                if pair not in ordered:
+                    ordered.append(pair)
     except Exception:
         pass
 

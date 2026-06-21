@@ -719,9 +719,15 @@ def _ai_topic_to_keywords(topic, lang='tr'):
         "İngilizce arama sorguları:"
     )
     try:
-        from ai_engine.services import generate_with_pool
-        answer, _ = generate_with_pool(prompt, service_name='Google Gemini',
-                                       model_name='gemini-2.5-flash')
+        from ai_engine.services import generate_with_pool, get_fallback_models
+        answer = None
+        for svc, mdl in get_fallback_models('Google Gemini', 'gemini-2.5-flash', cross_provider=True):
+            try:
+                answer, _ = generate_with_pool(prompt, service_name=svc, model_name=mdl)
+                if answer:
+                    break
+            except Exception:
+                continue
         if not answer:
             return [topic]
         queries = []
@@ -761,7 +767,7 @@ def _has_numeric_data(abstract):
     return hits >= 1
 
 
-
+def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr'):
     """
     Konuya göre CrossRef'te ABSTRACT'ı OLAN gerçek kaynaklar toplar.
     AI konuyu anahtar kelimelere böler, her biri için CrossRef'te arar,

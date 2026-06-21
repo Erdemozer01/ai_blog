@@ -85,7 +85,7 @@ def validate_topic_ai(text):
     (bool gecerli, str sebep) döner. Hata olursa geçerli kabul eder (engellemez).
     """
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_pool, get_fallback_models
         prompt = (
             "Aşağıdaki metin, akademik/bilgilendirici bir makale için GEÇERLİ bir KONU mu? "
             "Şu durumlar GEÇERSİZDİR: sohbet, selamlaşma, şaka, anlamsız metin, kişisel istek, "
@@ -94,9 +94,16 @@ def validate_topic_ai(text):
             "'GECERLI' veya 'GECERSIZ'.\n\n"
             f"Metin: \"{text}\""
         )
-        result, _key = generate_with_pool(
-            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
-            max_tokens=10, temperature=0.4)
+        result = None
+        for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
+            try:
+                result, _key = generate_with_pool(
+                    prompt, service_name=svc, model_name=mdl,
+                    max_tokens=10, temperature=0.4)
+                if result:
+                    break
+            except Exception:
+                continue
         answer = (result or "").strip().upper()
         if "GECERSIZ" in answer or "GEÇERSIZ" in answer or "INVALID" in answer:
             return False, ("Girdiğiniz metin geçerli bir makale konusu olarak "
@@ -232,12 +239,20 @@ Yanıtını TAM olarak şu formatta ver (başka hiçbir şey ekleme):
 YORUM: <bilimsel yorum>
 KONU: <makale konusu / başlık>"""
 
-    try:
-        text, _key = generate_with_pool(
-            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
-            max_tokens=500, temperature=0.5)
-    except Exception:
-        # AI başarısızsa, sonuçlardan basit bir konu üret
+    # Model fallback ile dene (kota dolarsa diğer kayıtlı modele geç)
+    from ai_engine.services import get_fallback_models
+    text = None
+    for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
+        try:
+            text, _key = generate_with_pool(
+                prompt, service_name=svc, model_name=mdl,
+                max_tokens=500, temperature=0.5)
+            if text:
+                break
+        except Exception:
+            continue
+    if not text:
+        # AI tamamen başarısızsa, sonuçlardan basit bir konu üret
         seq_type = (bio_results or {}).get('type', 'biyolojik dizi')
         return f"{seq_type} dizi analizi ve biyolojik önemi", ""
 
@@ -312,9 +327,33 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     # Kaynakça yarıda kesilmesin diye cömert tutulur.
     max_tokens = min(int(word_count * 2.8) + 4000, 32768)
 
-    response_text, used_key = generate_with_pool(
-        base_prompt, service_name=service_name, model_name=model_name,
-        system_prompt=system_prompt, max_tokens=max_tokens, temperature=0.7)
+    # Model fallback: seçilen modeli ve aynı sağlayıcının diğer aktif modellerini
+    # sırayla dener (biri kota dolarsa diğerine geçer).
+    from ai_engine.services import get_fallback_models
+    # Bio-makale (bio_context) veya model seçilmemişse: otomatik çağrı sayılır,
+    # kota dolunca diğer sağlayıcılara da geçer. Kullanıcı model seçtiyse ona sadık kal.
+    cross = bool(bio_context) or (model_name is None)
+    model_chain = get_fallback_models(preferred_service=service_name,
+                                      preferred_model=model_name,
+                                      cross_provider=cross)
+    if not model_chain:
+        model_chain = [(service_name, model_name)]
+
+    response_text = None
+    used_key = None
+    last_error = None
+    for svc, mdl in model_chain:
+        try:
+            response_text, used_key = generate_with_pool(
+                base_prompt, service_name=svc, model_name=mdl,
+                system_prompt=system_prompt, max_tokens=max_tokens, temperature=0.7)
+            if response_text:
+                break
+        except Exception as e:
+            last_error = e
+            continue
+    if not response_text:
+        raise RuntimeError(f"Tüm modeller başarısız oldu. Son hata: {last_error}")
 
     ai_data = _parse_article_response(response_text)
     return ai_data, used_key
