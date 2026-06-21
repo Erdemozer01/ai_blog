@@ -161,7 +161,7 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
     3.  Türkçe Özet: İngilizce özetin anlam olarak aynısı olan, akıcı bir Türkçe çevirisi.
     4.  Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik kategori adı.
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
-    6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir.
+    6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir. ANCAK placeholder'ı SADECE, o yere koyacağın tablo/grafik için kaynaklarda GERÇEK sayısal veri varsa ekle. Uydurma veriyle dolduracağın placeholder KOYMA — gerçek veri yoksa hiç placeholder ekleme.
     7.  Kaynakça (ZORUNLU - ASLA ATLAMA): Makalenin SONUNDA, metindeki atıflara karşılık gelen,
         numaralı, {ref_count} kaynakça maddesini MUTLAKA yaz. Makale içeriğini kaynakça için
         yer kalacak şekilde planla; içeriği uzatıp kaynakçayı yarıda BIRAKMA. Kaynakça
@@ -177,18 +177,94 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
         - Kaynakçadaki HER kaynak, metinde en az bir [N] atfıyla kullanılmalı; metinde
           atıf yapılmayan kaynağı kaynakçaya koyma.
     8.  Yapısal Veri (JSON): Makale içindeki placeholder'larla eşleşen, anahtar-değer yapısında GEÇERLİ bir JSON nesnesi oluştur. Anahtarlar metindeki placeholder'daki sayılar olmalı (örn: "1", "2"). Sadece JSON nesnesini ver, başına veya sonuna "```json" gibi kod blokları ekleme.
-        - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') kendin seç.
-        - Bir tablo için: `{{"1": {{"type": "table", "title": "Tablo Başlığı", "description": "Bu tablo neyi gösteriyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: Dünya Bankası, 2024)", "columns": ["Sütun 1"], "data": [["Değer 1A"]]}}}}`
-        - Bir grafik için: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "Grafik Başlığı", "description": "Bu grafik neyi analiz ediyor, kısa bir açıklama.", "source": "Veri Kaynağı (örn: TUIK, 2025)", "data": {{"x": ["Kategori A"], "y": [10]}}}}}}`
-        - Eğer uygun veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
+        ⚠️ KRİTİK VERİ DOĞRULUĞU KURALI (UYDURMA YASAK):
+        - Tablo ve grafiklerdeki TÜM sayılar/değerler, YALNIZCA yukarıda verilen GERÇEK KAYNAKLARIN
+          özetlerinde (abstract) AÇIKÇA geçen verilerden alınmalıdır. Kaynakta olmayan hiçbir sayı,
+          yüzde, istatistik veya değer UYDURMA.
+        - "Kavramsal", "örnek", "temsili" veya "tahmini" sayılarla tablo/grafik OLUŞTURMA. Uydurma
+          sayı bilimsel değer taşımaz ve YASAKTIR.
+        - Bir tablo/grafik için kaynaklarda gerçek, sayısal veri YOKSA: o placeholder için veri üretme,
+          JSON'da o anahtarı ATLA. Hiç uygun gerçek veri yoksa `{{}}` (boş nesne) döndür.
+        - 'source' alanı, verinin alındığı GERÇEK kaynağı (yazar, yıl) belirtmeli; uydurma kaynak adı yazma.
+        - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') seç.
+        - Tablo formatı: `{{"1": {{"type": "table", "title": "...", "description": "...", "source": "Yazar, Yıl", "columns": ["..."], "data": [["..."]]}}}}`
+        - Grafik formatı: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "...", "description": "...", "source": "Yazar, Yıl", "data": {{"x": ["..."], "y": [...]}}}}}}`
+        - Eğer uygun GERÇEK veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
     Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, aralarında belirtilen ayraçla birlikte ver.
     """
 
 
+def generate_topic_from_bio_result(bio_tool, bio_results, lang='tr'):
+    """
+    Biyoinformatik araç sonucunu AI ile yorumlar ve makale için
+    bir konu/başlık + arama bağlamı üretir.
+
+    bio_tool: aracın adı (örn. 'Sekans Analizi')
+    bio_results: araç çıktısı dict (örn. {'type': 'DNA', 'gc_content': '58%', ...})
+    Döner: (topic_text, interpretation) — topic_text CrossRef aramasında kullanılır,
+           interpretation makale promptuna bağlam olarak eklenir.
+    """
+    from ai_engine.services import generate_with_pool
+
+    # Sonuçları okunabilir metne çevir
+    lines = []
+    for k, v in (bio_results or {}).items():
+        if k in ('sequence', 'transcribed_rna', 'complement', 'reverse_complement',
+                 'back_transcribed_dna', 'protein_translation'):
+            # Uzun ham diziler: sadece uzunluk/özet
+            if isinstance(v, str) and len(v) > 120:
+                lines.append(f"- {k}: ({len(v)} karakter, ham dizi)")
+                continue
+        if isinstance(v, dict):
+            v = ", ".join(f"{ik}: {iv}" for ik, iv in list(v.items())[:10])
+        lines.append(f"- {k}: {v}")
+    results_text = "\n".join(lines)
+
+    prompt = f"""Bir biyoinformatik analiz aracı ('{bio_tool}') aşağıdaki sonuçları üretti:
+
+{results_text}
+
+Görevin:
+1. Bu sonuçları bilimsel olarak KISA yorumla (2-3 cümle): ne anlama geliyor, dikkat çeken nokta ne?
+2. Bu sonuçlardan yola çıkarak, akademik literatürde aranabilecek BİR makale konusu öner (Türkçe, 1 cümle başlık).
+
+Yanıtını TAM olarak şu formatta ver (başka hiçbir şey ekleme):
+YORUM: <bilimsel yorum>
+KONU: <makale konusu / başlık>"""
+
+    try:
+        text, _key = generate_with_pool(
+            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
+            max_tokens=500, temperature=0.5)
+    except Exception:
+        # AI başarısızsa, sonuçlardan basit bir konu üret
+        seq_type = (bio_results or {}).get('type', 'biyolojik dizi')
+        return f"{seq_type} dizi analizi ve biyolojik önemi", ""
+
+    interpretation = ""
+    topic = ""
+    for line in (text or "").splitlines():
+        line = line.strip()
+        if line.upper().startswith("YORUM:"):
+            interpretation = line.split(":", 1)[1].strip()
+        elif line.upper().startswith("KONU:"):
+            topic = line.split(":", 1)[1].strip()
+
+    if not topic:
+        seq_type = (bio_results or {}).get('type', 'biyolojik dizi')
+        topic = f"{seq_type} dizi analizi ve biyolojik önemi"
+
+    return topic, interpretation
+
+
 def run_ai_generation_with_pool(user_request_text, word_count=1500,
-                                service_name="Google Gemini", model_name=None):
+                                service_name="Google Gemini", model_name=None,
+                                bio_context=None):
     """
     Makale üretimini ai_engine havuzu ile çalıştırır.
+
+    bio_context: (opsiyonel) biyoinformatik araç yorumu. Verilirse makale,
+    kullanıcının gerçek analiz sonucunu literatürle bağdaştıracak şekilde yazılır.
 
     ai_engine.services.generate_with_pool kullanır: seçilen sağlayıcının
     anahtar havuzunu 'en az kullanılan önce' dener, biri hata verirse
@@ -210,6 +286,17 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
         real_sources = None
 
     base_prompt = get_base_prompt(user_request_text, word_count, real_sources=real_sources)
+
+    # Bio-analiz bağlamı varsa prompt'a ekle: makale gerçek sonucu literatürle bağdaştırsın
+    if bio_context:
+        base_prompt = (
+            f"=== KULLANICININ GERÇEK ANALİZ SONUCU ===\n{bio_context}\n\n"
+            f"ÖNEMLİ: Bu makale, yukarıdaki GERÇEK biyoinformatik analiz sonucunu temel almalı "
+            f"ve bu sonucu aşağıda toplanan literatürle BAĞDAŞTIRMALIDIR. Kullanıcının elde ettiği "
+            f"bu somut bulguyu bilimsel literatür ışığında yorumlamalı, benzer çalışmalarla "
+            f"karşılaştırmalıdır.\n\n"
+            + base_prompt
+        )
     system_prompt = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
                      "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
                      "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "
