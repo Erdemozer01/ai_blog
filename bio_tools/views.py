@@ -28,6 +28,7 @@ from .tasks import process_fastq_file
 from .models import AnalysisJob
 from blog.views import create_main_navbar
 from dash_apps.sequence_analyzer import app as sequence_analyzer_app, create_sequence_analyzer_layout
+from dash_apps.phylogenetic_tree import app as phylogenetic_tree_app, create_phylo_layout
 from dash_apps.sequence_alignment import app as sequence_alignment_app, create_sequence_alignment_layout
 from dash_apps.molecule_viewer import app as molecule_viewer_app, create_molecule_viewer_layout
 from dash_apps.mutation_predictor import app as mutation_predictor_app, mutation_create_layout
@@ -124,6 +125,25 @@ def sequence_analyzer_view(request):
 
     return render(request, 'bio_tools/sequence_analyzer.html', {
         'meta_title': "Sekans Analiz Aracı - AI Blog"
+    })
+
+
+@login_required
+def phylogenetic_tree_view(request):
+    """Filogenetik Ağaç Aracı"""
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız')
+        return redirect("admin:login")
+
+    main_navbar = create_main_navbar(request)
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    content = create_phylo_layout(lang)
+    _layout = html.Div([main_navbar, content])
+    phylogenetic_tree_app.layout = lambda: _layout
+
+    return render(request, 'bio_tools/phylogenetic_tree.html', {
+        'meta_title': "Filogenetik Ağaç Aracı - AI Blog"
     })
 
 

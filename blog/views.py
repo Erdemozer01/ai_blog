@@ -77,6 +77,8 @@ def create_main_navbar(request):
             dbc.DropdownMenuItem(t('nav_basic_tools', lang), header=True),
             dbc.DropdownMenuItem(t('nav_seq_analyzer', lang), href=reverse('bio_tools:sequence_analyzer'),
                                  external_link=True, id="sequence_analyzer"),
+            dbc.DropdownMenuItem(t('nav_phylo_tree', lang), href=reverse('bio_tools:phylogenetic_tree'),
+                                 external_link=True, id="phylogenetic_tree"),
             dbc.DropdownMenuItem(t('nav_seq_alignment', lang), href=reverse('bio_tools:sequence_alignment'),
                                  external_link=True, id="sequence_alignment"),
             dbc.DropdownMenuItem(t('nav_molecule_viewer', lang), href=reverse('bio_tools:molecule_viewer'),

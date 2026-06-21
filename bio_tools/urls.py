@@ -9,6 +9,8 @@ app_name = 'bio_tools'
 urlpatterns = [
     path('sequence-analyzer/', views.sequence_analyzer_view, name='sequence_analyzer'),
 
+    path('phylogenetic-tree/', views.phylogenetic_tree_view, name='phylogenetic_tree'),
+
     path('sequence-alignment/', views.sequence_alignment_view, name='sequence_alignment'),
 
     path('molecule-viewer/', views.molecule_viewer_view, name='molecule_viewer'),
