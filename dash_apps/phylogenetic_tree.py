@@ -218,7 +218,17 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
             ])
         ], className="border-primary"))
 
-        return html.Div(children), tree_result
+        # Store'a SADECE JSON-uyumlu alanları kaydet (Tree nesnesi serileştirilemez)
+        tree_store = {
+            'success': tree_result.get('success'),
+            'newick': tree_result.get('newick'),
+            'taxa': tree_result.get('taxa'),
+            'method': tree_result.get('method'),
+            'n_taxa': tree_result.get('n_taxa'),
+            'aln_length': tree_result.get('aln_length'),
+            'distance_summary': tree_result.get('distance_summary'),
+        }
+        return html.Div(children), tree_store
 
     except Exception as e:
         import traceback
