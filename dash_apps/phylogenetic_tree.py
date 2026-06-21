@@ -82,7 +82,6 @@ def create_phylo_layout(lang='tr'):
         dcc.Store(id='ph-lang-store', data=lang),
         # Kredi onay modalları
         build_confirm_modal('ph-tree-modal', lang=lang),
-        build_confirm_modal('ph-interpret-modal', lang=lang),
         build_confirm_modal('ph-publish-modal', lang=lang),
         html.H2([html.I(className="fas fa-sitemap me-2"), t('ph_title', lang)],
                 className="mt-4"),
@@ -224,19 +223,48 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
             children.append(html.P(tree_result['distance_summary'],
                                    className="text-muted small mt-2"))
 
-        # AI evrimsel yorum — İSTEĞE BAĞLI (buton ile, kredi karşılığı)
-        children.append(html.Hr())
-        children.append(dbc.Card([
-            dbc.CardBody([
-                html.H6([html.I(className="fas fa-dna me-2"),
-                         t('ph_interpret', lang)], className="mb-2"),
-                html.P(t('ph_interpret_desc', lang), className="small text-muted mb-2"),
-                dbc.Button(
-                    [html.I(className="fas fa-magic me-2"), t('ph_interpret_btn', lang)],
-                    id='ph-interpret-btn', color='info', size='sm', className='w-100'),
-                dcc.Loading(html.Div(id='ph-interpret-result', className="mt-3")),
-            ])
-        ], className="border-info mt-2"))
+        # Dal uzunlukları tablosu — her taksonun terminal dal uzunluğu (akrabalık)
+        branch_lengths = tree_result.get('branch_lengths') or []
+        if branch_lengths:
+            bl_rows = [html.Tr([
+                html.Td(b['taxon']),
+                html.Td(f"{b['branch_length']:.4f}"),
+            ]) for b in branch_lengths]
+            children.append(html.Hr())
+            children.append(html.H6([html.I(className="fas fa-ruler-horizontal me-2"),
+                                     t('ph_branch_title', lang)], className="mb-1"))
+            children.append(html.P(t('ph_branch_desc', lang),
+                                   className="text-muted small mb-2"))
+            children.append(dbc.Table([
+                html.Thead(html.Tr([
+                    html.Th(t('ph_taxon', lang)),
+                    html.Th(t('ph_branch_len', lang)),
+                ])),
+                html.Tbody(bl_rows),
+            ], bordered=True, hover=True, size="sm", responsive=True, className="mb-3"))
+
+        # İkili mesafe tablosu — taksonlar arası evrimsel uzaklıklar (en yakından uzağa)
+        pairwise = tree_result.get('pairwise_distances') or []
+        if pairwise:
+            pw_rows = [html.Tr([
+                html.Td(p['a']),
+                html.Td(p['b']),
+                html.Td(f"{p['distance']:.4f}"),
+            ]) for p in pairwise]
+            children.append(html.Details([
+                html.Summary([html.I(className="fas fa-table me-2"),
+                              t('ph_pairwise_title', lang)],
+                             className="fw-bold mb-2"),
+                dbc.Table([
+                    html.Thead(html.Tr([
+                        html.Th(t('ph_taxon', lang) + " 1"),
+                        html.Th(t('ph_taxon', lang) + " 2"),
+                        html.Th(t('ph_distance', lang)),
+                    ])),
+                    html.Tbody(pw_rows),
+                ], bordered=True, hover=True, size="sm", responsive=True,
+                   className="mt-2"),
+            ], className="mb-2"))
 
         # Newick (katlanabilir)
         children.append(html.Details([
@@ -276,71 +304,6 @@ def build_tree(n_clicks, stored_fasta, paste_text, method, lang, **kwargs):
         import traceback
         traceback.print_exc()
         return dbc.Alert(f"{t('ph_error', lang)}: {e}", color="danger"), no_update
-
-
-@app.callback(
-    Output('ph-interpret-modal', 'is_open'),
-    Output('ph-interpret-modal-body', 'children'),
-    Output('ph-interpret-modal-confirm', 'disabled'),
-    Input('ph-interpret-btn', 'n_clicks'),
-    Input('ph-interpret-modal-cancel', 'n_clicks'),
-    Input('ph-interpret-modal-confirm', 'n_clicks'),
-    State('ph-tree-store', 'data'),
-    State('ph-lang-store', 'data'),
-    prevent_initial_call=True
-)
-def toggle_interpret_modal(open_click, cancel_click, confirm_click, tree_data, lang, **kwargs):
-    """AI yorum butonu → onay modalını aç. İptal/Onay → kapat."""
-    import dash
-    from dash_apps.i18n_helper import t
-    from billing.dash_helpers import confirm_modal_body
-    lang = lang or 'tr'
-    triggered = dash.callback_context.triggered
-    trig = triggered[0]['prop_id'].split('.')[0] if triggered else ''
-
-    if trig == 'ph-interpret-btn' and open_click:
-        if not tree_data:
-            return False, "", True
-        body, can_proceed = confirm_modal_body(kwargs, 'bio_phylo_interpret',
-                                               cost=5, lang=lang)
-        return True, body, (not can_proceed)
-    # cancel veya confirm → modalı kapat
-    return False, no_update, no_update
-
-
-@app.callback(
-    Output('ph-interpret-result', 'children'),
-    Input('ph-interpret-modal-confirm', 'n_clicks'),
-    State('ph-tree-store', 'data'),
-    State('ph-lang-store', 'data'),
-    prevent_initial_call=True
-)
-def interpret_phylo_ai(n_clicks, tree_data, lang, **kwargs):
-    """Onay sonrası: AI evrimsel yorum (kredi düşülür)."""
-    from dash_apps.i18n_helper import t
-    lang = lang or 'tr'
-    if not n_clicks or not tree_data:
-        return no_update
-
-    # Kredi kontrolü ve düşme (filogeni AI yorumu)
-    from billing.dash_helpers import try_charge
-    ok, msg, _u = try_charge(kwargs, 'bio_phylo_interpret', cost=5, lang=lang,
-                             description="Filogenetik AI yorum")
-    if not ok:
-        return msg
-
-    try:
-        from dash_apps.phylo_helper import interpret_tree_ai
-        # Store JSON-uyumlu alanları içeriyor; interpret_tree_ai bunları kullanır
-        interpretation = interpret_tree_ai(tree_data, lang=lang)
-        if not interpretation:
-            return dbc.Alert(t('ph_interpret_fail', lang), color="warning")
-        return html.P(interpretation, style={'whiteSpace': 'pre-wrap'},
-                      className="mt-2")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return dbc.Alert(f"{t('ph_interpret_fail', lang)}: {e}", color="danger")
 
 
 @app.callback(
