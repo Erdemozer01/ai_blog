@@ -215,7 +215,10 @@ def generate_topic_from_bio_result(bio_tool, bio_results, lang='tr'):
 
     # Sonuçları okunabilir metne çevir
     lines = []
+    multi_records = (bio_results or {}).get('all_records')
     for k, v in (bio_results or {}).items():
+        if k == 'all_records':
+            continue  # çoklu diziler aşağıda ayrıca özetlenir
         if k in ('sequence', 'transcribed_rna', 'complement', 'reverse_complement',
                  'back_transcribed_dna', 'protein_translation'):
             # Uzun ham diziler: sadece uzunluk/özet
@@ -225,6 +228,16 @@ def generate_topic_from_bio_result(bio_tool, bio_results, lang='tr'):
         if isinstance(v, dict):
             v = ", ".join(f"{ik}: {iv}" for ik, iv in list(v.items())[:10])
         lines.append(f"- {k}: {v}")
+
+    # Çoklu dizi varsa: hepsinin özetini konu üretimine ekle
+    if multi_records and len(multi_records) > 1:
+        valid = [r for r in multi_records if 'error' not in r]
+        lines.append(f"\n- TOPLAM DİZİ SAYISI: {len(valid)} (çoklu dizi analizi)")
+        descs = []
+        for r in valid[:10]:
+            descs.append(f"{r.get('id','?')} ({r.get('length','?')}bp, GC {r.get('gc_content','-')})")
+        lines.append("- Diziler: " + "; ".join(descs))
+
     results_text = "\n".join(lines)
 
     prompt = f"""Bir biyoinformatik analiz aracı ('{bio_tool}') aşağıdaki sonuçları üretti:

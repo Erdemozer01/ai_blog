@@ -15,26 +15,15 @@ app = DjangoDash('SequenceAnalyzerApp', external_stylesheets=[dbc.themes.BOOTSTR
 
 
 # --- Arka Plan Analiz Fonksiyonu (Değişiklik Yok) ---
-def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
-    """
-    Verilen dosya içeriğini ve formatını kullanarak sekansı analiz eder.
-    """
-    from dash_apps.i18n_helper import t, credit_label
-    if not file_content:
-        return {"error": t('sa_no_input', lang)}
-
-    try:
-        string_io_file = io.StringIO(file_content)
-        record = next(SeqIO.parse(string_io_file, file_type))
-        sequence = str(record.seq).upper()
-    except Exception as e:
-        return {"error": f"{t('sa_file_error', lang)}: {e}. {t('sa_file_format_hint', lang)}"}
-
+def _analyze_single_record(record, seq_type, lang='en'):
+    """Tek bir SeqIO kaydını analiz eder, sonuç dict'i döner ('error' içerebilir)."""
+    from dash_apps.i18n_helper import t
+    sequence = str(record.seq).upper()
     if not sequence:
         return {"error": t('sa_no_valid_seq', lang)}
 
-    results = {"sequence": sequence, "length": len(sequence), "id": record.id, "description": record.description}
-
+    results = {"sequence": sequence, "length": len(sequence),
+               "id": record.id, "description": record.description}
     try:
         if seq_type == 'dna':
             dna_seq = Seq(sequence)
@@ -44,12 +33,10 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
             results['complement'] = str(dna_seq.complement())
             results['reverse_complement'] = str(dna_seq.reverse_complement())
             # Protein çevirisi (santral dogma: DNA → RNA → protein).
-            # Dizi 3'ün katı değilse kalan baz(lar) çeviriye dahil edilmez.
             try:
                 usable_len = len(dna_seq) - (len(dna_seq) % 3)
                 if usable_len >= 3:
-                    coding = dna_seq[:usable_len]
-                    results['protein_translation'] = str(coding.translate())
+                    results['protein_translation'] = str(dna_seq[:usable_len].translate())
             except Exception:
                 pass
 
@@ -58,7 +45,12 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
             results['type'] = 'RNA'
             results['gc_content'] = f"{gc_fraction(rna_seq) * 100:.2f}%"
             results['back_transcribed_dna'] = str(rna_seq.back_transcribe())
-            results['protein_translation'] = str(rna_seq.translate())
+            try:
+                usable_len = len(rna_seq) - (len(rna_seq) % 3)
+                if usable_len >= 3:
+                    results['protein_translation'] = str(rna_seq[:usable_len].translate())
+            except Exception:
+                pass
 
         elif seq_type == 'protein':
             if 'U' in sequence:
@@ -74,7 +66,48 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
     return results
 
 
-# --- Ön Yüz: Dash Layout Fonksiyonu (Dropdown Güncellendi) ---
+def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
+    """
+    Dosya içeriğindeki TÜM dizileri analiz eder.
+    - Tek dizi varsa: o dizinin sonuç dict'ini döner (geriye uyumlu).
+    - Çoklu dizi varsa: ilk dizinin sonucunu döner + 'all_records' (tüm diziler)
+      + 'multi_count' (dizi sayısı) ekler. Makale üretimi all_records'ı kullanır.
+    """
+    from dash_apps.i18n_helper import t
+    if not file_content:
+        return {"error": t('sa_no_input', lang)}
+
+    try:
+        string_io_file = io.StringIO(file_content)
+        records = list(SeqIO.parse(string_io_file, file_type))
+    except Exception as e:
+        return {"error": f"{t('sa_file_error', lang)}: {e}. {t('sa_file_format_hint', lang)}"}
+
+    if not records:
+        return {"error": t('sa_no_valid_seq', lang)}
+
+    # Tüm kayıtları analiz et
+    all_results = []
+    for rec in records:
+        r = _analyze_single_record(rec, seq_type, lang=lang)
+        all_results.append(r)
+
+    # İlk geçerli (hatasız) sonucu ana sonuç yap
+    first_valid = next((r for r in all_results if 'error' not in r), None)
+    if first_valid is None:
+        # Hepsi hatalıysa ilk hatayı döndür
+        return all_results[0]
+
+    main = dict(first_valid)
+    main['multi_count'] = len(records)
+    if len(records) > 1:
+        # Çoklu dizi: tüm sonuçları ekle (makale + özet için)
+        main['all_records'] = all_results
+    return main
+
+
+
+
 def create_sequence_analyzer_layout(lang='en'):
     """Sekans Analiz Aracı sayfasının iki sütunlu ve dosya yüklemeli içeriğini oluşturur."""
     from dash_apps.i18n_helper import t, credit_label
@@ -232,6 +265,35 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
 
     output_card_body = [dbc.ListGroup(result_items, flush=True, className="mb-4")]
 
+    # ÇOKLU DİZİ: dosyada birden fazla dizi varsa, hepsinin özetini göster
+    all_records = results.get('all_records')
+    if all_records and len(all_records) > 1:
+        valid_records = [r for r in all_records if 'error' not in r]
+        header_row = html.Tr([
+            html.Th("#"), html.Th(t('sa_file_id', lang)),
+            html.Th(t('sa_length', lang)), html.Th("GC %"),
+        ])
+        body_rows = []
+        for idx, r in enumerate(valid_records, 1):
+            body_rows.append(html.Tr([
+                html.Td(str(idx)),
+                html.Td(r.get('id', 'N/A')),
+                html.Td(f"{r.get('length', '?')} bp"),
+                html.Td(r.get('gc_content', '-')),
+            ]))
+        multi_summary = html.Div([
+            dbc.Alert(
+                f"📑 {t('sa_multi_detected', lang)}: {len(valid_records)} {t('sa_multi_sequences', lang)}",
+                color="info", className="mb-2"),
+            dbc.Table(
+                [html.Thead(header_row), html.Tbody(body_rows)],
+                bordered=True, hover=True, responsive=True, size="sm",
+                className="mb-4"),
+            html.Hr(),
+            html.P(t('sa_multi_first_detail', lang), className="text-muted small"),
+        ])
+        output_card_body.insert(0, multi_summary)
+
     if 'transcribed_rna' in results:
         output_card_body.extend([
             html.H6(t('sa_transcription', lang)),
@@ -349,6 +411,26 @@ def publish_bio_to_article(n_clicks, bio_results, lang, **kwargs):
         for k in ('type', 'length', 'gc_content', 'molecular_weight', 'id', 'description'):
             if k in bio_results:
                 bio_context_lines.append(f"{k}: {bio_results[k]}")
+
+        # ÇOKLU DİZİ: dosyada birden fazla dizi varsa, HEPSİNİ bağlama ekle.
+        # Makale tüm dizileri karşılaştırmalı olarak ele alır.
+        all_records = bio_results.get('all_records')
+        if all_records and len(all_records) > 1:
+            valid = [r for r in all_records if 'error' not in r]
+            bio_context_lines.append(
+                f"\n=== TOPLAM {len(valid)} DİZİ ANALİZ EDİLDİ (hepsi makalede ele alınmalı) ===")
+            for i, r in enumerate(valid, 1):
+                rid = r.get('id', f'dizi_{i}')
+                rlen = r.get('length', '?')
+                rgc = r.get('gc_content', '-')
+                rdesc = (r.get('description', '') or '')[:120]
+                bio_context_lines.append(
+                    f"Dizi {i}: ID={rid}, Uzunluk={rlen} bp, GC={rgc}, Açıklama: {rdesc}")
+            bio_context_lines.append(
+                "ÖNEMLİ: Makale bu dizilerin TÜMÜNÜ kapsamalı; aralarındaki "
+                "benzerlik/farklılıkları (örn. GC içeriği, uzunluk, tür) "
+                "karşılaştırmalı olarak değerlendirmeli.")
+
         bio_context = "\n".join(bio_context_lines)
 
         # 2+3) CrossRef + makale üretimi (sonuç literatürle bağdaştırılır)
