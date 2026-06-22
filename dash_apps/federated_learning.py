@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
+from billing.dash_helpers import build_confirm_modal
 
 warnings.filterwarnings("ignore")
 
@@ -27,6 +28,7 @@ def _card(title, icon, children):
 def create_federated_layout():
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('fl-modal', lang='tr'),
         html.H2([html.I(className="fas fa-network-wired me-2 text-success"),
                  "Birleşik Öğrenme (Federated Learning) Simülatörü"],
                 className="my-4 fw-bold"),
@@ -256,7 +258,7 @@ def _simulate_fl(n_clients, n_rounds, heterogeneity, lr, local_epochs, compare):
     Output("fl-client-acc-bar", "figure"),
     Output("fl-comm-cost", "figure"),
     Output("fl-sim-store", "data"),
-    Input("fl-run-btn", "n_clicks"),
+    Input('fl-modal-confirm', 'n_clicks'),
     State("fl-n-clients", "value"),
     State("fl-n-rounds", "value"),
     State("fl-heterogeneity", "value"),
@@ -369,3 +371,25 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:federated_learning')
     except Exception:
         return False
+
+
+# --- Kredi onay modalı: fl-run-btn tıklanınca onay sor ---
+@app.callback(
+    Output('fl-modal', 'is_open'),
+    Output('fl-modal-body', 'children'),
+    Output('fl-modal-confirm', 'disabled'),
+    Input('fl-run-btn', 'n_clicks'),
+    Input('fl-modal-cancel', 'n_clicks'),
+    Input('fl-modal-confirm', 'n_clicks'),
+    prevent_initial_call=True
+)
+def toggle_fl_modal(open_click, cancel_click, confirm_click, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'fl-run-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_federated', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
