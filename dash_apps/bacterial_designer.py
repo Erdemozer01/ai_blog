@@ -11,6 +11,7 @@ import dash_bio
 # Django Entegrasyonu
 from django_plotly_dash import DjangoDash
 from django.shortcuts import reverse
+from billing.dash_helpers import build_confirm_modal
 
 # --- UYGULAMA BAŞLATMA ---
 app = DjangoDash(
@@ -114,6 +115,7 @@ def bacterial_create_layout(lang='en'):
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('bd-modal', lang=lang),
         dcc.Store(id='bd-lang-store', data=lang),
         html.H2(t('bd_title', lang)), html.Hr(),
         dcc.Store(id='sequence-data-store'),
@@ -135,7 +137,7 @@ app.layout = bacterial_create_layout()
     Output('sequence-data-store', 'data'),
     Output('tab-msa-component', 'disabled'),
     Output('results-tabs', 'active_tab'),
-    Input('btn-generate-design', 'n_clicks'),
+    Input('bd-modal-confirm', 'n_clicks'),
     State('design-goals-input', 'value'),
     State('target-organism-input', 'value'),
     State('bd-lang-store', 'data'),
@@ -263,3 +265,26 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:bacterial_designer')
     except:
         return False
+
+
+# --- Kredi onay modalı: btn-generate-design tıklanınca onay sor ---
+@app.callback(
+    Output('bd-modal', 'is_open'),
+    Output('bd-modal-body', 'children'),
+    Output('bd-modal-confirm', 'disabled'),
+    Input('btn-generate-design', 'n_clicks'),
+    Input('bd-modal-cancel', 'n_clicks'),
+    Input('bd-modal-confirm', 'n_clicks'),
+    State('bd-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_bd_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'btn-generate-design' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_bacterial_designer', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
