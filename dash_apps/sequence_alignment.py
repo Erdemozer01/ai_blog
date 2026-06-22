@@ -11,6 +11,7 @@ import dash_bio
 # YENİ: Gemini API'sini kullanmak için importlar
 
 from django.shortcuts import reverse
+from billing.dash_helpers import build_confirm_modal
 
 app = DjangoDash('SequenceAlignmentApp', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME])
 
@@ -178,6 +179,7 @@ def create_sequence_alignment_layout(lang='en'):
 
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('sal-modal', lang=lang),
         dcc.Store(id='sal-lang-store', data=lang),
         html.H2(t('sal_title', lang), className="mt-4"),
         html.P(t('sal_subtitle', lang),
@@ -239,7 +241,7 @@ def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, 
 
 @app.callback(
     Output("alignment-ai-interpretation-container", "children"),
-    Input("alignment-ai-btn", "n_clicks"),
+    Input('sal-modal-confirm', 'n_clicks'),
     State("alignment-data-textarea", "value"),
     State('sal-lang-store', 'data'),
     prevent_initial_call=True
@@ -302,3 +304,26 @@ def toggle_navbar_collapse(n_clicks, is_open):
 )
 def toggle_sequence_alignment(pathname):
     return pathname == reverse('bio_tools:sequence_alignment')
+
+
+# --- Kredi onay modalı: alignment-ai-btn tıklanınca onay sor ---
+@app.callback(
+    Output('sal-modal', 'is_open'),
+    Output('sal-modal-body', 'children'),
+    Output('sal-modal-confirm', 'disabled'),
+    Input('alignment-ai-btn', 'n_clicks'),
+    Input('sal-modal-cancel', 'n_clicks'),
+    Input('sal-modal-confirm', 'n_clicks'),
+    State('sal-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_sal_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'alignment-ai-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
