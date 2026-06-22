@@ -21,6 +21,7 @@ from Bio.PDB import PDBParser, Superimposer, PDBIO
 
 
 from django.shortcuts import reverse
+from billing.dash_helpers import build_confirm_modal
 
 
 # === Django modelini içe aktar ===
@@ -405,6 +406,7 @@ def create_molecule_viewer_layout(lang='en'):
     ])
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('mv-modal', lang=lang),
         dcc.Store(id='mv-lang-store', data=lang),
         dcc.Store(id='original-molecules-store', storage_type='memory'),
         dcc.Store(id='processed-molecules-store', storage_type='memory'),
@@ -721,7 +723,7 @@ def update_cleaning_options_on_select(selected_mol_id, original_mols, processed_
 
 @app.callback(
     Output('ai-report-output', 'children'),
-    Input('btn-get-ai-report', 'n_clicks'),
+    Input('mv-modal-confirm', 'n_clicks'),
     [
         State('ai-mol-dropdown', 'value'),
         State('original-molecules-store', 'data'),
@@ -832,3 +834,26 @@ clientside_callback(
     Input('btn-clear-all', 'n_clicks'),
     prevent_initial_call=True
 )
+
+
+# --- Kredi onay modalı: btn-get-ai-report tıklanınca onay sor ---
+@app.callback(
+    Output('mv-modal', 'is_open'),
+    Output('mv-modal-body', 'children'),
+    Output('mv-modal-confirm', 'disabled'),
+    Input('btn-get-ai-report', 'n_clicks'),
+    Input('mv-modal-cancel', 'n_clicks'),
+    Input('mv-modal-confirm', 'n_clicks'),
+    State('mv-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_mv_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'btn-get-ai-report' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
