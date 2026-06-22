@@ -11,6 +11,7 @@ import re
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
 from dash import html, dcc, dash_table, Input, Output, State
+from billing.dash_helpers import build_confirm_modal
 
 app = DjangoDash('PrimerDesignApp',
                  external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
@@ -106,6 +107,8 @@ def create_primer_layout(lang='en'):
     from dash_apps.i18n_helper import t, credit_label
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('primer-design-modal', lang=lang),
+        build_confirm_modal('primer-ai-modal', lang=lang),
         # Dil bilgisini callback'lerin görmesi için store'da tut
         dcc.Store(id="primer-lang-store", data=lang),
         html.H2([html.I(className="fas fa-dna me-2"), t('primer_title', lang)],
@@ -211,7 +214,7 @@ def fetch_sequence(n_clicks, accession, lang):
      Output("primer-results-store", "data"),
      Output("primer-seq-store", "data"),
      Output("primer-ai-section", "children")],
-    Input("primer-design-btn", "n_clicks"),
+    Input('primer-design-modal-confirm', 'n_clicks'),
     [State("primer-seq-input", "value"),
      State("primer-prod-min", "value"),
      State("primer-prod-max", "value"),
@@ -299,7 +302,7 @@ def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang, **kwargs):
 
 @app.callback(
     Output("primer-ai-result", "children"),
-    Input("primer-ai-btn", "n_clicks"),
+    Input('primer-ai-modal-confirm', 'n_clicks'),
     [State("primer-results-store", "data"),
      State("primer-seq-store", "data"),
      State("primer-lang-store", "data")],
@@ -386,3 +389,49 @@ def toggle_active_link(pathname):
 
 
 app.layout = html.Div()
+
+
+# --- Kredi onay modalı: primer-design-btn ---
+@app.callback(
+    Output('primer-design-modal', 'is_open'),
+    Output('primer-design-modal-body', 'children'),
+    Output('primer-design-modal-confirm', 'disabled'),
+    Input('primer-design-btn', 'n_clicks'),
+    Input('primer-design-modal-cancel', 'n_clicks'),
+    Input('primer-design-modal-confirm', 'n_clicks'),
+    State('primer-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_primer_design_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'primer-design-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_primer_design', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: primer-ai-btn ---
+@app.callback(
+    Output('primer-ai-modal', 'is_open'),
+    Output('primer-ai-modal-body', 'children'),
+    Output('primer-ai-modal-confirm', 'disabled'),
+    Input('primer-ai-btn', 'n_clicks'),
+    Input('primer-ai-modal-cancel', 'n_clicks'),
+    Input('primer-ai-modal-confirm', 'n_clicks'),
+    State('primer-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_primer_ai_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'primer-ai-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
