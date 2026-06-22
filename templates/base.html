@@ -36,6 +36,32 @@
     </script>
     {% endif %}
 
+    <style>
+        /* Mobil yatay taşma (horizontal overflow) önleme.
+           overflow-x: clip, hidden'ın aksine sticky navbar'ı bozmaz. */
+        html, body {
+            max-width: 100%;
+            overflow-x: clip;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        img, svg, video, canvas, iframe, table {
+            max-width: 100%;
+        }
+        /* Dash uygulama konteyneri sayfayı yana itmesin */
+        .plotly-app-container {
+            max-width: 100%;
+            overflow-x: clip;
+        }
+        /* Geniş grafik/tablolar sayfayı itmek yerine kendi kutusunda kaysın */
+        .dash-table-container,
+        .js-plotly-plot,
+        .dash-graph {
+            max-width: 100%;
+        }
+    </style>
+
     {% block stylesheet %}{% endblock %}
 
     {% plotly_header %}
