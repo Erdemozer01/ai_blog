@@ -18,7 +18,7 @@
     {% else %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     {% endif %}
-    <meta name="google-site-verification" content="sylvcAevgh39kNUakQ6CfcGC4zHzJo_i6dD3slBgUxc"/>
+    <meta name="google-site-verification" content="z9gTV3Jr4mlODVTgdkBVbC9vPV5U76BwFFPYGibp6Xs"/>
 
     <link rel="apple-touch-icon" sizes="180x180" href="/staticfiles/images/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/staticfiles/images/android-chrome-192x192.png">
@@ -26,15 +26,17 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/staticfiles/images/favicon-16x16.png">
     <link rel="manifest" href="/staticfiles/images/site.webmanifest">
 
+    <meta property="og:site_name" content="AI Blog"/>
+    <meta property="og:locale" content="tr_TR"/>
     <meta property="og:title" content="{{ meta_title|default:'AI Blog' }}"/>
-    <meta property="og:description" content="{{ meta_description|default:'...' }}"/>
+    <meta property="og:description" content="{{ meta_description|default:'Akademik makaleler ve yapay zeka destekli biyoinformatik analiz araçları.' }}"/>
     <meta property="og:type" content="article"/>
-    <meta property="og:url" content="{{ request.build_absolute_uri }}"/>
-    <meta property="og:image" content="{{ meta_image_url }}"/>
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"/>
+    <meta property="og:image" content="{{ meta_image_url|default:'/staticfiles/images/android-chrome-192x192.png' }}"/>
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="{{ meta_title|default:'AI Blog' }}"/>
-    <meta name="twitter:description" content="{{ meta_description|default:'...' }}"/>
-    <meta name="twitter:image" content="{{ meta_image_url }}"/>
+    <meta name="twitter:description" content="{{ meta_description|default:'Akademik makaleler ve yapay zeka destekli biyoinformatik analiz araçları.' }}"/>
+    <meta name="twitter:image" content="{{ meta_image_url|default:'/staticfiles/images/android-chrome-192x192.png' }}"/>
 
     {% if structured_data_json %}
         <script type="application/ld+json">
