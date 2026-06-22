@@ -28,6 +28,7 @@ from Bio.PDB import PDBParser, PDBIO, Select
 
 from Bio.PDB.ResidueDepth import ResidueDepth
 from sklearn.tree import DecisionTreeClassifier, export_text
+from billing.dash_helpers import build_confirm_modal
 
 # --- UYGULAMA BAŞLATMA ---
 app = DjangoDash(
@@ -272,6 +273,8 @@ def mutation_create_layout(lang='en'):
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('mp-calc-modal', lang=lang),
+        build_confirm_modal('mp-ai-modal', lang=lang),
         dcc.Store(id='mp-lang-store', data=lang),
         dcc.Store(id='molecules-store', storage_type='memory'),
         dcc.Store(id='analysis-results-store', storage_type='memory'),
@@ -343,8 +346,8 @@ def update_molecule_selector(all_mols):
     Output('analysis-results-store', 'data'),
     Output('gemini-button-container', 'style'),
     Output('button-clicks-store', 'data'),
-    Input('btn-calculate-program', 'n_clicks'),
-    Input('btn-ask-ai', 'n_clicks'),
+    Input('mp-calc-modal-confirm', 'n_clicks'),
+    Input('mp-ai-modal-confirm', 'n_clicks'),
     State('mutation-mol-selector', 'value'),
     State('mutation-input', 'value'),
     State('molecules-store', 'data'),
@@ -562,3 +565,49 @@ def toggle_navbar_collapse(n_clicks, is_open):
 )
 def toggle_mutation_predictor(pathname):
     return pathname == reverse('bio_tools:mutation_predictor')
+
+
+# --- Kredi onay modalı: btn-calculate-program ---
+@app.callback(
+    Output('mp-calc-modal', 'is_open'),
+    Output('mp-calc-modal-body', 'children'),
+    Output('mp-calc-modal-confirm', 'disabled'),
+    Input('btn-calculate-program', 'n_clicks'),
+    Input('mp-calc-modal-cancel', 'n_clicks'),
+    Input('mp-calc-modal-confirm', 'n_clicks'),
+    State('mp-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_mp_calc(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'btn-calculate-program' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_mutation_predictor', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: btn-ask-ai ---
+@app.callback(
+    Output('mp-ai-modal', 'is_open'),
+    Output('mp-ai-modal-body', 'children'),
+    Output('mp-ai-modal-confirm', 'disabled'),
+    Input('btn-ask-ai', 'n_clicks'),
+    Input('mp-ai-modal-cancel', 'n_clicks'),
+    Input('mp-ai-modal-confirm', 'n_clicks'),
+    State('mp-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_mp_ai(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'btn-ask-ai' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
