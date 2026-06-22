@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
+from billing.dash_helpers import build_confirm_modal
 
 warnings.filterwarnings("ignore")
 
@@ -75,6 +76,8 @@ def _card(title, icon, children):
 def create_variant_layout():
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('variant-manual-modal', lang='tr'),
+        build_confirm_modal('variant-demo-modal', lang='tr'),
         html.H2([html.I(className="fas fa-dna me-2 text-primary"),
                  "Varyant Önceliklendirme (Variant Prioritization)"],
                 className="my-4 fw-bold"),
@@ -274,8 +277,8 @@ def _build_outputs(df):
     Output("variant-score-dist", "figure"),
     Output("variant-consequence-pie", "figure"),
     Output("click-memory-store", "data"),
-    Input("variant-manual-btn", "n_clicks"),
-    Input("variant-demo-btn", "n_clicks"),
+    Input("variant-manual-modal-confirm", "n_clicks"),
+    Input("variant-demo-modal-confirm", "n_clicks"),
     Input("variant-upload", "contents"),
     State("variant-manual-input", "value"),
     State("click-memory-store", "data"),
@@ -412,3 +415,45 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:variant_prioritization')
     except Exception:
         return False
+
+
+# --- Kredi onay modalı: variant-manual-btn ---
+@app.callback(
+    Output('variant-manual-modal', 'is_open'),
+    Output('variant-manual-modal-body', 'children'),
+    Output('variant-manual-modal-confirm', 'disabled'),
+    Input('variant-manual-btn', 'n_clicks'),
+    Input('variant-manual-modal-cancel', 'n_clicks'),
+    Input('variant-manual-modal-confirm', 'n_clicks'),
+    prevent_initial_call=True
+)
+def toggle_variant_manual(open_click, cancel_click, confirm_click, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'variant-manual-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang='tr')
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: variant-demo-btn ---
+@app.callback(
+    Output('variant-demo-modal', 'is_open'),
+    Output('variant-demo-modal-body', 'children'),
+    Output('variant-demo-modal-confirm', 'disabled'),
+    Input('variant-demo-btn', 'n_clicks'),
+    Input('variant-demo-modal-cancel', 'n_clicks'),
+    Input('variant-demo-modal-confirm', 'n_clicks'),
+    prevent_initial_call=True
+)
+def toggle_variant_demo(open_click, cancel_click, confirm_click, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'variant-demo-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang='tr')
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
