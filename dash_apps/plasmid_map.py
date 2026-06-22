@@ -15,6 +15,7 @@ import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
 from dash import html, dcc, dash_table, Input, Output, State, no_update
 import plotly.graph_objects as go
+from billing.dash_helpers import build_confirm_modal
 
 app = DjangoDash('PlasmidMapApp',
                  external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
@@ -247,6 +248,8 @@ def create_plasmid_layout(lang='en'):
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('pm-draw-modal', lang=lang),
+        build_confirm_modal('pm-ai-modal', lang=lang),
         dcc.Store(id='pm-lang-store', data=lang),
         dcc.Store(id='pm-results-store'),
         html.H2(t('pm_title', lang)),
@@ -279,7 +282,7 @@ def load_example(n_clicks):
     [Output('pm-results-area', 'children'),
      Output('pm-results-store', 'data'),
      Output('pm-ai-container', 'style')],
-    Input('pm-draw-btn', 'n_clicks'),
+    Input('pm-draw-modal-confirm', 'n_clicks'),
     [State('pm-sequence-input', 'value'),
      State('pm-lang-store', 'data')],
     prevent_initial_call=True
@@ -376,7 +379,7 @@ def draw_map(n_clicks, sequence, lang, **kwargs):
 
 @app.callback(
     Output('pm-ai-output', 'children'),
-    Input('pm-ai-btn', 'n_clicks'),
+    Input('pm-ai-modal-confirm', 'n_clicks'),
     [State('pm-results-store', 'data'),
      State('pm-lang-store', 'data')],
     prevent_initial_call=True
@@ -439,3 +442,49 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:plasmid_map')
     except Exception:
         return False
+
+
+# --- Kredi onay modalı: pm-draw-btn ---
+@app.callback(
+    Output('pm-draw-modal', 'is_open'),
+    Output('pm-draw-modal-body', 'children'),
+    Output('pm-draw-modal-confirm', 'disabled'),
+    Input('pm-draw-btn', 'n_clicks'),
+    Input('pm-draw-modal-cancel', 'n_clicks'),
+    Input('pm-draw-modal-confirm', 'n_clicks'),
+    State('pm-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_pm_draw_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'pm-draw-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_plasmid_map', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: pm-ai-btn ---
+@app.callback(
+    Output('pm-ai-modal', 'is_open'),
+    Output('pm-ai-modal-body', 'children'),
+    Output('pm-ai-modal-confirm', 'disabled'),
+    Input('pm-ai-btn', 'n_clicks'),
+    Input('pm-ai-modal-cancel', 'n_clicks'),
+    Input('pm-ai-modal-confirm', 'n_clicks'),
+    State('pm-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_pm_ai_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'pm-ai-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
