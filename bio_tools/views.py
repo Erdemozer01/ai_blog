@@ -88,6 +88,94 @@ def validate_job_id(job_id: str) -> bool:
 
 
 # --- FASTQ DASH APP VIEW ---
+
+# ==============================================================================
+# SEO META VERİLERİ — her bio aracı için özgün başlık/açıklama/anahtar kelime
+# ==============================================================================
+BIO_SEO = {
+    'sequence_analyzer': {
+        'title': "Sekans Analiz Aracı - AI Blog",
+        'description': "DNA, RNA ve protein dizilerini çevrimiçi analiz edin: GC içeriği, moleküler ağırlık, transkripsiyon ve çeviri, izoelektrik nokta (pI), GRAVY ve Kyte-Doolittle hidrofobiklik grafiği. FASTA ve Swiss-Prot desteği.",
+        'keywords': "sekans analizi, DNA analizi, protein analizi, FASTA, GC içeriği, izoelektrik nokta, hidrofobiklik, biyoinformatik araç",
+    },
+    'phylogenetic_tree': {
+        'title': "Filogenetik Ağaç Aracı - AI Blog",
+        'description': "Çoklu dizi hizalamasından filogenetik ağaç oluşturun ve görselleştirin. Türler arası evrimsel ilişkileri çevrimiçi ve ücretsiz analiz edin.",
+        'keywords': "filogenetik ağaç, filogeni, evrimsel analiz, dizi hizalama, biyoinformatik",
+    },
+    'sequence_alignment': {
+        'title': "Sekans Hizalama Aracı - AI Blog",
+        'description': "İki veya daha fazla DNA/protein dizisini çevrimiçi hizalayın. Global ve lokal hizalama, benzerlik skoru ve yapay zeka destekli yorumlama.",
+        'keywords': "dizi hizalama, sequence alignment, global hizalama, lokal hizalama, BLAST",
+    },
+    'molecule_viewer': {
+        'title': "3D Molekül Görüntüleyici - AI Blog",
+        'description': "Protein ve molekül yapılarını 3 boyutlu görüntüleyin (PDB). İnteraktif 3D molekül görselleştirme ve yapay zeka destekli yapı raporu.",
+        'keywords': "3D molekül görüntüleyici, PDB görselleştirme, protein yapısı, molekül modelleme",
+    },
+    'mutation_predictor': {
+        'title': "Mutasyon Etki Tahmincisi - AI Blog",
+        'description': "Makine öğrenmesiyle protein mutasyonlarının fonksiyon üzerindeki etkisini tahmin edin. Zararlı/nötr varyant sınıflandırması ve detaylı analiz.",
+        'keywords': "mutasyon tahmini, varyant etkisi, protein mutasyonu, makine öğrenmesi, patojenite",
+    },
+    'bacterial_designer': {
+        'title': "Bakteri Tasarımcısı - AI Blog",
+        'description': "Sentetik biyoloji için bakteriyel genetik devre ve plazmit tasarlayın. Yapay zeka destekli bakteri tasarım aracı.",
+        'keywords': "bakteri tasarımı, sentetik biyoloji, genetik devre, plazmit tasarımı",
+    },
+    'pipeline_designer': {
+        'title': "Pipeline Tasarımcısı - AI Blog",
+        'description': "Biyoinformatik analiz pipeline'larını görsel olarak tasarlayın ve oluşturun. Yapay zeka destekli iş akışı tasarımcısı.",
+        'keywords': "biyoinformatik pipeline, iş akışı tasarımı, analiz pipeline, NGS pipeline",
+    },
+    'primer_design': {
+        'title': "Primer Tasarım Aracı - AI Blog",
+        'description': "PCR primerlerini otomatik tasarlayın: erime sıcaklığı (Tm), GC içeriği ve özgüllük kontrolü. Yapay zeka destekli primer tasarım aracı.",
+        'keywords': "primer tasarımı, PCR primer, Tm hesaplama, primer design, qPCR",
+    },
+    'restriction_analysis': {
+        'title': "Restriksiyon Enzim Analizi - AI Blog",
+        'description': "DNA dizilerinde restriksiyon enzim kesim bölgelerini bulun ve analiz edin. Enzim haritası ve klonlama planlaması.",
+        'keywords': "restriksiyon enzim, kesim bölgesi, enzim haritası, klonlama, restriction analysis",
+    },
+    'plasmid_map': {
+        'title': "Plazmit Harita Görselleştirici - AI Blog",
+        'description': "Plazmit haritalarını çevrimiçi oluşturun ve görselleştirin: genler, promotörler, restriksiyon bölgeleri. İnteraktif plazmit haritası.",
+        'keywords': "plazmit haritası, plasmid map, vektör haritası, klonlama, gen haritası",
+    },
+    'fastq_analyzer': {
+        'title': "FASTQ Analiz Aracı - AI Blog",
+        'description': "FASTQ dosyalarınızın kalite kontrolünü çevrimiçi yapın: kalite skorları, baz dağılımı ve okuma istatistikleri. NGS kalite analizi.",
+        'keywords': "FASTQ analizi, kalite kontrol, NGS, dizileme kalitesi, FastQC",
+    },
+    'federated_learning': {
+        'title': "Federated Learning - AI Blog",
+        'description': "Federated learning ile verinizi paylaşmadan ortak model eğitin. Gizliliği koruyan dağıtık makine öğrenmesi demosu.",
+        'keywords': "federated learning, dağıtık öğrenme, gizlilik koruyan ML, federe öğrenme",
+    },
+    'pharmacogenomics': {
+        'title': "Farmakogenomik Analiz - AI Blog",
+        'description': "İlaç-gen etkileşimlerini ve farmakogenomik varyantları analiz edin. Kişiselleştirilmiş ilaç yanıtı ve doz değerlendirmesi.",
+        'keywords': "farmakogenomik, ilaç gen etkileşimi, kişiselleştirilmiş tıp, pharmacogenomics",
+    },
+    'variant_prioritization': {
+        'title': "Varyant Önceliklendirme - AI Blog",
+        'description': "Genetik varyantları klinik öneme göre önceliklendirin ve sınıflandırın. Hastalıkla ilişkili varyant analizi.",
+        'keywords': "varyant önceliklendirme, varyant analizi, klinik genetik, patojenik varyant",
+    },
+}
+
+
+def _bio_seo(key):
+    """Bir bio aracı için SEO context sözlüğü döndürür."""
+    data = BIO_SEO.get(key, {})
+    return {
+        'meta_title': data.get('title', 'Biyoinformatik Aracı - AI Blog'),
+        'meta_description': data.get('description', 'Yapay zeka destekli çevrimiçi biyoinformatik analiz araçları.'),
+        'meta_keywords': data.get('keywords', 'biyoinformatik, analiz aracı'),
+    }
+
+
 @login_required
 def fastq_analyzer_view(request):
     """FASTQ Analiz Aracı (DjangoDash — diğer araçlarla aynı yapı)."""
@@ -102,9 +190,7 @@ def fastq_analyzer_view(request):
     _layout = html.Div([main_navbar, content])
     fastq_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/fastq_analyzer.html', {
-        'meta_title': "FASTQ Analiz Aracı - AI Blog"
-    })
+    return render(request, 'bio_tools/fastq_analyzer.html', _bio_seo('fastq_analyzer'))
 
 
 # --- OTHER DASH APP VIEWS ---
@@ -123,9 +209,7 @@ def sequence_analyzer_view(request):
     _layout = html.Div([main_navbar, content])
     sequence_analyzer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/sequence_analyzer.html', {
-        'meta_title': "Sekans Analiz Aracı - AI Blog"
-    })
+    return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer'))
 
 
 @login_required
@@ -142,9 +226,7 @@ def phylogenetic_tree_view(request):
     _layout = html.Div([main_navbar, content])
     phylogenetic_tree_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/phylogenetic_tree.html', {
-        'meta_title': "Filogenetik Ağaç Aracı - AI Blog"
-    })
+    return render(request, 'bio_tools/phylogenetic_tree.html', _bio_seo('phylogenetic_tree'))
 
 
 @login_required
@@ -160,9 +242,7 @@ def sequence_alignment_view(request):
     _layout = html.Div([main_navbar, content])
     sequence_alignment_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/sequence_alignment.html', {
-        'meta_title': "Sekans Hizalama Aracı - AI Blog"
-    })
+    return render(request, 'bio_tools/sequence_alignment.html', _bio_seo('sequence_alignment'))
 
 
 @login_required
@@ -178,9 +258,7 @@ def molecule_viewer_view(request):
     _layout = html.Div([main_navbar, content])
     molecule_viewer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/molecule_viewer.html', {
-        'meta_title': "3D Molekül Görüntüleyici - AI Blog"
-    })
+    return render(request, 'bio_tools/molecule_viewer.html', _bio_seo('molecule_viewer'))
 
 
 @login_required
@@ -196,9 +274,7 @@ def mutation_predictor_view(request):
     _layout = html.Div([main_navbar, content])
     mutation_predictor_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/mutation_predictor.html', {
-        'meta_title': "Mutasyon Etki Tahmincisi - AI Blog"
-    })
+    return render(request, 'bio_tools/mutation_predictor.html', _bio_seo('mutation_predictor'))
 
 
 @login_required
@@ -214,9 +290,7 @@ def bacterial_designer_view(request):
     _layout = html.Div([main_navbar, content])
     bacterial_designer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/bacterial_designer.html', {
-        'meta_title': "Bakteri Tasarımcısı - AI Blog"
-    })
+    return render(request, 'bio_tools/bacterial_designer.html', _bio_seo('bacterial_designer'))
 
 
 @login_required
@@ -232,9 +306,7 @@ def pipline_designer_view(request):
     _layout = html.Div([main_navbar, content])
     pipeline_designer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/pipline_designer.html', {
-        'meta_title': "Pipeline Tasarımcısı - AI Blog"
-    })
+    return render(request, 'bio_tools/pipline_designer.html', _bio_seo('pipeline_designer'))
 
 
 @login_required
@@ -251,9 +323,7 @@ def primer_design_view(request):
     _layout = html.Div([main_navbar, content])
     primer_design_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/primer_design.html', {
-        'meta_title': "Primer Tasarım Aracı - AI Blog"
-    })
+    return render(request, 'bio_tools/primer_design.html', _bio_seo('primer_design'))
 
 
 @login_required
@@ -270,9 +340,7 @@ def restriction_view(request):
     _layout = html.Div([main_navbar, content])
     restriction_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/restriction_analysis.html', {
-        'meta_title': "Restriksiyon Enzim Analizi - AI Blog"
-    })
+    return render(request, 'bio_tools/restriction_analysis.html', _bio_seo('restriction_analysis'))
 
 
 @login_required
@@ -289,9 +357,7 @@ def plasmid_map_view(request):
     _layout = html.Div([main_navbar, content])
     plasmid_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/plasmid_map.html', {
-        'meta_title': "Plazmit Harita Görselleştirici - AI Blog"
-    })
+    return render(request, 'bio_tools/plasmid_map.html', _bio_seo('plasmid_map'))
 
 
 # --- FASTQ ANALİZ API VIEWS ---
@@ -580,7 +646,7 @@ def federated_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_federated_layout()])
     federated_app.layout = lambda: _layout
-    return render(request, 'bio_tools/federated_learning.html', {'meta_title': "Federated Learning - AI Blog"})
+    return render(request, 'bio_tools/federated_learning.html', _bio_seo('federated_learning'))
 
 
 @login_required
@@ -591,7 +657,7 @@ def pharmacogenomics_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_pharmacogenomics_layout()])
     pgx_app.layout = lambda: _layout
-    return render(request, 'bio_tools/pharmacogenomics.html', {'meta_title': "Farmakogenomik Analiz - AI Blog"})
+    return render(request, 'bio_tools/pharmacogenomics.html', _bio_seo('pharmacogenomics'))
 
 
 @login_required
@@ -602,4 +668,4 @@ def variant_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_variant_layout()])
     variant_app.layout = lambda: _layout
-    return render(request, 'bio_tools/variant_prioritization.html', {'meta_title': "Varyant Önceliklendirme - AI Blog"})
+    return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization'))
