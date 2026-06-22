@@ -14,6 +14,7 @@ import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
 from dash import html, dcc, dash_table, Input, Output, State
 import plotly.graph_objects as go
+from billing.dash_helpers import build_confirm_modal
 
 app = DjangoDash('RestrictionApp',
                  external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
@@ -207,6 +208,8 @@ def create_restriction_layout(lang='en'):
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('re-analyze-modal', lang=lang),
+        build_confirm_modal('re-ai-modal', lang=lang),
         dcc.Store(id='re-lang-store', data=lang),
         dcc.Store(id='re-results-store'),
         html.H2(t('re_title', lang)),
@@ -246,7 +249,7 @@ def load_example(n_clicks):
         Output('re-results-store', 'data'),
         Output('re-ai-container', 'style'),
     ],
-    Input('re-analyze-btn', 'n_clicks'),
+    Input('re-analyze-modal-confirm', 'n_clicks'),
     [
         State('re-sequence-input', 'value'),
         State('re-dna-type', 'value'),
@@ -330,7 +333,7 @@ def run_analysis(n_clicks, sequence, dna_type, lang, **kwargs):
 
 @app.callback(
     Output('re-ai-output', 'children'),
-    Input('re-ai-btn', 'n_clicks'),
+    Input('re-ai-modal-confirm', 'n_clicks'),
     [
         State('re-results-store', 'data'),
         State('re-lang-store', 'data'),
@@ -390,3 +393,48 @@ def toggle_active_link(pathname):
     except Exception:
         return False
 
+
+# --- Kredi onay modalı: re-analyze-btn ---
+@app.callback(
+    Output('re-analyze-modal', 'is_open'),
+    Output('re-analyze-modal-body', 'children'),
+    Output('re-analyze-modal-confirm', 'disabled'),
+    Input('re-analyze-btn', 'n_clicks'),
+    Input('re-analyze-modal-cancel', 'n_clicks'),
+    Input('re-analyze-modal-confirm', 'n_clicks'),
+    State('re-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_re_analyze_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 're-analyze-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_restriction', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: re-ai-btn ---
+@app.callback(
+    Output('re-ai-modal', 'is_open'),
+    Output('re-ai-modal-body', 'children'),
+    Output('re-ai-modal-confirm', 'disabled'),
+    Input('re-ai-btn', 'n_clicks'),
+    Input('re-ai-modal-cancel', 'n_clicks'),
+    Input('re-ai-modal-confirm', 'n_clicks'),
+    State('re-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_re_ai_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 're-ai-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_tool_ai', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
