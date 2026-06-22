@@ -7,6 +7,7 @@ from dash import dcc, html, Input, Output, State, no_update, ALL
 from django_plotly_dash import DjangoDash
 
 
+from billing.dash_helpers import build_confirm_modal
 warnings.filterwarnings("ignore")
 
 app = DjangoDash(
@@ -41,6 +42,7 @@ def _card(title, icon, children):
 def create_pharmacogenomics_layout():
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('pgx-modal', lang='tr'),
         html.H2([html.I(className="fas fa-pills me-2"), "Farmakogenomik Araştırma"],
                 style={"color": "#7c3aed"}, className="my-4 fw-bold"),
         html.P(
@@ -347,12 +349,11 @@ def fill_example(n_clicks):
 @app.callback(
     Output("pgx-results", "children"),
     Output("pgx-store", "data"),
-    Input("pgx-search-btn", "n_clicks"),
-    Input("pgx-query-input", "n_submit"),
+    Input("pgx-modal-confirm", "n_clicks"),
     State("pgx-query-input", "value"),
     prevent_initial_call=True,
 )
-def do_research(n_clicks, n_submit, query, **kwargs):
+def do_research(confirm_clicks, query, **kwargs):
     if not query or not query.strip():
         return dbc.Alert("Lütfen bir enzim, gen veya ilaç adı girin.",
                          color="warning"), no_update
@@ -391,3 +392,30 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:pharmacogenomics')
     except Exception:
         return False
+
+
+# --- Kredi onay modalı: arama butonu veya Enter modalı açar ---
+@app.callback(
+    Output('pgx-modal', 'is_open'),
+    Output('pgx-modal-body', 'children'),
+    Output('pgx-modal-confirm', 'disabled'),
+    Input('pgx-search-btn', 'n_clicks'),
+    Input('pgx-query-input', 'n_submit'),
+    Input('pgx-modal-cancel', 'n_clicks'),
+    Input('pgx-modal-confirm', 'n_clicks'),
+    State('pgx-query-input', 'value'),
+    prevent_initial_call=True
+)
+def toggle_pgx_modal(search_click, submit_n, cancel_click, confirm_click, query, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id in ('pgx-search-btn', 'pgx-query-input'):
+        if not query or not query.strip():
+            return True, dbc.Alert("Lütfen bir enzim, gen veya ilaç adı girin.",
+                                   color="warning", className="mb-0"), True
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_pharmacogenomics', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, no_update, no_update
