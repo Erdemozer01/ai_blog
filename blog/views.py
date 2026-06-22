@@ -1045,7 +1045,8 @@ def generate_article_view(request):
         html.Div(html.A("← Anasayfaya Dön", href="/", className="mt-3 d-inline-block"), className="text-center")
     ]), md=8, className="mx-auto"))
 
-    full_layout = html.Div([main_navbar, dbc.Container(generate_content, className="my-5")])
+    from billing.dash_helpers import build_confirm_modal
+    full_layout = html.Div([main_navbar, dbc.Container(generate_content, className="my-5"), build_confirm_modal('gen-modal', lang='tr')])
     # Navbar olmadan direkt container'ı layout olarak atıyorum, siz kendi yapınıza göre düzenleyin
     #full_layout = dbc.Container(generate_content, className="my-5")
 
