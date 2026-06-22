@@ -3,10 +3,109 @@
 
 {% block stylesheet %}
     <link rel="icon" type="image/png" href="{% static 'images/favicon.ico' %}">
+    <style>
+        .seo-content { max-width: 920px; margin-inline: auto; line-height: 1.7; }
+        .seo-content h1 { font-size: 1.6rem; font-weight: 700; }
+        .seo-content h2 { font-size: 1.2rem; font-weight: 600; margin-top: 1.75rem; }
+        .seo-content ul, .seo-content ol { padding-left: 1.2rem; }
+        .seo-content .faq-q { font-weight: 600; margin-top: 1rem; }
+    </style>
 {% endblock %}
 
 {% block content %}
     <div class="plotly-app-container">
         {% plotly_direct name='SequenceAnalyzerApp' %}
     </div>
+
+    {# --- Görünür SEO içeriği: Google'ın okuyup sıralayacağı metin --- #}
+    <section class="container my-5 seo-content">
+        <h1>Çevrimiçi Sekans Analiz Aracı — DNA, RNA ve Protein Dizisi Analizi</h1>
+        <p>
+            Bu ücretsiz çevrimiçi sekans analiz aracı ile DNA, RNA ve protein dizilerinizi
+            tarayıcınızdan, kurulum gerektirmeden analiz edebilirsiniz. FASTA ve Swiss-Prot
+            dosyalarınızı yükleyin; araç GC içeriği, moleküler ağırlık, transkripsiyon ve
+            protein çevirisi gibi temel dizi analizi sonuçlarını saniyeler içinde üretir.
+            Çoklu dizi (multi-FASTA) dosyalarını da destekler.
+        </p>
+
+        <h2>Bu sekans analiz aracıyla neler yapabilirsiniz?</h2>
+        <ul>
+            <li><strong>DNA / RNA analizi:</strong> GC içeriği, baz sayımı, transkripsiyon (DNA→RNA), komplement ve ters komplement, geri transkripsiyon.</li>
+            <li><strong>Protein çevirisi:</strong> kodon bazlı çeviri ve stop kodonu (<code>*</code>) gösterimi.</li>
+            <li><strong>Protein analizi:</strong> izoelektrik nokta (pI), instabilite indeksi, GRAVY hidropati ortalaması, aromatiklik, amino asit dağılımı ve moleküler ağırlık.</li>
+            <li><strong>Hidrofobiklik grafiği:</strong> Kyte-Doolittle profili ile membran ve hidrofobik bölgelerin görselleştirilmesi.</li>
+            <li><strong>İkincil yapı tahmini:</strong> heliks, dönüş ve β-tabaka oranları.</li>
+        </ul>
+
+        <h2>Desteklenen dosya formatları</h2>
+        <p>
+            Sekans analizi için <strong>FASTA</strong> (.fasta, .fa), <strong>Swiss-Prot</strong>,
+            <strong>GenBank</strong> (.gb, .gbk) ve <strong>EMBL</strong> formatları desteklenir.
+            Protein dizileri için en yaygın seçenekler FASTA ve Swiss-Prot'tur. FASTA dosyalarında
+            her dizi <code>&gt;</code> ile başlayan bir başlık satırı içermelidir.
+        </p>
+
+        <h2>Nasıl kullanılır?</h2>
+        <ol>
+            <li>Dosya formatını (örn. FASTA) ve dizi tipini (DNA, RNA veya Protein) seçin.</li>
+            <li>Dizinizi yapıştırın ya da bir FASTA dosyası yükleyin.</li>
+            <li>Analizi başlatın; sonuçlar ve protein dizilerinde hidrofobiklik grafiği anında görüntülenir.</li>
+            <li>Çoklu dizi yüklediyseniz, açılır menüden her diziyi tek tek inceleyin.</li>
+        </ol>
+
+        <h2>Sık sorulan sorular</h2>
+        <p class="faq-q">Sekans analiz aracı ücretsiz mi?</p>
+        <p>Evet, dizilerinizi çevrimiçi olarak analiz edebilirsiniz; herhangi bir program kurmanıza gerek yoktur.</p>
+
+        <p class="faq-q">Hangi dosya formatlarını yükleyebilirim?</p>
+        <p>FASTA, Swiss-Prot, GenBank ve EMBL formatları desteklenir. Protein için FASTA ve Swiss-Prot önerilir.</p>
+
+        <p class="faq-q">Protein dizisinde hangi analizler yapılır?</p>
+        <p>İzoelektrik nokta (pI), instabilite indeksi, GRAVY, aromatiklik, ikincil yapı oranları, moleküler ağırlık ve Kyte-Doolittle hidrofobiklik profili hesaplanır.</p>
+
+        <p class="faq-q">Protein çevirisindeki yıldız (*) ne anlama gelir?</p>
+        <p>Yıldız (<code>*</code>) bir stop (dur) kodonunu temsil eder; bu noktada protein sentezi sonlanır.</p>
+    </section>
+
+    {# --- SSS yapılandırılmış verisi (FAQ rich snippet için) --- #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Sekans analiz aracı ücretsiz mi?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Evet, DNA, RNA ve protein dizilerinizi çevrimiçi ve ücretsiz analiz edebilirsiniz; herhangi bir program kurmanıza gerek yoktur."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Hangi dosya formatları destekleniyor?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FASTA, Swiss-Prot, GenBank ve EMBL formatları desteklenir. Protein dizileri için FASTA ve Swiss-Prot önerilir."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Protein dizisinde hangi analizler yapılır?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "İzoelektrik nokta (pI), instabilite indeksi, GRAVY, aromatiklik, ikincil yapı oranları, moleküler ağırlık ve Kyte-Doolittle hidrofobiklik profili hesaplanır."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Protein çevirisindeki yıldız (*) ne anlama gelir?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yıldız bir stop kodonunu temsil eder; bu noktada protein sentezi sonlanır."
+          }
+        }
+      ]
+    }
+    </script>
 {% endblock %}
