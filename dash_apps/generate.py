@@ -442,7 +442,7 @@ def _parse_article_response(response_text):
 @app.callback(
     Output('form-feedback-message', 'children'),
     Output('url', 'href', allow_duplicate=True),
-    Input('submit-request-button', 'n_clicks'),
+    Input('gen-modal-confirm', 'n_clicks'),
     State('request-textarea', 'value'),
     State('user-session-store', 'data'),
     State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
@@ -585,3 +585,28 @@ def gen_feedback_thanks(n_clicks):
     if not n_clicks:
         return no_update
     return "Geri bildiriminiz için teşekkürler."
+
+
+# --- Kredi onay modalı: Üretimi Başlat butonu onay sorar ---
+@app.callback(
+    Output('gen-modal', 'is_open'),
+    Output('gen-modal-body', 'children'),
+    Output('gen-modal-confirm', 'disabled'),
+    Input('submit-request-button', 'n_clicks'),
+    Input('gen-modal-cancel', 'n_clicks'),
+    Input('gen-modal-confirm', 'n_clicks'),
+    State('request-textarea', 'value'),
+    prevent_initial_call=True
+)
+def toggle_gen_modal(open_click, cancel_click, confirm_click, request_text, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'submit-request-button' and open_click:
+        if not request_text or not request_text.strip():
+            return True, dbc.Alert("Lütfen bir konu girin.", color="warning",
+                                   className="mb-0"), True
+        body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim', cost=15, lang='tr')
+        return True, body, (not can_proceed)
+    return False, no_update, no_update
