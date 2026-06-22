@@ -1134,6 +1134,14 @@ def robots_txt_view(request):
     return render(request, 'robots.txt', {'base_url': base_url}, content_type="text/plain")
 
 
+def google_verification_view(request):
+    """Google Search Console sahiplik doğrulama dosyasını kök adreste sunar."""
+    return HttpResponse(
+        "google-site-verification: google6648bc38b8876b72.html",
+        content_type="text/plain",
+    )
+
+
 @login_required
 def resume_view(request, username=None):
     main_navbar = create_main_navbar(request)
