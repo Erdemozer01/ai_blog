@@ -166,14 +166,25 @@ BIO_SEO = {
 }
 
 
-def _bio_seo(key):
-    """Bir bio aracı için SEO context sözlüğü döndürür."""
+def _bio_seo(key, lang='en'):
+    """Bir bio aracı için SEO context sözlüğü döndürür.
+    Görünür SEO içeriği (seo_html) ve FAQ şeması (seo_faq) i18n_helper'dan
+    seçili dile göre çekilir; sadece o anahtar için çeviri tanımlıysa eklenir."""
+    from dash_apps.i18n_helper import t, TRANSLATIONS
     data = BIO_SEO.get(key, {})
-    return {
+    ctx = {
         'meta_title': data.get('title', 'Biyoinformatik Aracı - AI Blog'),
         'meta_description': data.get('description', 'Yapay zeka destekli çevrimiçi biyoinformatik analiz araçları.'),
         'meta_keywords': data.get('keywords', 'biyoinformatik, analiz aracı'),
+        'site_lang': lang,
     }
+    seo_key = f'seo_{key}'
+    if seo_key in TRANSLATIONS:
+        ctx['seo_html'] = t(seo_key, lang)
+    faq_key = f'seo_{key}_faq'
+    if faq_key in TRANSLATIONS:
+        ctx['seo_faq'] = t(faq_key, lang)
+    return ctx
 
 
 @login_required
@@ -209,7 +220,7 @@ def sequence_analyzer_view(request):
     _layout = html.Div([main_navbar, content])
     sequence_analyzer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer'))
+    return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer', lang))
 
 
 @login_required
