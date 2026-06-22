@@ -19,14 +19,16 @@ from django.urls import path, include
 from django.contrib.sitemaps.views import sitemap
 from django.views.generic import RedirectView
 
-from blog.sitemaps import ArticleSitemap
+from blog.sitemaps import ArticleSitemap, StaticViewSitemap, BioToolsSitemap
 from django.conf import settings
 from django.conf.urls.static import static
 
 from django.templatetags.static import static as static_url
 
 sitemaps = {
+    'static': StaticViewSitemap,
     'articles': ArticleSitemap,
+    'biotools': BioToolsSitemap,
 }
 
 urlpatterns = [
