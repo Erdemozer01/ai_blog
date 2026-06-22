@@ -30,6 +30,8 @@ urlpatterns = [
 
     path('robots.txt', views.robots_txt_view, name='robots_txt'),
 
+    path('google6648bc38b8876b72.html', views.google_verification_view, name='google_verification'),
+
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
 
     path('search-articles/', views.article_search_view, name='article_search'),
