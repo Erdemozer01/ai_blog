@@ -10,6 +10,7 @@ from Bio.Seq import Seq
 from Bio.SeqUtils import gc_fraction, molecular_weight
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from Bio import SeqIO
+from billing.dash_helpers import build_confirm_modal
 
 app = DjangoDash('SequenceAnalyzerApp', external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME])
 
@@ -185,6 +186,8 @@ def create_sequence_analyzer_layout(lang='en'):
 
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('sa-analyze-modal', lang=lang),
+        build_confirm_modal('sa-publish-modal', lang=lang),
         dcc.Store(id='sequence-file-store'),
         dcc.Store(id='sa-lang-store', data=lang),
         dcc.Store(id='sa-bio-results-store'),
@@ -225,7 +228,7 @@ def update_file_content(contents, filename):
 @app.callback(
     Output("analysis-results-container", "children"),
     Output("sa-bio-results-store", "data"),
-    Input("analyze-button", "n_clicks"),
+    Input('sa-analyze-modal-confirm', 'n_clicks'),
     State("sequence-input", "value"),
     State("file-type-input", "value"),
     State("seq-type-input", "value"),
@@ -362,7 +365,7 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
 
 @app.callback(
     Output("sa-publish-result", "children"),
-    Input("sa-publish-btn", "n_clicks"),
+    Input('sa-publish-modal-confirm', 'n_clicks'),
     State("sa-bio-results-store", "data"),
     State("sa-lang-store", "data"),
     prevent_initial_call=True
@@ -517,3 +520,49 @@ def toggle_navbar_collapse(n_clicks, is_open):
 )
 def toggle_sequence_analyzer(pathname):
     return pathname == reverse('bio_tools:sequence_analyzer')
+
+
+# --- Kredi onay modalı: analyze-button ---
+@app.callback(
+    Output('sa-analyze-modal', 'is_open'),
+    Output('sa-analyze-modal-body', 'children'),
+    Output('sa-analyze-modal-confirm', 'disabled'),
+    Input('analyze-button', 'n_clicks'),
+    Input('sa-analyze-modal-cancel', 'n_clicks'),
+    Input('sa-analyze-modal-confirm', 'n_clicks'),
+    State('sa-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_sa_analyze_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'analyze-button' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_sequence_analyzer', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
+
+
+# --- Kredi onay modalı: sa-publish-btn ---
+@app.callback(
+    Output('sa-publish-modal', 'is_open'),
+    Output('sa-publish-modal-body', 'children'),
+    Output('sa-publish-modal-confirm', 'disabled'),
+    Input('sa-publish-btn', 'n_clicks'),
+    Input('sa-publish-modal-cancel', 'n_clicks'),
+    Input('sa-publish-modal-confirm', 'n_clicks'),
+    State('sa-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_sa_publish_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'sa-publish-btn' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim', cost=15, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
