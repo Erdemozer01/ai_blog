@@ -58,9 +58,61 @@ def _analyze_single_record(record, seq_type, lang='en'):
                 return {"error": t('sa_no_uracil', lang)}
             protein_seq = ProteinAnalysis(sequence)
             results['type'] = 'Protein'
-            results['molecular_weight'] = f"{protein_seq.molecular_weight():.2f} Da"
-            aa_percent = protein_seq.get_amino_acids_percent()
+
+            # Standart-dışı kalıntılar (X, B, Z, *) bazı metrikleri patlatabilir;
+            # her metriği tek tek koruyup, başarısız olanı atlıyoruz.
+            def _safe(fn, default=None):
+                try:
+                    return fn()
+                except Exception:
+                    return default
+
+            mw = _safe(protein_seq.molecular_weight)
+            if mw is not None:
+                results['molecular_weight'] = f"{mw:.2f} Da"
+
+            aa_percent = _safe(protein_seq.get_amino_acids_percent, {})
             results['amino_acid_percent'] = {k: f"{v * 100:.2f}%" for k, v in aa_percent.items()}
+
+            pi = _safe(protein_seq.isoelectric_point)
+            if pi is not None:
+                results['isoelectric_point'] = f"{pi:.2f}"
+
+            ii = _safe(protein_seq.instability_index)
+            if ii is not None:
+                results['instability_index'] = round(ii, 2)
+
+            grv = _safe(protein_seq.gravy)
+            if grv is not None:
+                results['gravy'] = round(grv, 3)
+
+            arom = _safe(protein_seq.aromaticity)
+            if arom is not None:
+                results['aromaticity'] = f"{arom * 100:.2f}%"
+
+            ss = _safe(protein_seq.secondary_structure_fraction)
+            if ss is not None:
+                helix, turn, sheet = ss
+                results['secondary_structure'] = {
+                    'helix': round(helix * 100, 1),
+                    'turn': round(turn * 100, 1),
+                    'sheet': round(sheet * 100, 1),
+                }
+
+            ext = _safe(protein_seq.molar_extinction_coefficient)
+            if ext is not None:
+                results['extinction_coefficient'] = {'reduced': int(ext[0]), 'oxidized': int(ext[1])}
+
+            # Kyte-Doolittle hidrofobiklik profili (kayan pencere)
+            try:
+                from Bio.SeqUtils.ProtParamData import kd
+                window = 9
+                if len(sequence) >= window:
+                    profile = protein_seq.protein_scale(param_dict=kd, window=window)
+                    results['hydropathy_profile'] = [round(v, 3) for v in profile]
+                    results['hydropathy_window'] = window
+            except Exception:
+                pass
     except Exception as e:
         return {"error": f"{t('sa_analysis_error', lang)}: {str(e)}"}
 
@@ -107,6 +159,134 @@ def parse_and_analyze_sequence(file_content, file_type, seq_type, lang='en'):
     return main
 
 
+def _render_record_detail(r, lang='en'):
+    """Tek bir dizinin tüm detay bileşenlerini (liste + transkripsiyon + protein + aa) döner.
+    Hem tek-dizi görünümünde hem de çoklu-dizi dropdown seçiminde kullanılır."""
+    from dash_apps.i18n_helper import t
+
+    items = [
+        dbc.ListGroupItem([html.Strong(f"{t('sa_file_id', lang)} "), html.Span(r.get('id', 'N/A'))]),
+        dbc.ListGroupItem([html.Strong(f"{t('sa_description', lang)} "), html.Span(r.get('description', 'N/A'))]),
+        dbc.ListGroupItem([html.Strong(f"{t('sa_analyzed_type', lang)} "), html.Span(r.get('type'))]),
+        dbc.ListGroupItem([html.Strong(f"{t('sa_length', lang)} "), html.Span(f"{r.get('length')} {t('sa_length_unit', lang)}")]),
+    ]
+    if 'gc_content' in r:
+        items.append(dbc.ListGroupItem([html.Strong(f"{t('sa_gc_content', lang)}: "), html.Span(r['gc_content'])]))
+    if 'molecular_weight' in r:
+        items.append(dbc.ListGroupItem([html.Strong(f"{t('sa_mol_weight', lang)} "), html.Span(r['molecular_weight'])]))
+    if 'isoelectric_point' in r:
+        items.append(dbc.ListGroupItem([
+            html.Strong("İzoelektrik nokta (pI): " if lang == 'tr' else "Isoelectric point (pI): "),
+            html.Span(r['isoelectric_point'])]))
+    if 'instability_index' in r:
+        ii = r['instability_index']
+        if lang == 'tr':
+            label = "kararsız" if ii > 40 else "kararlı"
+        else:
+            label = "unstable" if ii > 40 else "stable"
+        color_cls = "text-danger fw-bold" if ii > 40 else "text-success fw-bold"
+        items.append(dbc.ListGroupItem([
+            html.Strong("İnstabilite indeksi: " if lang == 'tr' else "Instability index: "),
+            html.Span(f"{ii} "),
+            html.Span(f"({label})", className=color_cls)]))
+    if 'gravy' in r:
+        items.append(dbc.ListGroupItem([
+            html.Strong("GRAVY (hidropati ort.): " if lang == 'tr' else "GRAVY (hydropathy avg.): "),
+            html.Span(str(r['gravy']))]))
+    if 'aromaticity' in r:
+        items.append(dbc.ListGroupItem([
+            html.Strong("Aromatiklik: " if lang == 'tr' else "Aromaticity: "),
+            html.Span(r['aromaticity'])]))
+    if 'extinction_coefficient' in r:
+        ec = r['extinction_coefficient']
+        items.append(dbc.ListGroupItem([
+            html.Strong("Molar sönüm kats. (280 nm): " if lang == 'tr' else "Molar extinction coeff. (280 nm): "),
+            html.Span(f"{ec['reduced']} M⁻¹cm⁻¹ " +
+                      ("(indirgenmiş Cys)" if lang == 'tr' else "(reduced Cys)")),
+            html.Br(),
+            html.Span(f"{ec['oxidized']} M⁻¹cm⁻¹ " +
+                      ("(disülfit bağlı Cys)" if lang == 'tr' else "(cystine bonds)"))]))
+
+    body = [dbc.ListGroup(items, flush=True, className="mb-4")]
+
+    if 'transcribed_rna' in r:
+        body.extend([html.H6(t('sa_transcription', lang)),
+                     html.P(r['transcribed_rna'], className="text-break font-monospace small bg-light p-2 rounded")])
+    if 'complement' in r:
+        body.extend([html.H6(t('sa_complement', lang)),
+                     html.P(r['complement'], className="text-break font-monospace small bg-light p-2 rounded")])
+    if 'reverse_complement' in r:
+        body.extend([html.H6(t('sa_rev_complement', lang)),
+                     html.P(r['reverse_complement'], className="text-break font-monospace small bg-light p-2 rounded")])
+    if 'back_transcribed_dna' in r:
+        body.extend([html.H6(t('sa_rev_transcription', lang)),
+                     html.P(r['back_transcribed_dna'], className="text-break font-monospace small bg-light p-2 rounded")])
+    if 'protein_translation' in r:
+        stop_note = ("* simgesi bir stop (dur) kodonunu temsil eder; bu noktada protein sentezi sonlanır."
+                     if lang == 'tr' else
+                     "The * symbol represents a stop codon; protein synthesis terminates at this point.")
+        body.extend([
+            html.H6(t('sa_translation', lang)),
+            html.P(r['protein_translation'], className="text-break font-monospace small bg-light p-2 rounded"),
+            dbc.Alert([html.I(className="fas fa-info-circle me-2"), stop_note],
+                      color="secondary", className="py-2 small mb-3"),
+        ])
+    if 'amino_acid_percent' in r:
+        aa_table_header = [html.Thead(html.Tr([html.Th(t('sa_amino_acid', lang)), html.Th(t('sa_percent', lang))]))]
+        aa_table_body = [html.Tbody([
+            html.Tr([html.Td(aa), html.Td(percent)]) for aa, percent in sorted(r['amino_acid_percent'].items())
+        ])]
+        aa_table = dbc.Table(aa_table_header + aa_table_body, bordered=True, striped=True, hover=True, size="sm")
+        body.extend([
+            html.H6(f"{t('sa_aa_dist', lang)}:", className="mt-4"),
+            dbc.Row([dbc.Col(aa_table, md=6)])
+        ])
+
+    if 'secondary_structure' in r:
+        ss = r['secondary_structure']
+        ss_title = "Tahmini ikincil yapı dağılımı" if lang == 'tr' else "Predicted secondary structure"
+        if lang == 'tr':
+            labels = {'helix': 'Heliks (sarmal)', 'turn': 'Dönüş', 'sheet': 'β-Tabaka'}
+        else:
+            labels = {'helix': 'Helix', 'turn': 'Turn', 'sheet': 'β-Sheet'}
+        bars = []
+        for key, color in [('helix', 'danger'), ('turn', 'warning'), ('sheet', 'info')]:
+            val = ss.get(key, 0)
+            bars.append(html.Div([
+                html.Small(f"{labels[key]}: {val}%"),
+                dbc.Progress(value=val, color=color, className="mb-2", style={'height': '18px'}),
+            ]))
+        body.extend([html.H6(ss_title, className="mt-4"), html.Div(bars, className="mb-3")])
+
+    if r.get('hydropathy_profile'):
+        import plotly.graph_objects as go
+        profile = r['hydropathy_profile']
+        window = r.get('hydropathy_window', 9)
+        x_vals = list(range(1, len(profile) + 1))
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x_vals, y=profile, mode='lines',
+            line=dict(color='#0d6efd', width=2), fill='tozeroy',
+            fillcolor='rgba(13,110,253,0.15)',
+            name='Kyte-Doolittle'))
+        fig.add_hline(y=0, line_dash='dash', line_color='gray')
+        title = (f"Kyte-Doolittle hidrofobiklik profili (pencere = {window})" if lang == 'tr'
+                 else f"Kyte-Doolittle hydropathy profile (window = {window})")
+        fig.update_layout(
+            title=title,
+            xaxis_title=("Kalıntı pozisyonu (pencere merkezi)" if lang == 'tr' else "Residue position (window center)"),
+            yaxis_title=("Hidropati skoru" if lang == 'tr' else "Hydropathy score"),
+            margin=dict(l=50, r=20, t=50, b=45), height=340,
+            template='plotly_white', showlegend=False)
+        note = ("Pozitif değerler hidrofobik (membran/çekirdek) bölgeleri, negatif değerler hidrofilik (yüzey) bölgeleri gösterir."
+                if lang == 'tr' else
+                "Positive values indicate hydrophobic (membrane/core) regions; negative values indicate hydrophilic (surface) regions.")
+        body.extend([
+            dcc.Graph(figure=fig, config={'displayModeBar': False}, className="mt-3"),
+            html.P(note, className="text-muted small mb-3"),
+        ])
+
+    return body
 
 
 def create_sequence_analyzer_layout(lang='en'):
@@ -252,26 +432,12 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
     if "error" in results:
         return dbc.Alert(results["error"], color="danger"), no_update
 
-    result_items = [
-        dbc.ListGroupItem([html.Strong(f"{t('sa_file_id', lang)} "), html.Span(results.get('id', 'N/A'))]),
-        dbc.ListGroupItem([html.Strong(f"{t('sa_description', lang)} "), html.Span(results.get('description', 'N/A'))]),
-        dbc.ListGroupItem([html.Strong(f"{t('sa_analyzed_type', lang)} "), html.Span(results.get('type'))]),
-        dbc.ListGroupItem([html.Strong(f"{t('sa_length', lang)} "), html.Span(f"{results.get('length')} {t('sa_length_unit', lang)}")]),
-    ]
-
-    if 'gc_content' in results:
-        result_items.append(dbc.ListGroupItem([html.Strong(f"{t('sa_gc_content', lang)}: "), html.Span(results['gc_content'])]))
-
-    if 'molecular_weight' in results:
-        result_items.append(
-            dbc.ListGroupItem([html.Strong(f"{t('sa_mol_weight', lang)} "), html.Span(results['molecular_weight'])]))
-
-    output_card_body = [dbc.ListGroup(result_items, flush=True, className="mb-4")]
-
-    # ÇOKLU DİZİ: dosyada birden fazla dizi varsa, hepsinin özetini göster
+    # Çoklu dizi tespiti
     all_records = results.get('all_records')
-    if all_records and len(all_records) > 1:
-        valid_records = [r for r in all_records if 'error' not in r]
+    valid_records = [r for r in all_records if 'error' not in r] if all_records else None
+
+    if valid_records and len(valid_records) > 1:
+        # --- ÇOKLU DİZİ: özet tablo + dizi seçim dropdown'u + seçilen dizinin detayı ---
         header_row = html.Tr([
             html.Th("#"), html.Th(t('sa_file_id', lang)),
             html.Th(t('sa_length', lang)), html.Th("GC %"),
@@ -292,48 +458,33 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
                 [html.Thead(header_row), html.Tbody(body_rows)],
                 bordered=True, hover=True, responsive=True, size="sm",
                 className="mb-4"),
+        ])
+
+        select_label = ("İncelemek istediğiniz diziyi seçin:"
+                        if lang == 'tr' else
+                        "Select a sequence to inspect:")
+        selector = html.Div([
+            dbc.Label([html.I(className="fas fa-list me-2"), select_label], className="fw-bold"),
+            dcc.Dropdown(
+                id='sa-record-selector',
+                options=[{'label': f"{i + 1}. {r.get('id', 'N/A')} ({r.get('length', '?')} bp)",
+                          'value': i} for i, r in enumerate(valid_records)],
+                value=0,
+                clearable=False,
+                className="mb-3",
+            ),
+        ], className="mb-3")
+
+        output_card_body = [
+            multi_summary,
+            selector,
             html.Hr(),
-            html.P(t('sa_multi_first_detail', lang), className="text-muted small"),
-        ])
-        output_card_body.insert(0, multi_summary)
-
-    if 'transcribed_rna' in results:
-        output_card_body.extend([
-            html.H6(t('sa_transcription', lang)),
-            html.P(results['transcribed_rna'], className="text-break font-monospace small bg-light p-2 rounded")
-        ])
-    if 'complement' in results:
-        output_card_body.extend([
-            html.H6(t('sa_complement', lang)),
-            html.P(results['complement'], className="text-break font-monospace small bg-light p-2 rounded")
-        ])
-    if 'reverse_complement' in results:
-        output_card_body.extend([
-            html.H6(t('sa_rev_complement', lang)),
-            html.P(results['reverse_complement'], className="text-break font-monospace small bg-light p-2 rounded")
-        ])
-
-    if 'back_transcribed_dna' in results:
-        output_card_body.extend([
-            html.H6(t('sa_rev_transcription', lang)),
-            html.P(results['back_transcribed_dna'], className="text-break font-monospace small bg-light p-2 rounded")
-        ])
-    if 'protein_translation' in results:
-        output_card_body.extend([
-            html.H6(t('sa_translation', lang)),
-            html.P(results['protein_translation'], className="text-break font-monospace small bg-light p-2 rounded")
-        ])
-
-    if 'amino_acid_percent' in results:
-        aa_table_header = [html.Thead(html.Tr([html.Th(t('sa_amino_acid', lang)), html.Th(t('sa_percent', lang))]))]
-        aa_table_body = [html.Tbody([
-            html.Tr([html.Td(aa), html.Td(percent)]) for aa, percent in sorted(results['amino_acid_percent'].items())
-        ])]
-        aa_table = dbc.Table(aa_table_header + aa_table_body, bordered=True, striped=True, hover=True, size="sm")
-        output_card_body.extend([
-            html.H6(f"{t('sa_aa_dist', lang)}:", className="mt-4"),
-            dbc.Row([dbc.Col(aa_table, md=6)])
-        ])
+            html.Div(id='sa-record-detail',
+                     children=_render_record_detail(valid_records[0], lang)),
+        ]
+    else:
+        # --- TEK DİZİ ---
+        output_card_body = _render_record_detail(results, lang)
 
     # Makaleye dönüştürme bölümü — sonuçların altında
     publish_section = html.Div([
@@ -361,6 +512,28 @@ def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lan
 
     return result_card, results
 
+
+@app.callback(
+    Output('sa-record-detail', 'children'),
+    Input('sa-record-selector', 'value'),
+    State('sa-bio-results-store', 'data'),
+    State('sa-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def update_selected_record(selected_idx, results, lang):
+    """Çoklu dizi analizinde dropdown'dan seçilen dizinin detayını yeniden render eder."""
+    lang = lang or 'en'
+    if not results or selected_idx is None:
+        return no_update
+    all_records = results.get('all_records') or []
+    valid_records = [r for r in all_records if 'error' not in r]
+    if not valid_records:
+        return no_update
+    try:
+        record = valid_records[int(selected_idx)]
+    except (ValueError, TypeError, IndexError):
+        record = valid_records[0]
+    return _render_record_detail(record, lang)
 
 
 @app.callback(
