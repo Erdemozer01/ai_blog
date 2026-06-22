@@ -10,6 +10,7 @@ import dash_bootstrap_components as dbc
 # Django Entegrasyonu
 from django_plotly_dash import DjangoDash
 from django.shortcuts import reverse
+from billing.dash_helpers import build_confirm_modal
 
 # --- UYGULAMA BAŞLATMA ---
 # external_scripts kısmına Mermaid.js'i ekleyerek şemaların render edilmesini sağlıyoruz.
@@ -159,6 +160,7 @@ def create_pipeline_layout(lang='en'):
 
     return dbc.Container(fluid=True, className="py-3", children=[
         dcc.Location(id='url', refresh=False),
+        build_confirm_modal('pd-modal', lang=lang),
         dcc.Store(id='pd-lang-store', data=lang),
         html.H2(t('pd_title', lang)),
         html.Hr(),
@@ -177,7 +179,7 @@ app.layout = create_pipeline_layout()
 # ==============================================================================
 @app.callback(
     Output('pipeline-output', 'children'),
-    Input('btn-generate-pipeline', 'n_clicks'),
+    Input('pd-modal-confirm', 'n_clicks'),
     State('pipeline-goal-input', 'value'),
     State('pd-lang-store', 'data'),
     prevent_initial_call=True
@@ -279,3 +281,26 @@ def toggle_active_link(pathname):
         return pathname == reverse('bio_tools:pipline_designer_view')
     except Exception:
         return False
+
+
+# --- Kredi onay modalı: btn-generate-pipeline tıklanınca onay sor ---
+@app.callback(
+    Output('pd-modal', 'is_open'),
+    Output('pd-modal-body', 'children'),
+    Output('pd-modal-confirm', 'disabled'),
+    Input('btn-generate-pipeline', 'n_clicks'),
+    Input('pd-modal-cancel', 'n_clicks'),
+    Input('pd-modal-confirm', 'n_clicks'),
+    State('pd-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def toggle_pd_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
+    import dash
+    from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'tr'
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
+    if trig_id == 'btn-generate-pipeline' and open_click:
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_pipeline_designer', cost=5, lang=lang)
+        return True, body, (not can_proceed)
+    return False, dash.no_update, dash.no_update
