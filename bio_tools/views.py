@@ -166,11 +166,12 @@ BIO_SEO = {
 }
 
 
-def _bio_seo(key, lang='en'):
+def _bio_seo(key, request=None):
     """Bir bio aracı için SEO context sözlüğü döndürür.
-    Görünür SEO içeriği (seo_html) ve FAQ şeması (seo_faq) i18n_helper'dan
-    seçili dile göre çekilir; sadece o anahtar için çeviri tanımlıysa eklenir."""
-    from dash_apps.i18n_helper import t, TRANSLATIONS
+    Dil request'ten (get_lang) çözülür; görünür SEO içeriği (seo_html) ve
+    FAQ şeması (seo_faq) yalnızca o anahtar için çeviri tanımlıysa eklenir."""
+    from dash_apps.i18n_helper import t, TRANSLATIONS, get_lang
+    lang = get_lang(request) if request is not None else 'en'
     data = BIO_SEO.get(key, {})
     ctx = {
         'meta_title': data.get('title', 'Biyoinformatik Aracı - AI Blog'),
@@ -178,12 +179,10 @@ def _bio_seo(key, lang='en'):
         'meta_keywords': data.get('keywords', 'biyoinformatik, analiz aracı'),
         'site_lang': lang,
     }
-    seo_key = f'seo_{key}'
-    if seo_key in TRANSLATIONS:
-        ctx['seo_html'] = t(seo_key, lang)
-    faq_key = f'seo_{key}_faq'
-    if faq_key in TRANSLATIONS:
-        ctx['seo_faq'] = t(faq_key, lang)
+    if f'seo_{key}' in TRANSLATIONS:
+        ctx['seo_html'] = t(f'seo_{key}', lang)
+    if f'seo_{key}_faq' in TRANSLATIONS:
+        ctx['seo_faq'] = t(f'seo_{key}_faq', lang)
     return ctx
 
 
@@ -201,7 +200,7 @@ def fastq_analyzer_view(request):
     _layout = html.Div([main_navbar, content])
     fastq_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/fastq_analyzer.html', _bio_seo('fastq_analyzer'))
+    return render(request, 'bio_tools/fastq_analyzer.html', _bio_seo('fastq_analyzer', request))
 
 
 # --- OTHER DASH APP VIEWS ---
@@ -220,7 +219,7 @@ def sequence_analyzer_view(request):
     _layout = html.Div([main_navbar, content])
     sequence_analyzer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer', lang))
+    return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer', request))
 
 
 @login_required
@@ -237,7 +236,7 @@ def phylogenetic_tree_view(request):
     _layout = html.Div([main_navbar, content])
     phylogenetic_tree_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/phylogenetic_tree.html', _bio_seo('phylogenetic_tree'))
+    return render(request, 'bio_tools/phylogenetic_tree.html', _bio_seo('phylogenetic_tree', request))
 
 
 @login_required
@@ -253,7 +252,7 @@ def sequence_alignment_view(request):
     _layout = html.Div([main_navbar, content])
     sequence_alignment_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/sequence_alignment.html', _bio_seo('sequence_alignment'))
+    return render(request, 'bio_tools/sequence_alignment.html', _bio_seo('sequence_alignment', request))
 
 
 @login_required
@@ -269,7 +268,7 @@ def molecule_viewer_view(request):
     _layout = html.Div([main_navbar, content])
     molecule_viewer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/molecule_viewer.html', _bio_seo('molecule_viewer'))
+    return render(request, 'bio_tools/molecule_viewer.html', _bio_seo('molecule_viewer', request))
 
 
 @login_required
@@ -285,7 +284,7 @@ def mutation_predictor_view(request):
     _layout = html.Div([main_navbar, content])
     mutation_predictor_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/mutation_predictor.html', _bio_seo('mutation_predictor'))
+    return render(request, 'bio_tools/mutation_predictor.html', _bio_seo('mutation_predictor', request))
 
 
 @login_required
@@ -301,7 +300,7 @@ def bacterial_designer_view(request):
     _layout = html.Div([main_navbar, content])
     bacterial_designer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/bacterial_designer.html', _bio_seo('bacterial_designer'))
+    return render(request, 'bio_tools/bacterial_designer.html', _bio_seo('bacterial_designer', request))
 
 
 @login_required
@@ -317,7 +316,7 @@ def pipline_designer_view(request):
     _layout = html.Div([main_navbar, content])
     pipeline_designer_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/pipline_designer.html', _bio_seo('pipeline_designer'))
+    return render(request, 'bio_tools/pipline_designer.html', _bio_seo('pipeline_designer', request))
 
 
 @login_required
@@ -334,7 +333,7 @@ def primer_design_view(request):
     _layout = html.Div([main_navbar, content])
     primer_design_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/primer_design.html', _bio_seo('primer_design'))
+    return render(request, 'bio_tools/primer_design.html', _bio_seo('primer_design', request))
 
 
 @login_required
@@ -351,7 +350,7 @@ def restriction_view(request):
     _layout = html.Div([main_navbar, content])
     restriction_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/restriction_analysis.html', _bio_seo('restriction_analysis'))
+    return render(request, 'bio_tools/restriction_analysis.html', _bio_seo('restriction_analysis', request))
 
 
 @login_required
@@ -368,7 +367,7 @@ def plasmid_map_view(request):
     _layout = html.Div([main_navbar, content])
     plasmid_app.layout = lambda: _layout
 
-    return render(request, 'bio_tools/plasmid_map.html', _bio_seo('plasmid_map'))
+    return render(request, 'bio_tools/plasmid_map.html', _bio_seo('plasmid_map', request))
 
 
 # --- FASTQ ANALİZ API VIEWS ---
@@ -657,7 +656,7 @@ def federated_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_federated_layout()])
     federated_app.layout = lambda: _layout
-    return render(request, 'bio_tools/federated_learning.html', _bio_seo('federated_learning'))
+    return render(request, 'bio_tools/federated_learning.html', _bio_seo('federated_learning', request))
 
 
 @login_required
@@ -668,7 +667,7 @@ def pharmacogenomics_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_pharmacogenomics_layout()])
     pgx_app.layout = lambda: _layout
-    return render(request, 'bio_tools/pharmacogenomics.html', _bio_seo('pharmacogenomics'))
+    return render(request, 'bio_tools/pharmacogenomics.html', _bio_seo('pharmacogenomics', request))
 
 
 @login_required
@@ -679,4 +678,4 @@ def variant_view(request):
     main_navbar = create_main_navbar(request)
     _layout = html.Div([main_navbar, create_variant_layout()])
     variant_app.layout = lambda: _layout
-    return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization'))
+    return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization', request))
