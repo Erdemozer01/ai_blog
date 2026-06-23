@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
+from dash_apps.i18n_helper import t
 from billing.dash_helpers import build_confirm_modal
 
 warnings.filterwarnings("ignore")
@@ -20,36 +21,36 @@ app = DjangoDash(
 
 # ClinVar/CIViC benzeri bilgi tabanı (örnek varyantlar)
 KNOWLEDGE_BASE = {
-    "BRCA1": {"disease": "Meme/Yumurtalık Kanseri", "actionable": True,
-              "drugs": ["Olaparib", "Talazoparib"], "evidence": "PharmGKB 1A"},
-    "BRCA2": {"disease": "Meme/Pankreas Kanseri", "actionable": True,
-              "drugs": ["Olaparib"], "evidence": "CIViC A"},
-    "KRAS": {"disease": "Akciğer/Kolorektal Kanser", "actionable": True,
-             "drugs": ["Sotorasib (G12C)"], "evidence": "CIViC A"},
-    "TP53": {"disease": "Çok sayıda kanser tipi", "actionable": False,
-             "drugs": [], "evidence": "ClinVar Pathogenic"},
-    "EGFR": {"disease": "Akciğer Kanseri", "actionable": True,
-             "drugs": ["Erlotinib", "Gefitinib", "Osimertinib"], "evidence": "CIViC A"},
-    "ALK": {"disease": "Akciğer Kanseri", "actionable": True,
-            "drugs": ["Krizotinib", "Alektinib"], "evidence": "CIViC A"},
-    "BRAF": {"disease": "Melanom/Kolorektal", "actionable": True,
-             "drugs": ["Vemurafenib", "Dabrafenib"], "evidence": "CIViC A"},
-    "PIK3CA": {"disease": "Meme Kanseri", "actionable": True,
-               "drugs": ["Alpelisib"], "evidence": "CIViC B"},
-    "PTEN": {"disease": "Çok sayıda kanser", "actionable": False,
-             "drugs": [], "evidence": "ClinVar Pathogenic"},
-    "RET": {"disease": "Tiroid/Akciğer Kanseri", "actionable": True,
-            "drugs": ["Selpercatinib"], "evidence": "CIViC A"},
-    "CFTR": {"disease": "Kistik Fibrozis", "actionable": True,
-             "drugs": ["İvakaftor", "Lumakaftor"], "evidence": "PharmGKB 1A"},
-    "CYP2C9": {"disease": "Warfarin Toksisitesi", "actionable": True,
-               "drugs": ["Warfarin (doz ayarı)"], "evidence": "PharmGKB 1A"},
-    "DPYD": {"disease": "5-FU Toksisitesi", "actionable": True,
-             "drugs": ["Kapesitabin (doz azalt)"], "evidence": "PharmGKB 1A"},
-    "TPMT": {"disease": "Tiopürin Toksisitesi", "actionable": True,
-             "drugs": ["Azatioprin (doz ayarı)"], "evidence": "PharmGKB 1A"},
-    "HLA-B": {"disease": "İlaç Aşırı Duyarlılığı", "actionable": True,
-              "drugs": ["Abakavir", "Karbamazepin"], "evidence": "PharmGKB 1A"},
+    "BRCA1": {"disease": {"tr": "Meme/Yumurtalık Kanseri", "en": "Breast/Ovarian Cancer"}, "actionable": True,
+              "drugs": {"tr": ["Olaparib", "Talazoparib"], "en": ["Olaparib", "Talazoparib"]}, "evidence": "PharmGKB 1A"},
+    "BRCA2": {"disease": {"tr": "Meme/Pankreas Kanseri", "en": "Breast/Pancreatic Cancer"}, "actionable": True,
+              "drugs": {"tr": ["Olaparib"], "en": ["Olaparib"]}, "evidence": "CIViC A"},
+    "KRAS": {"disease": {"tr": "Akciğer/Kolorektal Kanser", "en": "Lung/Colorectal Cancer"}, "actionable": True,
+             "drugs": {"tr": ["Sotorasib (G12C)"], "en": ["Sotorasib (G12C)"]}, "evidence": "CIViC A"},
+    "TP53": {"disease": {"tr": "Çok sayıda kanser tipi", "en": "Multiple cancer types"}, "actionable": False,
+             "drugs": {"tr": [], "en": []}, "evidence": "ClinVar Pathogenic"},
+    "EGFR": {"disease": {"tr": "Akciğer Kanseri", "en": "Lung Cancer"}, "actionable": True,
+             "drugs": {"tr": ["Erlotinib", "Gefitinib", "Osimertinib"], "en": ["Erlotinib", "Gefitinib", "Osimertinib"]}, "evidence": "CIViC A"},
+    "ALK": {"disease": {"tr": "Akciğer Kanseri", "en": "Lung Cancer"}, "actionable": True,
+            "drugs": {"tr": ["Krizotinib", "Alektinib"], "en": ["Crizotinib", "Alectinib"]}, "evidence": "CIViC A"},
+    "BRAF": {"disease": {"tr": "Melanom/Kolorektal", "en": "Melanoma/Colorectal"}, "actionable": True,
+             "drugs": {"tr": ["Vemurafenib", "Dabrafenib"], "en": ["Vemurafenib", "Dabrafenib"]}, "evidence": "CIViC A"},
+    "PIK3CA": {"disease": {"tr": "Meme Kanseri", "en": "Breast Cancer"}, "actionable": True,
+               "drugs": {"tr": ["Alpelisib"], "en": ["Alpelisib"]}, "evidence": "CIViC B"},
+    "PTEN": {"disease": {"tr": "Çok sayıda kanser", "en": "Multiple cancers"}, "actionable": False,
+             "drugs": {"tr": [], "en": []}, "evidence": "ClinVar Pathogenic"},
+    "RET": {"disease": {"tr": "Tiroid/Akciğer Kanseri", "en": "Thyroid/Lung Cancer"}, "actionable": True,
+            "drugs": {"tr": ["Selpercatinib"], "en": ["Selpercatinib"]}, "evidence": "CIViC A"},
+    "CFTR": {"disease": {"tr": "Kistik Fibrozis", "en": "Cystic Fibrosis"}, "actionable": True,
+             "drugs": {"tr": ["İvakaftor", "Lumakaftor"], "en": ["Ivacaftor", "Lumacaftor"]}, "evidence": "PharmGKB 1A"},
+    "CYP2C9": {"disease": {"tr": "Warfarin Toksisitesi", "en": "Warfarin Toxicity"}, "actionable": True,
+               "drugs": {"tr": ["Warfarin (doz ayarı)"], "en": ["Warfarin (dose adj.)"]}, "evidence": "PharmGKB 1A"},
+    "DPYD": {"disease": {"tr": "5-FU Toksisitesi", "en": "5-FU Toxicity"}, "actionable": True,
+             "drugs": {"tr": ["Kapesitabin (doz azalt)"], "en": ["Capecitabine (dose reduction)"]}, "evidence": "PharmGKB 1A"},
+    "TPMT": {"disease": {"tr": "Tiopürin Toksisitesi", "en": "Thiopurine Toxicity"}, "actionable": True,
+             "drugs": {"tr": ["Azatioprin (doz ayarı)"], "en": ["Azathioprine (dose adj.)"]}, "evidence": "PharmGKB 1A"},
+    "HLA-B": {"disease": {"tr": "İlaç Aşırı Duyarlılığı", "en": "Drug Hypersensitivity"}, "actionable": True,
+              "drugs": {"tr": ["Abakavir", "Karbamazepin"], "en": ["Abacavir", "Carbamazepine"]}, "evidence": "PharmGKB 1A"},
 }
 
 CONSEQUENCE_SCORES = {
@@ -73,37 +74,35 @@ def _card(title, icon, children):
     ], className="mb-4 shadow")
 
 
-def create_variant_layout():
+def create_variant_layout(lang='en'):
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
-        build_confirm_modal('variant-manual-modal', lang='tr'),
-        build_confirm_modal('variant-demo-modal', lang='tr'),
+        dcc.Store(id='variant-lang-store', data=lang),
+        build_confirm_modal('variant-manual-modal', lang=lang),
+        build_confirm_modal('variant-demo-modal', lang=lang),
         html.H2([html.I(className="fas fa-dna me-2 text-primary"),
-                 "Varyant Önceliklendirme (Variant Prioritization)"],
+                 t('vp_title', lang)],
                 className="my-4 fw-bold"),
         html.P(
-            "WGS/WES çıktısından gelen varyantları ClinVar, CIViC ve PharmGKB bilgi "
-            "tabanlarıyla karşılaştırarak klinik öneme göre sıralayın.",
+            t('vp_desc', lang),
             className="text-muted mb-4",
         ),
 
-        _card("Varyant Girişi", "fa-upload", [
+        _card(t('vp_input_card', lang), "fa-upload", [
             dbc.Tabs([
-                dbc.Tab(label="Manuel Giriş", tab_id="manual", children=[
+                dbc.Tab(label=t('vp_tab_manual', lang), tab_id="manual", children=[
                     dbc.Textarea(
                         id="variant-manual-input",
-                        placeholder="Her satıra bir varyant:\nGEN\tKROMAZOM\tPOZİSYON\tREF\tALT\tCONSEQUENCE\tCLINVAR\n"
-                                    "BRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\n"
-                                    "TP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic",
+                        placeholder=t('vp_manual_placeholder', lang),
                         rows=6, className="font-monospace small",
                     ),
-                    dbc.Button([html.I(className="fas fa-play me-2"), "Analiz Et (5 Kredi)"],
+                    dbc.Button([html.I(className="fas fa-play me-2"), t('vp_analyze_btn', lang)],
                                id="variant-manual-btn", color="primary", className="mt-2"),
                 ]),
-                dbc.Tab(label="VCF / TSV Yükle", tab_id="upload", children=[
+                dbc.Tab(label=t('vp_tab_upload', lang), tab_id="upload", children=[
                     dcc.Upload(
                         id="variant-upload",
-                        children=html.Div(["📂 TSV/CSV VCF yükle"],
+                        children=html.Div([t('vp_upload_text', lang)],
                                           className="text-center py-3"),
                         style={"border": "2px dashed #3b82f6", "borderRadius": "8px",
                                "cursor": "pointer", "background": "#eff6ff"},
@@ -111,9 +110,9 @@ def create_variant_layout():
                     ),
                     html.Div(id="variant-upload-status", className="mt-2"),
                 ]),
-                dbc.Tab(label="Demo Veri", tab_id="demo", children=[
+                dbc.Tab(label=t('vp_tab_demo', lang), tab_id="demo", children=[
                     dbc.Button([html.I(className="fas fa-flask me-2"),
-                                "Demo Varyantlar Yükle (20 varyant)"],
+                                t('vp_demo_btn', lang)],
                                id="variant-demo-btn", color="outline-primary", className="mt-2"),
                 ]),
             ], id="variant-input-tabs", active_tab="manual"),
@@ -125,41 +124,41 @@ def create_variant_layout():
                 # Özet Metrikler
                 dbc.Row([
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("Toplam Varyant", className="text-muted small mb-1"),
+                        html.P(t('vp_m_total', lang), className="text-muted small mb-1"),
                         html.H4(id="vm-total", className="fw-bold text-primary mb-0"),
                     ]), className="text-center shadow-sm"), width=3),
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("Patolojik / Olası Patolojik", className="text-muted small mb-1"),
+                        html.P(t('vp_m_pathogenic', lang), className="text-muted small mb-1"),
                         html.H4(id="vm-pathogenic", className="fw-bold text-danger mb-0"),
                     ]), className="text-center shadow-sm"), width=3),
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("Klinik Eyleme Geçilebilir", className="text-muted small mb-1"),
+                        html.P(t('vp_m_actionable', lang), className="text-muted small mb-1"),
                         html.H4(id="vm-actionable", className="fw-bold text-success mb-0"),
                     ]), className="text-center shadow-sm"), width=3),
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("İlaç Eşleşmesi", className="text-muted small mb-1"),
+                        html.P(t('vp_m_druggable', lang), className="text-muted small mb-1"),
                         html.H4(id="vm-druggable", className="fw-bold text-warning mb-0"),
                     ]), className="text-center shadow-sm"), width=3),
                 ], className="mb-4"),
 
-                _card("Öncelik Skoru Dağılımı", "fa-chart-bar", [
+                _card(t('vp_score_dist', lang), "fa-chart-bar", [
                     dbc.Row([
                         dbc.Col(dcc.Graph(id="variant-score-dist"), width=6),
                         dbc.Col(dcc.Graph(id="variant-consequence-pie"), width=6),
                     ]),
                 ]),
 
-                _card("Önceliklendirilmiş Varyant Tablosu", "fa-table", [
+                _card(t('vp_table_card', lang), "fa-table", [
                     dbc.Row([
                         dbc.Col([
-                            dbc.Label("Filtrele"),
+                            dbc.Label(t('vp_filter', lang)),
                             dcc.Dropdown(
                                 id="variant-filter",
                                 options=[
-                                    {"label": "Tümü", "value": "all"},
-                                    {"label": "Yalnızca Patolojik", "value": "pathogenic"},
-                                    {"label": "Eyleme Geçilebilir", "value": "actionable"},
-                                    {"label": "İlaç Hedefi Var", "value": "druggable"},
+                                    {"label": t('vp_f_all', lang), "value": "all"},
+                                    {"label": t('vp_f_path', lang), "value": "pathogenic"},
+                                    {"label": t('vp_f_action', lang), "value": "actionable"},
+                                    {"label": t('vp_f_drug', lang), "value": "druggable"},
                                 ],
                                 value="all", clearable=False,
                             ),
@@ -168,7 +167,7 @@ def create_variant_layout():
                     html.Div(id="variant-table", className="mt-3"),
                 ]),
 
-                _card("Klinik Karar Özeti", "fa-stethoscope", [
+                _card(t('vp_clinical_card', lang), "fa-stethoscope", [
                     html.Div(id="variant-clinical-summary"),
                 ]),
             ]),
@@ -188,7 +187,7 @@ def _priority_score(row):
     clinvar_score = CLINVAR_SCORES.get(str(row.get("clinvar", "")), 0)
     kb = KNOWLEDGE_BASE.get(str(row.get("gene", "")), {})
     actionable_bonus = 10 if kb.get("actionable") else 0
-    drug_bonus = 5 if kb.get("drugs") else 0
+    drug_bonus = 5 if kb.get("drugs", {}).get("en") else 0
     return conseq_score + clinvar_score + actionable_bonus + drug_bonus
 
 
@@ -230,12 +229,12 @@ def _generate_demo():
     return df
 
 
-def _enrich(df):
+def _enrich(df, lang='en'):
     df = df.copy()
     df["priority_score"] = df.apply(_priority_score, axis=1)
     df["actionable"] = df["gene"].apply(lambda g: KNOWLEDGE_BASE.get(g, {}).get("actionable", False))
-    df["drugs"] = df["gene"].apply(lambda g: ", ".join(KNOWLEDGE_BASE.get(g, {}).get("drugs", [])))
-    df["disease"] = df["gene"].apply(lambda g: KNOWLEDGE_BASE.get(g, {}).get("disease", ""))
+    df["drugs"] = df["gene"].apply(lambda g: ", ".join(KNOWLEDGE_BASE.get(g, {}).get("drugs", {}).get(lang, [])))
+    df["disease"] = df["gene"].apply(lambda g: KNOWLEDGE_BASE.get(g, {}).get("disease", {}).get(lang, ""))
     df["evidence"] = df["gene"].apply(lambda g: KNOWLEDGE_BASE.get(g, {}).get("evidence", ""))
     df["risk_class"] = df["clinvar"].apply(
         lambda c: "danger" if c in ("Pathogenic", "Likely pathogenic")
@@ -244,8 +243,8 @@ def _enrich(df):
     return df.sort_values("priority_score", ascending=False).reset_index(drop=True)
 
 
-def _build_outputs(df):
-    df = _enrich(df)
+def _build_outputs(df, lang='en'):
+    df = _enrich(df, lang)
     n_total = len(df)
     n_path = len(df[df["clinvar"].isin(["Pathogenic", "Likely pathogenic"])])
     n_actionable = df["actionable"].sum()
@@ -253,11 +252,11 @@ def _build_outputs(df):
 
     # Skor dağılımı
     fig_dist = px.histogram(df, x="priority_score", nbins=15,
-                            title="Öncelik Skoru Dağılımı",
+                            title=t('vp_score_dist', lang),
                             color_discrete_sequence=["#3b82f6"])
 
     # Consequence pasta
-    fig_pie = px.pie(df, names="consequence", title="Varyant Sonuç Dağılımı",
+    fig_pie = px.pie(df, names="consequence", title=t('vp_pie_title', lang),
                      color_discrete_sequence=px.colors.qualitative.Set3)
 
     return df, n_total, n_path, n_actionable, n_druggable, fig_dist, fig_pie
@@ -282,9 +281,11 @@ def _build_outputs(df):
     Input("variant-upload", "contents"),
     State("variant-manual-input", "value"),
     State("click-memory-store", "data"),
+    State("variant-lang-store", "data"),
     prevent_initial_call=True,
 )
-def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, click_memory, **kwargs):
+def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, click_memory, lang, **kwargs):
+    lang = lang or 'en'
     # Initialize state store if empty
     click_memory = click_memory or {"manual": None, "demo": None, "upload": None}
 
@@ -322,11 +323,11 @@ def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, c
     # Geçerli veri var, analiz başlayacak — kredi düş
     from billing.dash_helpers import try_charge
     ok, msg, _u = try_charge(kwargs, 'bio_variant', cost=5,
-                             description="Varyant önceliklendirme")
+                             description=t('vp_charge_desc', lang))
     if not ok:
         return (msg, {"display": "none"}, "—", "—", "—", "—", {}, {}, click_memory)
 
-    df_enriched, n_total, n_path, n_action, n_drug, fig_dist, fig_pie = _build_outputs(df)
+    df_enriched, n_total, n_path, n_action, n_drug, fig_dist, fig_pie = _build_outputs(df, lang)
 
     return (
         df_enriched.to_dict("records"), {"display": "block"},
@@ -340,9 +341,11 @@ def analyze_variants(manual_clicks, demo_clicks, upload_contents, manual_text, c
     Output("variant-clinical-summary", "children"),
     Input("variant-filter", "value"),
     State("variant-data-store", "data"),
+    State("variant-lang-store", "data"),
     prevent_initial_call=True,
 )
-def update_table(filter_val, data):
+def update_table(filter_val, data, lang):
+    lang = lang or 'en'
     if not data:
         return no_update, no_update
 
@@ -358,8 +361,9 @@ def update_table(filter_val, data):
     display_cols = ["gene", "chrom", "pos", "consequence", "clinvar",
                     "priority_score", "disease", "drugs", "evidence"]
     display_df = df[[c for c in display_cols if c in df.columns]].head(30)
-    display_df.columns = ["Gen", "Krom", "Pozisyon", "Sonuç",
-                          "ClinVar", "Öncelik", "Hastalık", "İlaçlar", "Kanıt"][:len(display_df.columns)]
+    display_df.columns = [t('vp_col_gene', lang), t('vp_col_chrom', lang), t('vp_col_pos', lang),
+                          t('vp_col_conseq', lang), t('vp_col_clinvar', lang), t('vp_col_priority', lang),
+                          t('vp_col_disease', lang), t('vp_col_drugs', lang), t('vp_col_evidence', lang)][:len(display_df.columns)]
 
     table = dbc.Table.from_dataframe(
         display_df, striped=True, bordered=True, hover=True,
@@ -384,14 +388,14 @@ def update_table(filter_val, data):
                     dbc.Col(html.Small(row.get("disease", "—"), className="text-muted"), width=3),
                     dbc.Col(html.Small(f"💊 {row.get('drugs', '—') or '—'}",
                                        className="text-success"), width=3),
-                    dbc.Col(html.Small(f"Skor: {row.get('priority_score', 0):.0f}",
+                    dbc.Col(html.Small(f"{t('vp_score_label', lang)}: {row.get('priority_score', 0):.0f}",
                                        className="fw-bold"), width=2),
                 ])
             ])
         )
 
     clinical = html.Div([
-        html.H6("En Yüksek Öncelikli 5 Varyant:", className="text-muted mb-2"),
+        html.H6(t('vp_top5', lang), className="text-muted mb-2"),
         dbc.ListGroup(clinical_items),
     ])
 
@@ -425,15 +429,17 @@ def toggle_active_link(pathname):
     Input('variant-manual-btn', 'n_clicks'),
     Input('variant-manual-modal-cancel', 'n_clicks'),
     Input('variant-manual-modal-confirm', 'n_clicks'),
+    State('variant-lang-store', 'data'),
     prevent_initial_call=True
 )
-def toggle_variant_manual(open_click, cancel_click, confirm_click, **kwargs):
+def toggle_variant_manual(open_click, cancel_click, confirm_click, lang, **kwargs):
     import dash
     from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'en'
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
     if trig_id == 'variant-manual-btn' and open_click:
-        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang='tr')
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang=lang)
         return True, body, (not can_proceed)
     return False, dash.no_update, dash.no_update
 
@@ -446,14 +452,16 @@ def toggle_variant_manual(open_click, cancel_click, confirm_click, **kwargs):
     Input('variant-demo-btn', 'n_clicks'),
     Input('variant-demo-modal-cancel', 'n_clicks'),
     Input('variant-demo-modal-confirm', 'n_clicks'),
+    State('variant-lang-store', 'data'),
     prevent_initial_call=True
 )
-def toggle_variant_demo(open_click, cancel_click, confirm_click, **kwargs):
+def toggle_variant_demo(open_click, cancel_click, confirm_click, lang, **kwargs):
     import dash
     from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'en'
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
     if trig_id == 'variant-demo-btn' and open_click:
-        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang='tr')
+        body, can_proceed = confirm_modal_body(kwargs, 'bio_variant', cost=5, lang=lang)
         return True, body, (not can_proceed)
     return False, dash.no_update, dash.no_update
