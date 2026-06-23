@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
 from billing.dash_helpers import build_confirm_modal
+from dash_apps.i18n_helper import t
 
 warnings.filterwarnings("ignore")
 
@@ -25,22 +26,21 @@ def _card(title, icon, children):
     ], className="mb-4 shadow")
 
 
-def create_federated_layout():
+def create_federated_layout(lang='en'):
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
-        build_confirm_modal('fl-modal', lang='tr'),
+        dcc.Store(id='fl-lang-store', data=lang),
+        build_confirm_modal('fl-modal', lang=lang),
         html.H2([html.I(className="fas fa-network-wired me-2 text-success"),
-                 "Birleşik Öğrenme (Federated Learning) Simülatörü"],
+                 t('fl_title', lang)],
                 className="my-4 fw-bold"),
         html.P(
-            "Farklı hastanelerdeki hasta verilerini merkeze göndermeden, yalnızca model "
-            "ağırlıklarını paylaşarak ortak bir AI modeli nasıl eğitilir? Bu simülatör "
-            "ile federated öğrenme sürecini interaktif olarak keşfedin.",
+            t('fl_desc', lang),
             className="text-muted mb-4",
         ),
 
         # Mimari Diyagramı (Responsive Entegrasyonu)
-        _card("FL Mimarisi", "fa-sitemap", [
+        _card(t('fl_arch_card', lang), "fa-sitemap", [
             dbc.Row([
                 # Sol Kısım: Hastaneler
                 dbc.Col([
@@ -48,8 +48,8 @@ def create_federated_layout():
                         dbc.Col([
                             html.Div([
                                 html.I(className="fas fa-hospital fa-2x text-primary"),
-                                html.Br(), html.Strong("Hastane A", className="mt-2 d-inline-block"),
-                                html.Br(), html.Small("Lokal model eğit", className="text-muted"),
+                                html.Br(), html.Strong(f"{t('fl_hospital', lang)} A", className="mt-2 d-inline-block"),
+                                html.Br(), html.Small(t('fl_train_local', lang), className="text-muted"),
                             ],
                                 className="text-center p-3 border rounded h-100 d-flex flex-column justify-content-center",
                                 style={"background": "#eff6ff"}),
@@ -58,8 +58,8 @@ def create_federated_layout():
                         dbc.Col([
                             html.Div([
                                 html.I(className="fas fa-hospital fa-2x text-danger"),
-                                html.Br(), html.Strong("Hastane B", className="mt-2 d-inline-block"),
-                                html.Br(), html.Small("Lokal model eğit", className="text-muted"),
+                                html.Br(), html.Strong(f"{t('fl_hospital', lang)} B", className="mt-2 d-inline-block"),
+                                html.Br(), html.Small(t('fl_train_local', lang), className="text-muted"),
                             ],
                                 className="text-center p-3 border rounded h-100 d-flex flex-column justify-content-center",
                                 style={"background": "#fef2f2"}),
@@ -68,8 +68,8 @@ def create_federated_layout():
                         dbc.Col([
                             html.Div([
                                 html.I(className="fas fa-hospital fa-2x text-warning"),
-                                html.Br(), html.Strong("Hastane C", className="mt-2 d-inline-block"),
-                                html.Br(), html.Small("Lokal model eğit", className="text-muted"),
+                                html.Br(), html.Strong(f"{t('fl_hospital', lang)} C", className="mt-2 d-inline-block"),
+                                html.Br(), html.Small(t('fl_train_local', lang), className="text-muted"),
                             ],
                                 className="text-center p-3 border rounded h-100 d-flex flex-column justify-content-center",
                                 style={"background": "#fffbeb"}),
@@ -82,8 +82,8 @@ def create_federated_layout():
                     html.Div([
                         html.I(className="fas fa-arrows-alt-h fa-2x text-secondary mb-2 d-none d-lg-block"),
                         html.I(className="fas fa-arrows-alt-v fa-2x text-secondary mb-2 d-block d-lg-none"),
-                        html.Small("Yalnızca ağırlıklar →", className="text-muted d-block"),
-                        html.Small("← Hiç ham veri yok!", className="text-success fw-bold d-block mt-1"),
+                        html.Small(t('fl_only_weights', lang), className="text-muted d-block"),
+                        html.Small(t('fl_no_raw_data', lang), className="text-success fw-bold d-block mt-1"),
                     ], className="text-center p-3 h-100 d-flex flex-column justify-content-center"),
                 ], xs=12, lg=3, className="my-3 my-lg-0"),
 
@@ -91,8 +91,8 @@ def create_federated_layout():
                 dbc.Col([
                     html.Div([
                         html.I(className="fas fa-server fa-2x text-success"),
-                        html.Br(), html.Strong("Merkezi Sunucu", className="mt-2 d-inline-block"),
-                        html.Br(), html.Small("FedAvg Agregasyonu", className="text-muted"),
+                        html.Br(), html.Strong(t('fl_central_server', lang), className="mt-2 d-inline-block"),
+                        html.Br(), html.Small(t('fl_fedavg', lang), className="text-muted"),
                     ],
                         className="text-center p-3 border rounded bg-light h-100 d-flex flex-column justify-content-center border-2 border-success"),
                 ], xs=12, lg=3),
@@ -100,43 +100,43 @@ def create_federated_layout():
         ]),
 
         # Simülasyon Parametreleri (Responsive Form Elemanları)
-        _card("Simülasyon Parametreleri", "fa-sliders-h", [
+        _card(t('fl_params_card', lang), "fa-sliders-h", [
             dbc.Row([
                 dbc.Col([
-                    dbc.Label("Hastane Sayısı (İstemci)"),
+                    dbc.Label(t('fl_n_clients', lang)),
                     dcc.Slider(id="fl-n-clients", min=2, max=10, step=1, value=5,
                                marks={i: str(i) for i in range(2, 11)},
                                tooltip={"placement": "bottom"}),
                 ], xs=12, lg=4, className="mb-4 mb-lg-0"),
                 dbc.Col([
-                    dbc.Label("Global Tur Sayısı"),
+                    dbc.Label(t('fl_n_rounds', lang)),
                     dcc.Slider(id="fl-n-rounds", min=5, max=50, step=5, value=20,
                                marks={i: str(i) for i in [5, 10, 20, 30, 50]},
                                tooltip={"placement": "bottom"}),
                 ], xs=12, lg=4, className="mb-4 mb-lg-0"),
                 dbc.Col([
-                    dbc.Label("Veri Heterojenliği (Non-IID)"),
+                    dbc.Label(t('fl_heterogeneity', lang)),
                     dcc.Slider(id="fl-heterogeneity", min=0.0, max=1.0, step=0.1, value=0.3,
-                               marks={0: "IID", 0.5: "Orta", 1.0: "Yüksek"},
+                               marks={0: "IID", 0.5: t('fl_medium', lang), 1.0: t('fl_high', lang)},
                                tooltip={"placement": "bottom"}),
                 ], xs=12, lg=4),
             ]),
             dbc.Row([
                 dbc.Col([
-                    dbc.Label("Öğrenme Oranı"),
+                    dbc.Label(t('fl_lr', lang)),
                     dbc.Input(id="fl-lr", type="number", value=0.01, min=0.001, max=0.5, step=0.001),
                 ], xs=12, md=6, lg=3, className="mb-3 mb-lg-0 mt-lg-3"),
                 dbc.Col([
-                    dbc.Label("Lokal Epoch Sayısı"),
+                    dbc.Label(t('fl_local_epochs', lang)),
                     dbc.Input(id="fl-local-epochs", type="number", value=5, min=1, max=20),
                 ], xs=12, md=6, lg=3, className="mb-3 mb-lg-0 mt-lg-3"),
                 dbc.Col([
-                    dbc.Label("Merkezi Eğitim ile Karşılaştır"),
-                    dbc.Checklist(id="fl-compare", options=[{"label": " Evet", "value": "yes"}],
+                    dbc.Label(t('fl_compare', lang)),
+                    dbc.Checklist(id="fl-compare", options=[{"label": t('fl_yes', lang), "value": "yes"}],
                                   value=["yes"], switch=True),
                 ], xs=12, md=6, lg=3, className="mb-3 mb-lg-0 mt-lg-3"),
                 dbc.Col([
-                    dbc.Button([html.I(className="fas fa-play me-2"), "Simülasyonu Başlat (5 Kredi)"],
+                    dbc.Button([html.I(className="fas fa-play me-2"), t('fl_run_btn', lang)],
                                id="fl-run-btn", color="success", className="w-100 h-100"),
                 ], xs=12, md=6, lg=3, className="mt-lg-3 d-flex align-items-end"),
             ], className="mt-0 mt-lg-3"),
@@ -148,41 +148,41 @@ def create_federated_layout():
                 # Metrikler (Responsive Kartlar)
                 dbc.Row([
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("FL Son Doğruluk", className="text-muted small mb-1"),
+                        html.P(t('fl_m_acc', lang), className="text-muted small mb-1"),
                         html.H4(id="fl-metric-acc", className="text-success fw-bold mb-0"),
                     ]), className="text-center shadow-sm h-100 d-flex flex-column justify-content-center"),
                         xs=12, sm=6, xl=3, className="mb-3"),
 
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("Merkezi Model Doğruluk", className="text-muted small mb-1"),
+                        html.P(t('fl_m_central', lang), className="text-muted small mb-1"),
                         html.H4(id="fl-metric-central", className="text-primary fw-bold mb-0"),
                     ]), className="text-center shadow-sm h-100 d-flex flex-column justify-content-center"),
                         xs=12, sm=6, xl=3, className="mb-3"),
 
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("İletişim Turu", className="text-muted small mb-1"),
+                        html.P(t('fl_m_rounds', lang), className="text-muted small mb-1"),
                         html.H4(id="fl-metric-rounds", className="text-warning fw-bold mb-0"),
                     ]), className="text-center shadow-sm h-100 d-flex flex-column justify-content-center"),
                         xs=12, sm=6, xl=3, className="mb-3"),
 
                     dbc.Col(dbc.Card(dbc.CardBody([
-                        html.P("Gizlilik Koruması", className="text-muted small mb-1"),
-                        html.H4("✓ Tam", className="text-success fw-bold mb-0"),
+                        html.P(t('fl_m_privacy', lang), className="text-muted small mb-1"),
+                        html.H4(t('fl_full', lang), className="text-success fw-bold mb-0"),
                     ]), className="text-center shadow-sm h-100 d-flex flex-column justify-content-center"),
                         xs=12, sm=6, xl=3, className="mb-3"),
                 ], className="mb-2 align-items-stretch"),
 
                 # Grafikler
-                _card("Öğrenme Eğrisi — FL vs Merkezi Eğitim", "fa-chart-line", [
+                _card(t('fl_curve_card', lang), "fa-chart-line", [
                     dcc.Graph(id="fl-learning-curve"),
                 ]),
 
                 dbc.Row([
-                    dbc.Col(_card("İstemci Doğruluk Dağılımı", "fa-chart-bar", [
+                    dbc.Col(_card(t('fl_client_dist_card', lang), "fa-chart-bar", [
                         dcc.Graph(id="fl-client-acc-bar"),
                     ]), xs=12, lg=6, className="mb-3 mb-lg-0"),
 
-                    dbc.Col(_card("İletişim Maliyeti vs Doğruluk", "fa-exchange-alt", [
+                    dbc.Col(_card(t('fl_comm_card', lang), "fa-exchange-alt", [
                         dcc.Graph(id="fl-comm-cost"),
                     ]), xs=12, lg=6),
                 ]),
@@ -265,9 +265,11 @@ def _simulate_fl(n_clients, n_rounds, heterogeneity, lr, local_epochs, compare):
     State("fl-lr", "value"),
     State("fl-local-epochs", "value"),
     State("fl-compare", "value"),
+    State("fl-lang-store", "data"),
     prevent_initial_call=True,
 )
-def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epochs, compare, **kwargs):
+def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epochs, compare, lang, **kwargs):
+    lang = lang or 'en'
     from billing.dash_helpers import try_charge, get_request_user
     user = get_request_user(kwargs)
     # Önce kredi yeterli mi bak (düşürmeden)
@@ -284,14 +286,14 @@ def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epoch
             from billing.services import get_balance
             _empty = _go.Figure()
             _alert_fig = _go.Figure()
-            _alert_fig.add_annotation(text="Yetersiz kredi", showarrow=False,
+            _alert_fig.add_annotation(text=t('fl_insufficient', lang), showarrow=False,
                                       font=dict(size=20, color="orange"))
             _alert_fig.update_layout(xaxis={'visible': False}, yaxis={'visible': False})
             return ({"display": "block"}, "—", "—", "—", _alert_fig, _empty, _empty, {})
 
     # Krediyi düş
     ok, msg, _u = try_charge(kwargs, 'bio_federated', cost=5,
-                             description="Federated learning simülasyonu")
+                             description=t('fl_charge_desc', lang))
     if not ok:
         import plotly.graph_objects as _go
         _empty = _go.Figure()
@@ -308,43 +310,49 @@ def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epoch
 
     # Öğrenme eğrisi
     rounds = list(range(1, results["n_rounds"] + 1))
+    _round, _acc, _method = t('fl_round', lang), t('fl_accuracy', lang), t('fl_method', lang)
+    _central = t('fl_central_training', lang)
     curve_df = pd.DataFrame({
-        "Tur": rounds * 2,
-        "Doğruluk": results["fl_accs"] + results["central_accs"],
-        "Yöntem": ["Federated Learning"] * len(rounds) + ["Merkezi Eğitim"] * len(rounds),
+        _round: rounds * 2,
+        _acc: results["fl_accs"] + results["central_accs"],
+        _method: ["Federated Learning"] * len(rounds) + [_central] * len(rounds),
     })
     fig_curve = px.line(
-        curve_df, x="Tur", y="Doğruluk", color="Yöntem",
-        title="FL vs Merkezi Eğitim — Öğrenme Eğrisi",
-        color_discrete_map={"Federated Learning": "#10b981", "Merkezi Eğitim": "#6366f1"},
+        curve_df, x=_round, y=_acc, color=_method,
+        title=t('fl_curve_title', lang),
+        color_discrete_map={"Federated Learning": "#10b981", _central: "#6366f1"},
     )
     fig_curve.add_hline(y=0.9, line_dash="dot", line_color="gray",
-                        annotation_text="Hedef: %90")
+                        annotation_text=t('fl_target_90', lang))
 
     # İstemci doğruluk bar
+    _client, _data_size = t('fl_client', lang), t('fl_data_size', lang)
     client_df = pd.DataFrame({
-        "İstemci": [f"Hastane {chr(65+i)}" for i in range(n_clients)],
-        "Doğruluk": [np.clip(a, 0, 1) for a in results["client_final_accs"]],
-        "Veri Boyutu": results["client_sizes"],
+        _client: [f"{t('fl_hospital', lang)} {chr(65+i)}" for i in range(n_clients)],
+        _acc: [np.clip(a, 0, 1) for a in results["client_final_accs"]],
+        _data_size: results["client_sizes"],
     })
     fig_client = px.bar(
-        client_df, x="İstemci", y="Doğruluk", color="Doğruluk",
-        title="İstemci Başına Son Doğruluk",
+        client_df, x=_client, y=_acc, color=_acc,
+        title=t('fl_client_acc_title', lang),
         color_continuous_scale="Greens",
-        text=client_df["Doğruluk"].apply(lambda x: f"{x:.2%}"),
+        text=client_df[_acc].apply(lambda x: f"{x:.2%}"),
     )
 
     # İletişim maliyeti vs doğruluk
+    _comm_round = t('fl_m_rounds', lang)
+    _cum_comm = t('fl_cumulative_comm', lang)
+    _fl_acc = t('fl_fl_acc', lang)
     comm_df = pd.DataFrame({
-        "İletişim Turu": rounds,
-        "Kümülatif İletişim (MB)": [r * n_clients * 0.5 for r in rounds],
-        "FL Doğruluk": results["fl_accs"],
-        "Merkezi Doğruluk": results["central_accs"],
+        _comm_round: rounds,
+        _cum_comm: [r * n_clients * 0.5 for r in rounds],
+        _fl_acc: results["fl_accs"],
+        t('fl_central_acc', lang): results["central_accs"],
     })
     fig_comm = px.scatter(
-        comm_df, x="Kümülatif İletişim (MB)", y="FL Doğruluk",
-        title="İletişim Maliyeti vs FL Doğruluğu",
-        color="İletişim Turu", color_continuous_scale="Viridis",
+        comm_df, x=_cum_comm, y=_fl_acc,
+        title=t('fl_comm_title', lang),
+        color=_comm_round, color_continuous_scale="Viridis",
         size=[5] * len(rounds),
     )
 
@@ -381,12 +389,13 @@ def toggle_active_link(pathname):
     Input('fl-run-btn', 'n_clicks'),
     Input('fl-modal-cancel', 'n_clicks'),
     Input('fl-modal-confirm', 'n_clicks'),
+    State('fl-lang-store', 'data'),
     prevent_initial_call=True
 )
-def toggle_fl_modal(open_click, cancel_click, confirm_click, **kwargs):
+def toggle_fl_modal(open_click, cancel_click, confirm_click, lang, **kwargs):
     import dash
     from billing.dash_helpers import confirm_modal_body
-    lang = 'tr'
+    lang = lang or 'en'
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
     if trig_id == 'fl-run-btn' and open_click:
