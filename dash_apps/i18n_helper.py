@@ -659,28 +659,9 @@ TRANSLATIONS = {
     'seo_variant_prioritization': {'tr': '<h1>Genetik Varyant Önceliklendirme Aracı</h1>\n<p>Genetik varyantları klinik öneme göre önceliklendirin ve sınıflandırın. Hastalıkla ilişkili olabilecek varyantları öne çıkararak büyük varyant listelerini daha hızlı yorumlayın.</p>\n<h2>Bu varyant önceliklendirme aracıyla neler yapabilirsiniz?</h2>\n<ul>\n<li><strong>Önceliklendirme:</strong> varyantları klinik öneme göre sıralama.</li>\n<li><strong>Sınıflandırma:</strong> patojenik/olası patojenik/iyi huylu değerlendirmesi.</li>\n<li><strong>Toplu analiz:</strong> manuel giriş veya dosya yükleme.</li>\n</ul>\n<h2>Nasıl kullanılır?</h2>\n<ol>\n<li>Varyantlarınızı girin veya dosya yükleyin.</li>\n<li>Analizi başlatın.</li>\n<li>Önceliklendirilmiş varyant listesini inceleyin.</li>\n</ol>\n<h2>Sık sorulan sorular</h2>\n<p class="faq-q">Varyant önceliklendirme nedir?</p>\n<p>Çok sayıda genetik varyant arasından klinik olarak en önemli olanları öne çıkarma işlemidir.</p>\n<p class="faq-q">Hangi veriyi yükleyebilirim?</p>\n<p>Varyantlarınızı manuel girebilir veya desteklenen bir varyant dosyası yükleyebilirsiniz.</p>', 'en': '<h1>Genetic Variant Prioritization Tool</h1>\n<p>Prioritize and classify genetic variants by clinical significance. Interpret large variant lists faster by highlighting variants that may be disease-associated.</p>\n<h2>What can you do with this variant prioritization tool?</h2>\n<ul>\n<li><strong>Prioritization:</strong> rank variants by clinical significance.</li>\n<li><strong>Classification:</strong> pathogenic/likely pathogenic/benign assessment.</li>\n<li><strong>Batch analysis:</strong> manual entry or file upload.</li>\n</ul>\n<h2>How to use</h2>\n<ol>\n<li>Enter your variants or upload a file.</li>\n<li>Start the analysis.</li>\n<li>Review the prioritized variant list.</li>\n</ol>\n<h2>Frequently asked questions</h2>\n<p class="faq-q">What is variant prioritization?</p>\n<p>It is the process of highlighting the clinically most important variants among a large number of genetic variants.</p>\n<p class="faq-q">What data can I upload?</p>\n<p>You can enter your variants manually or upload a supported variant file.</p>'},
     'seo_variant_prioritization_faq': {'tr': '{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Varyant önceliklendirme nedir?", "acceptedAnswer": {"@type": "Answer", "text": "Çok sayıda genetik varyant arasından klinik olarak en önemli olanları öne çıkarma işlemidir."}}, {"@type": "Question", "name": "Hangi veriyi yükleyebilirim?", "acceptedAnswer": {"@type": "Answer", "text": "Varyantlarınızı manuel girebilir veya desteklenen bir varyant dosyası yükleyebilirsiniz."}}]}', 'en': '{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is variant prioritization?", "acceptedAnswer": {"@type": "Answer", "text": "It is the process of highlighting the clinically most important variants among a large number of genetic variants."}}, {"@type": "Question", "name": "What data can I upload?", "acceptedAnswer": {"@type": "Answer", "text": "You can enter your variants manually or upload a supported variant file."}}]}'},
 
-}
-
-
-def t(key, lang='en'):
-    """Anahtara karşılık gelen metni döndürür. Anahtar yoksa anahtarın kendisi döner."""
-    entry = TRANSLATIONS.get(key)
-    if not entry:
-        return key
-    return entry.get(lang, entry.get(DEFAULT_LANG, key))
-
-
-def credit_label(service_key, lang='en', default=5):
-    """
-    Bir servisin GÜNCEL kredi maliyetini veritabanından okuyup
-    '(10 Kredi)' / '(10 Credits)' biçiminde döndürür.
-    Buton etiketlerinde kullanılır — admin'de fiyat değişince etiket de değişir.
-    """
-    try:
-        from billing.services import get_cost
-        cost = get_cost(service_key, default=default)
-    except Exception:
-        cost = default
-    word = 'Kredi' if lang == 'tr' else ('Credits' if cost != 1 else 'Credit')
-    return f"({cost} {word})"
-
+    # ==== Varyant Önceliklendirme arayüz çevirileri ====
+    'vp_title': {'tr': 'Varyant Önceliklendirme', 'en': 'Variant Prioritization'},
+    'vp_desc': {'tr': 'WGS/WES çıktısından gelen varyantları ClinVar, CIViC ve PharmGKB bilgi tabanlarıyla karşılaştırarak klinik öneme göre sıralayın.', 'en': 'Rank variants from WGS/WES output by clinical significance by comparing them against the ClinVar, CIViC and PharmGKB knowledge bases.'},
+    'vp_input_card': {'tr': 'Varyant Girişi', 'en': 'Variant Input'},
+    'vp_tab_manual': {'tr': 'Manuel Giriş', 'en': 'Manual Input'},
+    'vp_manual_placeholder': {'tr': 'Her satıra bir varyant:\nGEN\tKROMOZOM\tPOZİSYON\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic', 'en': 'One variant per line:\nGENE\tCHROM\tPOSITION\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr1
