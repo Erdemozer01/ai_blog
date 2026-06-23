@@ -2,25 +2,26 @@ import re, json
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html
+from dash_apps.i18n_helper import t
 from datetime import date
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('GenerateArticleApp', external_stylesheets=external_stylesheets)
 
 
-def validate_topic_rules(text):
+def validate_topic_rules(text, lang='en'):
     """
     Hızlı kural bazlı konu ön kontrolü (bedava, anında).
     (bool gecerli, str sebep) döner.
     """
-    t = text.strip().lower()
+    txt = text.strip().lower()
 
-    if len(t) < 10:
-        return False, "Konu çok kısa. Lütfen en az 10 karakterlik açıklayıcı bir konu girin."
+    if len(txt) < 10:
+        return False, t('gen_val_short', lang)
 
-    words = t.split()
+    words = txt.split()
     if len(words) < 2:
-        return False, "Lütfen daha açıklayıcı bir konu girin (en az 2 kelime)."
+        return False, t('gen_val_words', lang)
 
     # Selamlaşma / sohbet kalıpları
     chat_patterns = [
@@ -30,31 +31,25 @@ def validate_topic_rules(text):
         'hello', 'how are you', 'thanks', 'tell me a joke', 'write a poem',
     ]
     for p in chat_patterns:
-        if p in t:
-            return False, ("Bu bir sohbet ifadesi gibi görünüyor. Lütfen akademik veya "
-                           "bilgilendirici bir KONU girin. Örnek: 'Kuantum bilgisayarların "
-                           "kriptografiye etkisi'")
+        if p in txt:
+            return False, t('gen_val_chat', lang)
 
     # Anlamsız tekrar (asdasd, aaaaa)
-    if re.match(r'^(.)\1{4,}$', t.replace(' ', '')):
-        return False, "Anlamsız metin tespit edildi. Lütfen gerçek bir konu girin."
+    if re.match(r'^(.)\1{4,}$', txt.replace(' ', '')):
+        return False, t('gen_val_gibberish', lang)
 
     # Tek-iki harflik kelime grupları (asdf qwer)
     if all(len(w) <= 2 for w in words) and len(words) < 5:
-        return False, "Lütfen anlamlı bir konu girin."
+        return False, t('gen_val_meaningful', lang)
 
     # Argo / müstehcen / küfür içeren konular
     import re as _re
 
     # 1) Normalleştirme: leetspeak ve ayırıcıları temizle
-    #    (a m c ı k → amcık ; amc1k → amcik ; a.m.c.ı.k → amcık)
     leet = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's'})
-    normalized = t.translate(leet)
-    # ayırıcıları (boşluk, nokta, tire, alt çizgi, yıldız) kaldırılmış sürüm
+    normalized = txt.translate(leet)
     collapsed = _re.sub(r'[\s.\-_*]+', '', normalized)
 
-    # Kök halinde yakalanacak (ek alabilen) ciddi argo kökleri
-    # Bunlar normalde başka kelimenin parçası olmaz, kök araması güvenli
     hard_roots = [
         'amcık', 'amcik', 'amcığ', 'amcig', 'yarrak', 'yarrağ', 'orospu',
         'sikiş', 'sikis', 'siktir', 'pezevenk', 'gavat', 'kahpe',
@@ -63,23 +58,19 @@ def validate_topic_rules(text):
     for root in hard_roots:
         root_norm = root.translate(leet)
         if root_norm in collapsed:
-            return False, ("Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya "
-                           "bilgilendirici bir konu girin.")
+            return False, t('gen_val_inappropriate', lang)
 
-    # Tam kelime olarak (kelime sınırıyla) yakalanacaklar — kısa/çok-anlamlı olanlar
-    # ('sik' → 'sikke' yanlış yakalanmasın diye sadece tam kelime)
     word_bound = [
         'sik', 'piç', 'pic', 'göt', 'got', 'meme', 'seks', 'sex', 'dick', 'shit',
     ]
     for p in word_bound:
         if _re.search(r'(^|[\s.,;:!?\-])' + _re.escape(p) + r'($|[\s.,;:!?\-])', normalized):
-            return False, ("Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya "
-                           "bilgilendirici bir konu girin.")
+            return False, t('gen_val_inappropriate', lang)
 
     return True, ""
 
 
-def validate_topic_ai(text):
+def validate_topic_ai(text, lang='en'):
     """
     AI ile konu doğrulama: 'bu geçerli akademik/bilgi konusu mu?'
     (bool gecerli, str sebep) döner. Hata olursa geçerli kabul eder (engellemez).
@@ -106,8 +97,7 @@ def validate_topic_ai(text):
                 continue
         answer = (result or "").strip().upper()
         if "GECERSIZ" in answer or "GEÇERSIZ" in answer or "INVALID" in answer:
-            return False, ("Girdiğiniz metin geçerli bir makale konusu olarak "
-                           "değerlendirilmedi. Lütfen akademik veya bilgilendirici bir konu girin.")
+            return False, t('gen_val_ai_invalid', lang)
         return True, ""
     except Exception:
         # AI doğrulanamazsa engelleme (kullanıcıyı mağdur etme)
@@ -447,24 +437,26 @@ def _parse_article_response(response_text):
     State('user-session-store', 'data'),
     State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
     State('article-length-dropdown', 'value'),  # YENİ: Makale uzunluğu
+    State('gen-lang-store', 'data'),
     prevent_initial_call=True
 )
-def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length):
+def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length, lang):
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
+    lang = lang or 'en'
     if not user_data or 'user_id' not in user_data:
-        return dbc.Alert("Kullanıcı oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.", color="danger"), no_update
+        return dbc.Alert(t('gen_no_session', lang), color="danger"), no_update
     if not request_text or len(request_text.strip()) < 10:
-        return dbc.Alert("Lütfen en az 10 karakterlik bir konu girin.", color="warning"), no_update
+        return dbc.Alert(t('gen_min_chars', lang), color="warning"), no_update
 
     if not selected_value:
-        return dbc.Alert("Lütfen bir yapay zeka modeli seçin.", color="warning"), no_update
+        return dbc.Alert(t('gen_select_model', lang), color="warning"), no_update
 
     # --- KONU DOĞRULAMA (kural + AI) — saçma/sohbet konuları engelle ---
-    valid, reason = validate_topic_rules(request_text)
+    valid, reason = validate_topic_rules(request_text, lang)
     if not valid:
         return dbc.Alert(reason, color="warning"), no_update
-    valid_ai, reason_ai = validate_topic_ai(request_text)
+    valid_ai, reason_ai = validate_topic_ai(request_text, lang)
     if not valid_ai:
         return dbc.Alert(reason_ai, color="warning"), no_update
 
@@ -511,20 +503,20 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
             try:
                 from billing.services import charge
                 remaining = charge(user, 'makale_uretim', default_cost=15,
-                                   description=f"Makale üretimi: {ai_data.get('title', '')[:50]}")
+                                   description=t('gen_charge_desc', lang).format(title=ai_data.get('title', '')[:50]))
                 if remaining is not None:
-                    remaining_note = f" (Kalan krediniz: {remaining})"
+                    remaining_note = t('gen_remaining', lang).format(n=remaining)
             except Exception:
                 pass
 
         success_message = dbc.Alert(
-            ["Makale başarıyla üretildi!" + remaining_note + " ",
-             html.A("Görüntülemek için tıklayın.", href=new_article.get_absolute_url(), className="alert-link")],
+            [t('gen_success', lang) + remaining_note + " ",
+             html.A(t('gen_view_click', lang), href=new_article.get_absolute_url(), className="alert-link")],
             color="success"
         )
         return success_message, no_update
     except User.DoesNotExist:
-        return dbc.Alert("Geçersiz kullanıcı kimliği.", color="danger"), no_update
+        return dbc.Alert(t('gen_invalid_user', lang), color="danger"), no_update
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
@@ -554,11 +546,10 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
         friendly = dbc.Alert([
             html.Div([
                 html.I(className="fas fa-exclamation-circle me-2"),
-                html.Strong("Sistem şu an çok yoğun."),
+                html.Strong(t('gen_system_busy', lang)),
             ]),
-            html.P("Lütfen birkaç dakika sonra tekrar deneyin. Sorun devam ederse "
-                   "geri bildirimde bulunabilirsiniz.", className="mb-2 mt-2"),
-            dbc.Button("Geri bildirim için tıklayın", id="gen-feedback-btn",
+            html.P(t('gen_busy_retry', lang), className="mb-2 mt-2"),
+            dbc.Button(t('gen_feedback_btn', lang), id="gen-feedback-btn",
                        color="link", size="sm", className="p-0"),
             html.Div(id="gen-feedback-result", className="mt-2 text-success"),
         ], color="warning")
@@ -578,13 +569,14 @@ def toggle_navbar_collapse(n_clicks, is_open):
 @app.callback(
     Output("gen-feedback-result", "children"),
     Input("gen-feedback-btn", "n_clicks"),
+    State('gen-lang-store', 'data'),
     prevent_initial_call=True,
 )
-def gen_feedback_thanks(n_clicks):
+def gen_feedback_thanks(n_clicks, lang):
     """Geri bildirim butonuna tıklanınca teşekkür mesajı (hata zaten kaydedildi)."""
     if not n_clicks:
         return no_update
-    return "Geri bildiriminiz için teşekkürler."
+    return t('gen_feedback_thanks', lang or 'en')
 
 
 # --- Kredi onay modalı: Üretimi Başlat butonu onay sorar ---
@@ -596,17 +588,19 @@ def gen_feedback_thanks(n_clicks):
     Input('gen-modal-cancel', 'n_clicks'),
     Input('gen-modal-confirm', 'n_clicks'),
     State('request-textarea', 'value'),
+    State('gen-lang-store', 'data'),
     prevent_initial_call=True
 )
-def toggle_gen_modal(open_click, cancel_click, confirm_click, request_text, **kwargs):
+def toggle_gen_modal(open_click, cancel_click, confirm_click, request_text, lang, **kwargs):
     import dash
     from billing.dash_helpers import confirm_modal_body
+    lang = lang or 'en'
     triggered = dash.callback_context.triggered
     trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
     if trig_id == 'submit-request-button' and open_click:
         if not request_text or not request_text.strip():
-            return True, dbc.Alert("Lütfen bir konu girin.", color="warning",
+            return True, dbc.Alert(t('gen_enter_topic', lang), color="warning",
                                    className="mb-0"), True
-        body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim', cost=15, lang='tr')
+        body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim', cost=15, lang=lang)
         return True, body, (not can_proceed)
     return False, no_update, no_update
