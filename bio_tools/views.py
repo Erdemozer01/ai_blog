@@ -654,7 +654,8 @@ def federated_view(request):
         messages.error(request, 'Lütfen giriş yapınız.')
         return redirect("admin:login")
     main_navbar = create_main_navbar(request)
-    _layout = html.Div([main_navbar, create_federated_layout()])
+    from dash_apps.i18n_helper import get_lang
+    _layout = html.Div([main_navbar, create_federated_layout(get_lang(request))])
     federated_app.layout = lambda: _layout
     return render(request, 'bio_tools/federated_learning.html', _bio_seo('federated_learning', request))
 
@@ -665,7 +666,8 @@ def pharmacogenomics_view(request):
         messages.error(request, 'Lütfen giriş yapınız.')
         return redirect("admin:login")
     main_navbar = create_main_navbar(request)
-    _layout = html.Div([main_navbar, create_pharmacogenomics_layout()])
+    from dash_apps.i18n_helper import get_lang
+    _layout = html.Div([main_navbar, create_pharmacogenomics_layout(get_lang(request))])
     pgx_app.layout = lambda: _layout
     return render(request, 'bio_tools/pharmacogenomics.html', _bio_seo('pharmacogenomics', request))
 
