@@ -676,6 +676,7 @@ def variant_view(request):
         messages.error(request, 'Lütfen giriş yapınız.')
         return redirect("admin:login")
     main_navbar = create_main_navbar(request)
-    _layout = html.Div([main_navbar, create_variant_layout()])
+    from dash_apps.i18n_helper import get_lang
+    _layout = html.Div([main_navbar, create_variant_layout(get_lang(request))])
     variant_app.layout = lambda: _layout
     return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization', request))
