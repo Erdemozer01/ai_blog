@@ -664,4 +664,167 @@ TRANSLATIONS = {
     'vp_desc': {'tr': 'WGS/WES çıktısından gelen varyantları ClinVar, CIViC ve PharmGKB bilgi tabanlarıyla karşılaştırarak klinik öneme göre sıralayın.', 'en': 'Rank variants from WGS/WES output by clinical significance by comparing them against the ClinVar, CIViC and PharmGKB knowledge bases.'},
     'vp_input_card': {'tr': 'Varyant Girişi', 'en': 'Variant Input'},
     'vp_tab_manual': {'tr': 'Manuel Giriş', 'en': 'Manual Input'},
-    'vp_manual_placeholder': {'tr': 'Her satıra bir varyant:\nGEN\tKROMOZOM\tPOZİSYON\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic', 'en': 'One variant per line:\nGENE\tCHROM\tPOSITION\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr1
+    'vp_manual_placeholder': {'tr': 'Her satıra bir varyant:\nGEN\tKROMOZOM\tPOZİSYON\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic', 'en': 'One variant per line:\nGENE\tCHROM\tPOSITION\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic'},
+    'vp_analyze_btn': {'tr': 'Analiz Et (5 Kredi)', 'en': 'Analyze (5 Credits)'},
+    'vp_tab_upload': {'tr': 'VCF / TSV Yükle', 'en': 'Upload VCF / TSV'},
+    'vp_upload_text': {'tr': '📂 TSV/CSV VCF yükle', 'en': '📂 Upload TSV/CSV VCF'},
+    'vp_tab_demo': {'tr': 'Demo Veri', 'en': 'Demo Data'},
+    'vp_demo_btn': {'tr': 'Demo Varyantlar Yükle (20 varyant)', 'en': 'Load Demo Variants (20 variants)'},
+    'vp_m_total': {'tr': 'Toplam Varyant', 'en': 'Total Variants'},
+    'vp_m_pathogenic': {'tr': 'Patolojik / Olası Patolojik', 'en': 'Pathogenic / Likely Pathogenic'},
+    'vp_m_actionable': {'tr': 'Klinik Eyleme Geçilebilir', 'en': 'Clinically Actionable'},
+    'vp_m_druggable': {'tr': 'İlaç Eşleşmesi', 'en': 'Drug Match'},
+    'vp_score_dist': {'tr': 'Öncelik Skoru Dağılımı', 'en': 'Priority Score Distribution'},
+    'vp_table_card': {'tr': 'Önceliklendirilmiş Varyant Tablosu', 'en': 'Prioritized Variant Table'},
+    'vp_filter': {'tr': 'Filtrele', 'en': 'Filter'},
+    'vp_f_all': {'tr': 'Tümü', 'en': 'All'},
+    'vp_f_path': {'tr': 'Yalnızca Patolojik', 'en': 'Pathogenic Only'},
+    'vp_f_action': {'tr': 'Eyleme Geçilebilir', 'en': 'Actionable'},
+    'vp_f_drug': {'tr': 'İlaç Hedefi Var', 'en': 'Has Drug Target'},
+    'vp_clinical_card': {'tr': 'Klinik Karar Özeti', 'en': 'Clinical Decision Summary'},
+    'vp_pie_title': {'tr': 'Varyant Sonuç Dağılımı', 'en': 'Variant Consequence Distribution'},
+    'vp_col_gene': {'tr': 'Gen', 'en': 'Gene'},
+    'vp_col_chrom': {'tr': 'Krom', 'en': 'Chrom'},
+    'vp_col_pos': {'tr': 'Pozisyon', 'en': 'Position'},
+    'vp_col_conseq': {'tr': 'Sonuç', 'en': 'Consequence'},
+    'vp_col_clinvar': {'tr': 'ClinVar', 'en': 'ClinVar'},
+    'vp_col_priority': {'tr': 'Öncelik', 'en': 'Priority'},
+    'vp_col_disease': {'tr': 'Hastalık', 'en': 'Disease'},
+    'vp_col_drugs': {'tr': 'İlaçlar', 'en': 'Drugs'},
+    'vp_col_evidence': {'tr': 'Kanıt', 'en': 'Evidence'},
+    'vp_score_label': {'tr': 'Skor', 'en': 'Score'},
+    'vp_top5': {'tr': 'En Yüksek Öncelikli 5 Varyant:', 'en': 'Top 5 Priority Variants:'},
+    'vp_charge_desc': {'tr': 'Varyant önceliklendirme', 'en': 'Variant prioritization'},
+
+    # ==== Farmakogenomik arayüz çevirileri ====
+    'pgx_title': {'tr': 'Farmakogenomik Araştırma', 'en': 'Pharmacogenomics Research'},
+    'pgx_desc': {'tr': 'Bir enzim, gen veya ilaç adı girin. Yapay zeka, farmakogenomik veritabanlarındaki (PharmGKB, CPIC, ClinVar) bilgileri sentezleyerek metabolizma, varyantlar, etkilenen ilaçlar ve klinik önerileri getirir.', 'en': 'Enter an enzyme, gene or drug name. The AI synthesizes information from pharmacogenomic databases (PharmGKB, CPIC, ClinVar) to return metabolism, variants, affected drugs and clinical recommendations.'},
+    'pgx_card_research': {'tr': 'Araştırma', 'en': 'Research'},
+    'pgx_placeholder': {'tr': 'Örn: CYP2D6, TPMT, Warfarin, Klopidogrel…', 'en': 'e.g. CYP2D6, TPMT, Warfarin, Clopidogrel…'},
+    'pgx_search_btn': {'tr': 'Araştır (5 Kredi)', 'en': 'Research (5 Credits)'},
+    'pgx_examples_label': {'tr': 'Örnekler: ', 'en': 'Examples: '},
+    'pgx_charge_desc': {'tr': 'Farmakogenomik araştırma', 'en': 'Pharmacogenomics research'},
+    'pgx_empty_query': {'tr': 'Lütfen bir enzim, gen veya ilaç adı girin.', 'en': 'Please enter an enzyme, gene or drug name.'},
+    'pgx_parse_error': {'tr': 'Yapay zeka cevabı işlenemedi. Lütfen tekrar deneyin veya terimi farklı yazın.', 'en': 'The AI response could not be processed. Please try again or rephrase the term.'},
+    'pgx_error_prefix': {'tr': 'Hata', 'en': 'Error'},
+    'pgx_superfamily_suffix': {'tr': '— Enzim Süper Ailesi', 'en': '— Enzyme Superfamily'},
+    'pgx_superfamily_badge': {'tr': 'SÜPER AİLE', 'en': 'SUPERFAMILY'},
+    'pgx_members_found': {'tr': '{n} alt enzim bulundu. Detay için bir enzim adını (örn. CYP2D6) doğrudan aratabilirsiniz.', 'en': '{n} sub-enzymes found. Search an enzyme name (e.g. CYP2D6) directly for details.'},
+    'pgx_variants_label': {'tr': 'Varyantlar: ', 'en': 'Variants: '},
+    'pgx_drugs_label': {'tr': 'İlaçlar: ', 'en': 'Drugs: '},
+    'pgx_subenzymes': {'tr': 'Alt Enzimler', 'en': 'Sub-enzymes'},
+    'pgx_clinical': {'tr': 'Klinik Öneriler', 'en': 'Clinical Recommendations'},
+    'pgx_no_notes': {'tr': 'Klinik not bulunamadı.', 'en': 'No clinical notes found.'},
+    'pgx_disclaimer': {'tr': 'Bu bilgiler yapay zeka tarafından üretilmiştir ve yalnızca eğitim/araştırma amaçlıdır. Klinik kararlar için doğrulanmış kaynaklara (PharmGKB, CPIC) ve uzman hekime başvurun.', 'en': 'This information is AI-generated and intended for educational/research purposes only. For clinical decisions, consult validated sources (PharmGKB, CPIC) and a specialist physician.'},
+    'pgx_pheno_card': {'tr': 'Varyantlar & Metabolizör Fenotipleri', 'en': 'Variants & Metabolizer Phenotypes'},
+    'pgx_drugs_card': {'tr': 'Etkilenen İlaçlar', 'en': 'Affected Drugs'},
+
+    # ==== Federated Learning arayüz çevirileri ====
+    'fl_title': {'tr': 'Birleşik Öğrenme (Federated Learning) Simülatörü', 'en': 'Federated Learning Simulator'},
+    'fl_desc': {'tr': 'Farklı hastanelerdeki hasta verilerini merkeze göndermeden, yalnızca model ağırlıklarını paylaşarak ortak bir AI modeli nasıl eğitilir? Bu simülatör ile federated öğrenme sürecini interaktif olarak keşfedin.', 'en': 'How can a shared AI model be trained across hospitals without sending patient data to a central server, by sharing only model weights? Explore the federated learning process interactively with this simulator.'},
+    'fl_arch_card': {'tr': 'FL Mimarisi', 'en': 'FL Architecture'},
+    'fl_hospital': {'tr': 'Hastane', 'en': 'Hospital'},
+    'fl_train_local': {'tr': 'Lokal model eğit', 'en': 'Train local model'},
+    'fl_central_server': {'tr': 'Merkezi Sunucu', 'en': 'Central Server'},
+    'fl_fedavg': {'tr': 'FedAvg Agregasyonu', 'en': 'FedAvg Aggregation'},
+    'fl_only_weights': {'tr': 'Yalnızca ağırlıklar →', 'en': 'Weights only →'},
+    'fl_no_raw_data': {'tr': '← Hiç ham veri yok!', 'en': '← No raw data at all!'},
+    'fl_params_card': {'tr': 'Simülasyon Parametreleri', 'en': 'Simulation Parameters'},
+    'fl_n_clients': {'tr': 'Hastane Sayısı (İstemci)', 'en': 'Number of Hospitals (Clients)'},
+    'fl_n_rounds': {'tr': 'Global Tur Sayısı', 'en': 'Number of Global Rounds'},
+    'fl_heterogeneity': {'tr': 'Veri Heterojenliği (Non-IID)', 'en': 'Data Heterogeneity (Non-IID)'},
+    'fl_medium': {'tr': 'Orta', 'en': 'Medium'},
+    'fl_high': {'tr': 'Yüksek', 'en': 'High'},
+    'fl_lr': {'tr': 'Öğrenme Oranı', 'en': 'Learning Rate'},
+    'fl_local_epochs': {'tr': 'Lokal Epoch Sayısı', 'en': 'Local Epochs'},
+    'fl_compare': {'tr': 'Merkezi Eğitim ile Karşılaştır', 'en': 'Compare with Central Training'},
+    'fl_yes': {'tr': ' Evet', 'en': ' Yes'},
+    'fl_run_btn': {'tr': 'Simülasyonu Başlat (5 Kredi)', 'en': 'Run Simulation (5 Credits)'},
+    'fl_m_acc': {'tr': 'FL Son Doğruluk', 'en': 'FL Final Accuracy'},
+    'fl_m_central': {'tr': 'Merkezi Model Doğruluk', 'en': 'Central Model Accuracy'},
+    'fl_m_rounds': {'tr': 'İletişim Turu', 'en': 'Communication Rounds'},
+    'fl_m_privacy': {'tr': 'Gizlilik Koruması', 'en': 'Privacy Protection'},
+    'fl_full': {'tr': '✓ Tam', 'en': '✓ Full'},
+    'fl_curve_card': {'tr': 'Öğrenme Eğrisi — FL vs Merkezi Eğitim', 'en': 'Learning Curve — FL vs Central Training'},
+    'fl_client_dist_card': {'tr': 'İstemci Doğruluk Dağılımı', 'en': 'Client Accuracy Distribution'},
+    'fl_comm_card': {'tr': 'İletişim Maliyeti vs Doğruluk', 'en': 'Communication Cost vs Accuracy'},
+    'fl_insufficient': {'tr': 'Yetersiz kredi', 'en': 'Insufficient credits'},
+    'fl_charge_desc': {'tr': 'Federated learning simülasyonu', 'en': 'Federated learning simulation'},
+    'fl_round': {'tr': 'Tur', 'en': 'Round'},
+    'fl_accuracy': {'tr': 'Doğruluk', 'en': 'Accuracy'},
+    'fl_method': {'tr': 'Yöntem', 'en': 'Method'},
+    'fl_central_training': {'tr': 'Merkezi Eğitim', 'en': 'Central Training'},
+    'fl_curve_title': {'tr': 'FL vs Merkezi Eğitim — Öğrenme Eğrisi', 'en': 'FL vs Central Training — Learning Curve'},
+    'fl_target_90': {'tr': 'Hedef: %90', 'en': 'Target: 90%'},
+    'fl_client': {'tr': 'İstemci', 'en': 'Client'},
+    'fl_data_size': {'tr': 'Veri Boyutu', 'en': 'Data Size'},
+    'fl_client_acc_title': {'tr': 'İstemci Başına Son Doğruluk', 'en': 'Final Accuracy per Client'},
+    'fl_cumulative_comm': {'tr': 'Kümülatif İletişim (MB)', 'en': 'Cumulative Communication (MB)'},
+    'fl_fl_acc': {'tr': 'FL Doğruluk', 'en': 'FL Accuracy'},
+    'fl_central_acc': {'tr': 'Merkezi Doğruluk', 'en': 'Central Accuracy'},
+    'fl_comm_title': {'tr': 'İletişim Maliyeti vs FL Doğruluğu', 'en': 'Communication Cost vs FL Accuracy'},
+
+    # ==== Makale Üretici (generate) arayüz çevirileri ====
+    'gen_h1': {'tr': 'Yeni Makale Fikri', 'en': 'New Article Idea'},
+    'gen_lead': {'tr': 'AI Asistanınız için yeni bir görev oluşturun.', 'en': 'Create a new task for your AI assistant.'},
+    'gen_service_label': {'tr': 'Kullanılacak Yapay Zeka Servisi:', 'en': 'AI Service to Use:'},
+    'gen_topic_prompt': {'tr': 'Lütfen hakkında akademik bir makale üretilmesini istediğiniz konuyu, spesifik bir soruyu veya anahtar kelimeleri aşağıya detaylı bir şekilde girin.', 'en': 'Please enter in detail below the topic, a specific question, or keywords for the academic article you want generated.'},
+    'gen_topic_placeholder': {'tr': "Örn: 'Kuantum bilgisayarların kriptografi üzerine etkileri'", 'en': "e.g. 'The impact of quantum computers on cryptography'"},
+    'gen_length_label': {'tr': 'Makale Uzunluğu:', 'en': 'Article Length:'},
+    'gen_len_short': {'tr': 'Kısa (~1 sayfa, ~500 kelime)', 'en': 'Short (~1 page, ~500 words)'},
+    'gen_len_medium': {'tr': 'Orta (~3 sayfa, ~1500 kelime)', 'en': 'Medium (~3 pages, ~1500 words)'},
+    'gen_len_long': {'tr': 'Uzun (~5 sayfa, ~2500 kelime)', 'en': 'Long (~5 pages, ~2500 words)'},
+    'gen_len_xlong': {'tr': 'Çok Uzun (~8 sayfa, ~4000 kelime)', 'en': 'Very Long (~8 pages, ~4000 words)'},
+    'gen_length_hint': {'tr': 'Bir sayfa ortalama 500 kelimedir. Uzun makaleler daha fazla süre alabilir ve modelin token sınırına takılabilir.', 'en': 'A page averages 500 words. Longer articles may take more time and can hit the model token limit.'},
+    'gen_submit_btn': {'tr': 'Üretimi Başlat', 'en': 'Start Generation'},
+    'gen_back_home': {'tr': '← Anasayfaya Dön', 'en': '← Back to Home'},
+    'gen_no_session': {'tr': 'Kullanıcı oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.', 'en': 'User session not found. Please log in again.'},
+    'gen_min_chars': {'tr': 'Lütfen en az 10 karakterlik bir konu girin.', 'en': 'Please enter a topic of at least 10 characters.'},
+    'gen_select_model': {'tr': 'Lütfen bir yapay zeka modeli seçin.', 'en': 'Please select an AI model.'},
+    'gen_enter_topic': {'tr': 'Lütfen bir konu girin.', 'en': 'Please enter a topic.'},
+    'gen_bad_format': {'tr': 'Yapay zekadan beklenen formatta bir yanıt alınamadı.', 'en': 'Could not get a response in the expected format from the AI.'},
+    'gen_success': {'tr': 'Makale başarıyla üretildi!', 'en': 'Article generated successfully!'},
+    'gen_view_click': {'tr': 'Görüntülemek için tıklayın.', 'en': 'Click to view.'},
+    'gen_remaining': {'tr': ' (Kalan krediniz: {n})', 'en': ' (Remaining credits: {n})'},
+    'gen_invalid_user': {'tr': 'Geçersiz kullanıcı kimliği.', 'en': 'Invalid user ID.'},
+    'gen_system_busy': {'tr': 'Sistem şu an çok yoğun.', 'en': 'The system is very busy right now.'},
+    'gen_busy_retry': {'tr': 'Lütfen birkaç dakika sonra tekrar deneyin. Sorun devam ederse geri bildirimde bulunabilirsiniz.', 'en': 'Please try again in a few minutes. If the problem persists, you can leave feedback.'},
+    'gen_charge_desc': {'tr': 'Makale üretimi: {title}', 'en': 'Article generation: {title}'},
+    'gen_feedback_btn': {'tr': 'Geri bildirim için tıklayın', 'en': 'Click to give feedback'},
+    'gen_feedback_thanks': {'tr': 'Geri bildiriminiz için teşekkürler.', 'en': 'Thank you for your feedback.'},
+    'gen_msg_profile': {'tr': 'Makale oluşturmadan önce lütfen profilinizdeki Ad ve Soyad alanlarını doldurun.', 'en': 'Please fill in the First and Last name fields in your profile before creating an article.'},
+    'gen_msg_no_provider': {'tr': 'Sistemde aktif bir sağlayıcı/model/anahtar bulunamadı. Lütfen admin panelinden ekleyin.', 'en': 'No active provider/model/key found in the system. Please add one from the admin panel.'},
+
+    # ==== Makale konu doğrulama mesajları ====
+    'gen_val_short': {'tr': 'Konu çok kısa. Lütfen en az 10 karakterlik açıklayıcı bir konu girin.', 'en': 'Topic is too short. Please enter a descriptive topic of at least 10 characters.'},
+    'gen_val_words': {'tr': 'Lütfen daha açıklayıcı bir konu girin (en az 2 kelime).', 'en': 'Please enter a more descriptive topic (at least 2 words).'},
+    'gen_val_chat': {'tr': "Bu bir sohbet ifadesi gibi görünüyor. Lütfen akademik veya bilgilendirici bir KONU girin. Örnek: 'Kuantum bilgisayarların kriptografiye etkisi'", 'en': "This looks like a conversational phrase. Please enter an academic or informative TOPIC. Example: 'The impact of quantum computers on cryptography'"},
+    'gen_val_gibberish': {'tr': 'Anlamsız metin tespit edildi. Lütfen gerçek bir konu girin.', 'en': 'Meaningless text detected. Please enter a real topic.'},
+    'gen_val_meaningful': {'tr': 'Lütfen anlamlı bir konu girin.', 'en': 'Please enter a meaningful topic.'},
+    'gen_val_inappropriate': {'tr': 'Girdiğiniz konu uygunsuz içerik barındırıyor. Lütfen akademik veya bilgilendirici bir konu girin.', 'en': 'The topic you entered contains inappropriate content. Please enter an academic or informative topic.'},
+    'gen_val_ai_invalid': {'tr': 'Girdiğiniz metin geçerli bir makale konusu olarak değerlendirilmedi. Lütfen akademik veya bilgilendirici bir konu girin.', 'en': 'The text you entered was not evaluated as a valid article topic. Please enter an academic or informative topic.'},
+
+}
+
+
+def t(key, lang='en'):
+    """Anahtara karşılık gelen metni döndürür. Anahtar yoksa anahtarın kendisi döner."""
+    entry = TRANSLATIONS.get(key)
+    if not entry:
+        return key
+    return entry.get(lang, entry.get(DEFAULT_LANG, key))
+
+
+def credit_label(service_key, lang='en', default=5):
+    """
+    Bir servisin GÜNCEL kredi maliyetini veritabanından okuyup
+    '(10 Kredi)' / '(10 Credits)' biçiminde döndürür.
+    Buton etiketlerinde kullanılır — admin'de fiyat değişince etiket de değişir.
+    """
+    try:
+        from billing.services import get_cost
+        cost = get_cost(service_key, default=default)
+    except Exception:
+        cost = default
+    word = 'Kredi' if lang == 'tr' else ('Credits' if cost != 1 else 'Credit')
+    return f"({cost} {word})"
