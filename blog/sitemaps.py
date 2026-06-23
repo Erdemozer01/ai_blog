@@ -5,7 +5,7 @@ from blog.models import GeneratedArticle
 
 
 class ArticleSitemap(Sitemap):
-    changefreq = "weekly"   # Makalelerin ne sıklıkla değiştiği
+    changefreq = "hourly"   # Makalelerin ne sıklıkla değiştiği
     priority = 0.9          # Sitedeki diğer sayfalara göre önceliği
 
     def items(self):
@@ -19,7 +19,7 @@ class ArticleSitemap(Sitemap):
 
 class StaticViewSitemap(Sitemap):
     """Statik/önemli sayfalar (anasayfa, iletişim)."""
-    changefreq = "weekly"
+    changefreq = "hourly"
     priority = 1.0
 
     def items(self):
@@ -31,7 +31,7 @@ class StaticViewSitemap(Sitemap):
 
 class BioToolsSitemap(Sitemap):
     """13+ biyoinformatik aracının giriş sayfaları — aramalar için değerli landing page'ler."""
-    changefreq = "monthly"
+    changefreq = "hourly"
     priority = 0.8
 
     def items(self):
