@@ -44,7 +44,7 @@ def create_main_navbar(request):
     nav_items = []
 
     # Herkesin görebileceği ana linkleri listeye ekle
-    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:anasayfa'), active="exact", external_link=True)))
+    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:blog_list'), active="exact", external_link=True)))
 
     # --- Makale dropdown'ı (AI oluştur / oluştur / ara) ---
     makale_children = []
@@ -214,7 +214,8 @@ def admin_dashboard_view(request):
     return render(request, "admin_dashboard.html")
 
 
-def anasayfa_view(request):
+def blog_list_view(request):
+    """Blog: tüm makalelerin listesi (eski anasayfa içeriği)."""
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
     dash_content = create_anasayfa_content_layout(get_lang(request))
@@ -225,6 +226,29 @@ def anasayfa_view(request):
 
     anasayfa_app.layout = serve_anasayfa_layout
     return render(request, 'blog/anasayfa.html')
+
+
+def anasayfa_view(request):
+    """Karşılama (landing) sayfası — sunucu-render, SEO dostu."""
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    recent_articles = GeneratedArticle.objects.select_related('category').filter(
+        status='tamamlandi', is_published=True).order_by('-created_at')[:6]
+    if lang == 'en':
+        meta_title = "AI Blog — AI-Powered Bioinformatics Tools & Articles"
+        meta_description = ("Free online bioinformatics tools — CRISPR sgRNA design, "
+                            "sequence analysis, primer design and more — plus AI-generated "
+                            "academic articles.")
+    else:
+        meta_title = "AI Blog — Yapay Zeka Destekli Biyoinformatik Araçları ve Makaleler"
+        meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
+                            "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
+                            "yapay zeka destekli akademik makaleler.")
+    return render(request, 'blog/landing.html', {
+        'recent_articles': recent_articles,
+        'meta_title': meta_title,
+        'meta_description': meta_description,
+    })
 
 
 @login_required
@@ -739,7 +763,7 @@ def article_detail_view(request, article_id, slug):
                 dbc.Col(feedback_buttons, md=6, className="mb-3"),
                 dbc.Col(share_buttons, md=6, className="text-md-end mb-3"),
             ]),
-            html.Div(html.A("← Tüm Makalelere Geri Dön", href="/", className="btn btn-secondary mt-5"),
+            html.Div(html.A("← Tüm Makalelere Geri Dön", href="/blog/", className="btn btn-secondary mt-5"),
                      className="text-center")
         ])
     ])

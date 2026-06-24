@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block stylesheet %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+    :root { --brand: #2563eb; --brand-dark: #1e3a8a; --accent: #7c3aed; }
+    body { background: #f8fafc; }
+    .lp-hero {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #7c3aed 100%);
+        color: #fff; padding: 5rem 0 4.5rem;
+    }
+    .lp-hero h1 { font-weight: 800; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.15; }
+    .lp-hero p.lead { opacity: .92; max-width: 680px; }
+    .lp-section { padding: 4rem 0; }
+    .lp-section h2 { font-weight: 700; }
+    .lp-eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+    .tool-card {
+        height: 100%; border: 1px solid #e8edf3; border-radius: 14px; background: #fff;
+        transition: transform .15s ease, box-shadow .15s ease; text-decoration: none; color: inherit;
+        display: block;
+    }
+    .tool-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(37,99,235,.13); color: inherit; }
+    .tool-ico {
+        width: 50px; height: 50px; border-radius: 12px; display: grid; place-items: center;
+        font-size: 1.3rem; color: #fff; margin-bottom: .9rem;
+    }
+    .article-card { border: 1px solid #e8edf3; border-radius: 14px; overflow: hidden; height: 100%; background: #fff; }
+    .article-card .cover { height: 150px; object-fit: cover; width: 100%; background: #eef2f7; }
+    .lp-feature-ico { font-size: 1.5rem; color: var(--brand); }
+    .lp-cta { background: #0f172a; color: #fff; border-radius: 18px; }
+    .navbar-brand { font-weight: 800; letter-spacing: -.02em; }
+    a.btn-light-soft { background: rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35); }
+    a.btn-light-soft:hover { background: rgba(255,255,255,.28); color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===================== NAVBAR ===================== -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background:#0f172a;">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'blog:anasayfa' %}"><i class="fas fa-dna me-2"></i>AI Blog</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#lpNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="lpNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link active" href="{% url 'blog:anasayfa' %}">{% if site_lang == 'en' %}Home{% else %}Anasayfa{% endif %}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'blog:blog_list' %}">Blog</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">{% if site_lang == 'en' %}Tools{% else %}Araçlar{% endif %}</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'bio_tools:crispr_designer' %}">CRISPR sgRNA</a></li>
+            <li><a class="dropdown-item" href="{% url 'bio_tools:sequence_analyzer' %}">{% if site_lang == 'en' %}Sequence Analyzer{% else %}Sekans Analizi{% endif %}</a></li>
+            <li><a class="dropdown-item" href="{% url 'bio_tools:primer_design' %}">{% if site_lang == 'en' %}Primer Design{% else %}Primer Tasarımı{% endif %}</a></li>
+            <li><a class="dropdown-item" href="{% url 'bio_tools:restriction_analysis' %}">{% if site_lang == 'en' %}Restriction Analysis{% else %}Restriksiyon Analizi{% endif %}</a></li>
+            <li><a class="dropdown-item" href="{% url 'bio_tools:pharmacogenomics' %}">{% if site_lang == 'en' %}Pharmacogenomics{% else %}Farmakogenomik{% endif %}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#tools">{% if site_lang == 'en' %}All tools ↓{% else %}Tüm araçlar ↓{% endif %}</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'blog:contact' %}">{% if site_lang == 'en' %}Contact{% else %}İletişim{% endif %}</a></li>
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-sm btn-outline-light" href="/set-language/{% if site_lang == 'en' %}tr/{% else %}en/{% endif %}">{% if site_lang == 'en' %}TR{% else %}EN{% endif %}</a>
+        {% if user.is_authenticated %}
+          <a class="btn btn-sm btn-primary" href="{% url 'blog:generate_article' %}"><i class="fas fa-robot me-1"></i>{% if site_lang == 'en' %}Generate{% else %}Üret{% endif %}</a>
+        {% else %}
+          <a class="btn btn-sm btn-outline-light" href="/admin/login/">{% if site_lang == 'en' %}Login{% else %}Giriş{% endif %}</a>
+          <a class="btn btn-sm btn-primary" href="{% url 'blog:register' %}">{% if site_lang == 'en' %}Sign up{% else %}Üye Ol{% endif %}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<header class="lp-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <h1>{% if site_lang == 'en' %}AI-powered bioinformatics, in your browser.{% else %}Tarayıcınızda, yapay zeka destekli biyoinformatik.{% endif %}</h1>
+        <p class="lead mt-3">{% if site_lang == 'en' %}Design CRISPR guides, analyze sequences, plan primers and more — free online tools, plus AI-generated academic articles. No installation required.{% else %}CRISPR kılavuzları tasarlayın, sekansları analiz edin, primer planlayın ve daha fazlası — ücretsiz çevrimiçi araçlar ve yapay zeka destekli akademik makaleler. Kurulum gerekmez.{% endif %}</p>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <a href="#tools" class="btn btn-light btn-lg fw-semibold text-primary"><i class="fas fa-toolbox me-2"></i>{% if site_lang == 'en' %}Explore Tools{% else %}Araçları Keşfet{% endif %}</a>
+          <a href="{% url 'bio_tools:crispr_designer' %}" class="btn btn-lg btn-light-soft"><i class="fas fa-dna me-2"></i>{% if site_lang == 'en' %}Try CRISPR Designer{% else %}CRISPR Aracını Dene{% endif %}</a>
+        </div>
+      </div>
+      <div class="col-lg-5 text-center d-none d-lg-block">
+        <i class="fas fa-dna" style="font-size:11rem; opacity:.22;"></i>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== TOOLS ===================== -->
+<section class="lp-section" id="tools">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="lp-eyebrow">{% if site_lang == 'en' %}Bioinformatics Toolkit{% else %}Biyoinformatik Araç Seti{% endif %}</div>
+      <h2 class="mt-1">{% if site_lang == 'en' %}Tools for molecular biology &amp; genomics{% else %}Moleküler biyoloji ve genomik araçları{% endif %}</h2>
+      <p class="text-muted">{% if site_lang == 'en' %}Open and use any tool right away — login is only needed to run credit-based analyses.{% else %}Her aracı hemen açıp kullanın — giriş yalnızca kredili analizleri çalıştırmak için gerekir.{% endif %}</p>
+    </div>
+    <div class="row g-4">
+      {% comment %} Her kart: ikon + isim + kısa açıklama {% endcomment %}
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:crispr_designer' %}">
+          <div class="tool-ico" style="background:#2563eb;"><i class="fas fa-dna"></i></div>
+          <h5 class="mb-1">CRISPR sgRNA <span class="badge bg-success ms-1" style="font-size:.6rem;vertical-align:middle;">{% if site_lang == 'en' %}NEW{% else %}YENİ{% endif %}</span></h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Find PAMs and design guide RNAs, scored with the Doench model.{% else %}PAM bulun, Doench modeliyle skorlanan kılavuz RNA'lar tasarlayın.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:sequence_analyzer' %}">
+          <div class="tool-ico" style="background:#0ea5e9;"><i class="fas fa-magnifying-glass-chart"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Sequence Analyzer{% else %}Sekans Analizi{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}GC content, ORFs, translation and composition of DNA/RNA.{% else %}DNA/RNA için GC oranı, ORF, çeviri ve bileşim analizi.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:primer_design' %}">
+          <div class="tool-ico" style="background:#10b981;"><i class="fas fa-vials"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Primer Design{% else %}Primer Tasarımı{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Design PCR primers with Tm, GC and specificity checks.{% else %}Tm, GC ve özgüllük kontrolleriyle PCR primerleri tasarlayın.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:restriction_analysis' %}">
+          <div class="tool-ico" style="background:#f59e0b;"><i class="fas fa-scissors"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Restriction Analysis{% else %}Restriksiyon Analizi{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Map restriction enzyme cut sites along your sequence.{% else %}Dizinizdeki restriksiyon enzim kesim bölgelerini haritalayın.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:plasmid_map' %}">
+          <div class="tool-ico" style="background:#8b5cf6;"><i class="fas fa-circle-nodes"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Plasmid Map{% else %}Plazmit Haritası{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Visualize plasmids with features, ORFs and enzyme sites.{% else %}Plazmitleri öğeler, ORF'ler ve enzim bölgeleriyle görselleştirin.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:pharmacogenomics' %}">
+          <div class="tool-ico" style="background:#7c3aed;"><i class="fas fa-pills"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Pharmacogenomics{% else %}Farmakogenomik{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}AI research on genes, drugs and metabolizer phenotypes.{% else %}Genler, ilaçlar ve metabolizör fenotipleri üzerine AI araştırması.{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:variant_prioritization' %}">
+          <div class="tool-ico" style="background:#ef4444;"><i class="fas fa-list-ol"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Variant Prioritization{% else %}Varyant Önceliklendirme{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Rank variants by clinical significance (ClinVar, CIViC).{% else %}Varyantları klinik öneme göre sıralayın (ClinVar, CIViC).{% endif %}</p>
+        </a>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <a class="tool-card p-4" href="{% url 'bio_tools:mutation_predictor' %}">
+          <div class="tool-ico" style="background:#14b8a6;"><i class="fas fa-wave-square"></i></div>
+          <h5 class="mb-1">{% if site_lang == 'en' %}Mutation Predictor{% else %}Mutasyon Tahmini{% endif %}</h5>
+          <p class="text-muted small mb-0">{% if site_lang == 'en' %}Predict the functional impact of protein mutations.{% else %}Protein mutasyonlarının işlevsel etkisini tahmin edin.{% endif %}</p>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== AI FEATURE ===================== -->
+<section class="lp-section" style="background:#fff;">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="lp-eyebrow">{% if site_lang == 'en' %}AI Article Generator{% else %}AI Makale Üretici{% endif %}</div>
+        <h2 class="mt-1">{% if site_lang == 'en' %}From a topic to a structured academic article{% else %}Bir konudan yapılandırılmış akademik makaleye{% endif %}</h2>
+        <p class="text-muted">{% if site_lang == 'en' %}Enter a topic and the AI drafts a structured article with abstracts, sections and references — bilingual and ready to read.{% else %}Bir konu girin; yapay zeka özetler, bölümler ve kaynaklarla yapılandırılmış, iki dilli ve okumaya hazır bir makale taslağı üretsin.{% endif %}</p>
+        <ul class="text-muted">
+          <li>{% if site_lang == 'en' %}Turkish &amp; English abstracts{% else %}Türkçe ve İngilizce özet{% endif %}</li>
+          <li>{% if site_lang == 'en' %}Topic validation &amp; reference checks{% else %}Konu doğrulama ve kaynak kontrolü{% endif %}</li>
+          <li>{% if site_lang == 'en' %}Charts &amp; tables where relevant{% else %}Gerektiğinde grafik ve tablolar{% endif %}</li>
+        </ul>
+        <a href="{% url 'blog:generate_article' %}" class="btn btn-primary mt-2"><i class="fas fa-robot me-2"></i>{% if site_lang == 'en' %}Generate an article{% else %}Makale üret{% endif %}</a>
+      </div>
+      <div class="col-lg-6 text-center">
+        <i class="fas fa-file-lines lp-feature-ico" style="font-size:8rem; color:#e0e7ff;"></i>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== RECENT ARTICLES ===================== -->
+{% if recent_articles %}
+<section class="lp-section">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <div class="lp-eyebrow">{% if site_lang == 'en' %}From the Blog{% else %}Blog'dan{% endif %}</div>
+        <h2 class="mt-1 mb-0">{% if site_lang == 'en' %}Latest articles{% else %}Son makaleler{% endif %}</h2>
+      </div>
+      <a href="{% url 'blog:blog_list' %}" class="btn btn-outline-primary">{% if site_lang == 'en' %}All articles{% else %}Tüm makaleler{% endif %} →</a>
+    </div>
+    <div class="row g-4">
+      {% for article in recent_articles %}
+      <div class="col-md-6 col-lg-4">
+        <div class="article-card">
+          {% if article.cover_image %}
+            <img class="cover" src="{{ article.cover_image.url }}" alt="{{ article.title }}">
+          {% else %}
+            <div class="cover d-flex align-items-center justify-content-center text-muted"><i class="fas fa-newspaper" style="font-size:2rem;opacity:.4;"></i></div>
+          {% endif %}
+          <div class="p-3">
+            {% if article.category %}<span class="badge bg-light text-primary mb-2">{{ article.category.name }}</span>{% endif %}
+            <h6 class="fw-bold"><a href="{{ article.get_absolute_url }}" class="text-dark text-decoration-none">{{ article.title|truncatechars:70 }}</a></h6>
+            <p class="text-muted small mb-2">
+              {% if site_lang == 'en' %}{{ article.english_abstract|default:article.turkish_abstract|striptags|truncatewords:18 }}{% else %}{{ article.turkish_abstract|default:article.english_abstract|striptags|truncatewords:18 }}{% endif %}
+            </p>
+            <a href="{{ article.get_absolute_url }}" class="small fw-semibold text-decoration-none">{% if site_lang == 'en' %}Read more{% else %}Devamını oku{% endif %} →</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ===================== CTA ===================== -->
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-cta text-center p-5">
+      <h2 class="fw-bold">{% if site_lang == 'en' %}Start exploring — it's free{% else %}Keşfetmeye başlayın — ücretsiz{% endif %}</h2>
+      <p class="opacity-75 mb-4">{% if site_lang == 'en' %}Open any tool now. Create an account to run analyses and generate articles.{% else %}Herhangi bir aracı şimdi açın. Analiz çalıştırmak ve makale üretmek için hesap oluşturun.{% endif %}</p>
+      <div class="d-flex flex-wrap gap-2 justify-content-center">
+        <a href="#tools" class="btn btn-light btn-lg fw-semibold text-dark">{% if site_lang == 'en' %}Browse tools{% else %}Araçlara göz at{% endif %}</a>
+        {% if not user.is_authenticated %}
+        <a href="{% url 'blog:register' %}" class="btn btn-primary btn-lg">{% if site_lang == 'en' %}Create free account{% else %}Ücretsiz hesap oluştur{% endif %}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
