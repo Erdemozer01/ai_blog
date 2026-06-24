@@ -191,12 +191,8 @@ def _bio_seo(key, request=None):
     return ctx
 
 
-@login_required
 def fastq_analyzer_view(request):
     """FASTQ Analiz Aracı (DjangoDash — diğer araçlarla aynı yapı)."""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.fastq_app import build_fastq_content
@@ -210,12 +206,8 @@ def fastq_analyzer_view(request):
 
 # --- OTHER DASH APP VIEWS ---
 
-@login_required
 def sequence_analyzer_view(request):
     """Sekans Analiz Aracı"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -227,12 +219,8 @@ def sequence_analyzer_view(request):
     return render(request, 'bio_tools/sequence_analyzer.html', _bio_seo('sequence_analyzer', request))
 
 
-@login_required
 def phylogenetic_tree_view(request):
     """Filogenetik Ağaç Aracı"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -244,12 +232,8 @@ def phylogenetic_tree_view(request):
     return render(request, 'bio_tools/phylogenetic_tree.html', _bio_seo('phylogenetic_tree', request))
 
 
-@login_required
 def sequence_alignment_view(request):
     """Sekans Hizalama Aracı"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -260,12 +244,8 @@ def sequence_alignment_view(request):
     return render(request, 'bio_tools/sequence_alignment.html', _bio_seo('sequence_alignment', request))
 
 
-@login_required
 def molecule_viewer_view(request):
     """3D Molekül Görüntüleyici"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -276,12 +256,8 @@ def molecule_viewer_view(request):
     return render(request, 'bio_tools/molecule_viewer.html', _bio_seo('molecule_viewer', request))
 
 
-@login_required
 def mutation_predictor_view(request):
     """Mutasyon Etki Tahmincisi"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -292,12 +268,8 @@ def mutation_predictor_view(request):
     return render(request, 'bio_tools/mutation_predictor.html', _bio_seo('mutation_predictor', request))
 
 
-@login_required
 def bacterial_designer_view(request):
     """Sentetik Biyoloji Bakteri Tasarımcısı"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -308,12 +280,8 @@ def bacterial_designer_view(request):
     return render(request, 'bio_tools/bacterial_designer.html', _bio_seo('bacterial_designer', request))
 
 
-@login_required
 def pipline_designer_view(request):
     """Biyoinformatik Pipeline Tasarımcısı"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -324,12 +292,8 @@ def pipline_designer_view(request):
     return render(request, 'bio_tools/pipline_designer.html', _bio_seo('pipeline_designer', request))
 
 
-@login_required
 def primer_design_view(request):
     """Primer Tasarım Aracı (Primer3)"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -341,12 +305,8 @@ def primer_design_view(request):
     return render(request, 'bio_tools/primer_design.html', _bio_seo('primer_design', request))
 
 
-@login_required
 def restriction_view(request):
     """Restriksiyon Enzim Analizi (Kesim Haritası)"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -358,12 +318,8 @@ def restriction_view(request):
     return render(request, 'bio_tools/restriction_analysis.html', _bio_seo('restriction_analysis', request))
 
 
-@login_required
 def plasmid_map_view(request):
     """Plazmit Harita Görselleştirici"""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
 
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
@@ -655,11 +611,7 @@ from dash_apps.variant_prioritization import create_variant_layout
 from dash_apps.crispr_designer import app as crispr_app, create_crispr_layout
 
 
-@login_required
 def federated_view(request):
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
     _layout = html.Div([main_navbar, create_federated_layout(get_lang(request))])
@@ -667,11 +619,7 @@ def federated_view(request):
     return render(request, 'bio_tools/federated_learning.html', _bio_seo('federated_learning', request))
 
 
-@login_required
 def pharmacogenomics_view(request):
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
     _layout = html.Div([main_navbar, create_pharmacogenomics_layout(get_lang(request))])
@@ -679,11 +627,7 @@ def pharmacogenomics_view(request):
     return render(request, 'bio_tools/pharmacogenomics.html', _bio_seo('pharmacogenomics', request))
 
 
-@login_required
 def variant_view(request):
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
     _layout = html.Div([main_navbar, create_variant_layout(get_lang(request))])
@@ -691,12 +635,8 @@ def variant_view(request):
     return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization', request))
 
 
-@login_required
 def crispr_designer_view(request):
     """CRISPR sgRNA Tasarımcısı (DjangoDash — diğer araçlarla aynı yapı)."""
-    if not request.user.is_authenticated:
-        messages.error(request, 'Lütfen giriş yapınız.')
-        return redirect("admin:login")
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
     _layout = html.Div([main_navbar, create_crispr_layout(get_lang(request))])
