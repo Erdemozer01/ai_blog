@@ -216,6 +216,8 @@ def run_design(n_clicks, sequence, enzyme, lang, **kwargs):
     # Tablo (en iyi 50)
     strand_fwd = t('crispr_strand_fwd', lang)
     strand_rev = t('crispr_strand_rev', lang)
+    st_doench = t('crispr_st_doench', lang)
+    st_heur = t('crispr_st_heuristic', lang)
     table_rows = [{
         t('crispr_col_rank', lang): g['rank'],
         t('crispr_col_guide', lang): g['guide'],
@@ -224,6 +226,7 @@ def run_design(n_clicks, sequence, enzyme, lang, **kwargs):
         t('crispr_col_pos', lang): f"{g['start']}-{g['end']}",
         t('crispr_col_gc', lang): g['gc'],
         t('crispr_col_score', lang): g['score'],
+        t('crispr_col_source', lang): st_doench if g.get('score_type') == 'doench' else st_heur,
         t('crispr_col_uniq', lang): g['uniqueness'],
     } for g in guides[:50]]
 
@@ -261,6 +264,7 @@ def run_design(n_clicks, sequence, enzyme, lang, **kwargs):
         'seq_len': seq_len, 'enzyme': enzyme,
         'guides': [{'rank': g['rank'], 'guide': g['guide'], 'pam': g['pam'],
                     'strand': g['strand'], 'gc': g['gc'], 'score': g['score'],
+                    'score_type': g.get('score_type', 'heuristic'),
                     'uniqueness': g['uniqueness']} for g in guides[:8]],
     }
     return content, store_data, {'display': 'block'}
@@ -289,7 +293,8 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
 
     lines = [
         f"#{g['rank']} {g['guide']} (PAM {g['pam']}, {g['strand']}, "
-        f"GC {g['gc']}%, score {g['score']}, uniqueness {g['uniqueness']})"
+        f"GC {g['gc']}%, score {g['score']} [{g.get('score_type','heuristic')}], "
+        f"uniqueness {g['uniqueness']})"
         for g in store_data['guides']
     ]
     summary_text = '\n'.join(lines)
@@ -297,18 +302,19 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
     if lang == 'tr':
         prompt = (
             f"{store_data['enzyme']} enzimi ile {store_data['seq_len']} bp'lik bir DNA dizisinde "
-            f"tasarlanan en iyi aday sgRNA'lar aşağıdadır (skor 0-100, sezgisel). "
-            f"En iyi 2-3 adayı seç ve NEDEN iyi olduklarını açıkla (GC dengesi, homopolimer yokluğu, "
-            f"benzersizlik). Kaçınılması gereken adaylar varsa belirt. Off-target için genom çapında "
-            f"doğrulama gerektiğini hatırlat. Kısa, pratik ve Türkçe ol. Skorları sen UYDURMA, "
-            f"verilenleri yorumla.\n\n{summary_text}"
+            f"tasarlanan en iyi aday sgRNA'lar aşağıdadır. Skor tipi 'doench' ise Doench 2014 "
+            f"(Rule Set 1) eğitilmiş modelinden gelir (0-100, ~60+ iyi sayılır); 'heuristic' ise "
+            f"sezgiseldir. En iyi 2-3 adayı seç ve NEDEN iyi olduklarını açıkla (skor, GC dengesi, "
+            f"benzersizlik). Kaçınılması gerekenleri belirt. Off-target için genom çapında doğrulama "
+            f"gerektiğini hatırlat. Kısa, pratik ve Türkçe ol. Skorları UYDURMA; verilenleri yorumla.\n\n{summary_text}"
         )
     else:
         prompt = (
             f"Below are the top candidate sgRNAs designed for a {store_data['seq_len']} bp DNA "
-            f"sequence using {store_data['enzyme']} (score 0-100, heuristic). Pick the best 2-3 "
-            f"candidates and explain WHY they are good (GC balance, absence of homopolymers, "
-            f"uniqueness). Flag any candidates to avoid. Remind that genome-wide off-target "
+            f"sequence using {store_data['enzyme']}. If score type is 'doench' the score comes from "
+            f"the trained Doench 2014 (Rule Set 1) model (0-100, ~60+ is good); 'heuristic' is a "
+            f"rule-based estimate. Pick the best 2-3 candidates and explain WHY they are good (score, "
+            f"GC balance, uniqueness). Flag any to avoid. Remind that genome-wide off-target "
             f"validation is required. Be concise, practical, and in English. Do NOT invent scores; "
             f"interpret the given ones.\n\n{summary_text}"
         )
