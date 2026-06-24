@@ -169,6 +169,59 @@ def _uniqueness(guide, full_seq, pam_side="3prime"):
     return both.count(seed)
 
 
+# ---------------------------------------------------------------------------
+# Doench 2014 (Rule Set 1) on-target verim skoru
+# ---------------------------------------------------------------------------
+# Katsayılar Doench et al. 2014 (Nature Biotechnology) makalesinden gelir;
+# referans uygulama: CRISPOR (maximilianh/crisporWebsite, MIT). Bu, eğitilmiş,
+# hakemli bir modeldir (sezgisel değildir). Girdi 30-mer olmalıdır:
+#   4 nt yukarı akış + 20 nt kılavuz + 3 nt PAM + 3 nt aşağı akış
+# Çıktı 0-1 arası olasılıktır (yüksek = daha verimli kesim beklentisi).
+_RS1_INTERCEPT = 0.59763615
+_RS1_GC_HIGH = -0.1665878
+_RS1_GC_LOW = -0.2026259
+_RS1_PARAMS = [
+    (1, 'G', -0.2753771), (2, 'A', -0.3238875), (2, 'C', 0.17212887), (3, 'C', -0.1006662),
+    (4, 'C', -0.2018029), (4, 'G', 0.24595663), (5, 'A', 0.03644004), (5, 'C', 0.09837684),
+    (6, 'C', -0.7411813), (6, 'G', -0.3932644), (11, 'A', -0.466099), (14, 'A', 0.08537695),
+    (14, 'C', -0.013814), (15, 'A', 0.27262051), (15, 'C', -0.1190226), (15, 'T', -0.2859442),
+    (16, 'A', 0.09745459), (16, 'G', -0.1755462), (17, 'C', -0.3457955), (17, 'G', -0.6780964),
+    (18, 'A', 0.22508903), (18, 'C', -0.5077941), (19, 'G', -0.4173736), (19, 'T', -0.054307),
+    (20, 'G', 0.37989937), (20, 'T', -0.0907126), (21, 'C', 0.05782332), (21, 'T', -0.5305673),
+    (22, 'T', -0.8770074), (23, 'C', -0.8762358), (23, 'G', 0.27891626), (23, 'T', -0.4031022),
+    (24, 'A', -0.0773007), (24, 'C', 0.28793562), (24, 'T', -0.2216372), (27, 'G', -0.6890167),
+    (27, 'T', 0.11787758), (28, 'C', -0.1604453), (29, 'G', 0.38634258), (1, 'GT', -0.6257787),
+    (4, 'GC', 0.30004332), (5, 'AA', -0.8348362), (5, 'TA', 0.76062777), (6, 'GG', -0.4908167),
+    (11, 'GG', -1.5169074), (11, 'TA', 0.7092612), (11, 'TC', 0.49629861), (11, 'TT', -0.5868739),
+    (12, 'GG', -0.3345637), (13, 'GA', 0.76384993), (13, 'GC', -0.5370252), (16, 'TG', -0.7981461),
+    (18, 'GG', -0.6668087), (18, 'TC', 0.35318325), (19, 'CC', 0.74807209), (19, 'TG', -0.3672668),
+    (20, 'AC', 0.56820913), (20, 'CG', 0.32907207), (20, 'GA', -0.8364568), (20, 'GG', -0.7822076),
+    (21, 'TC', -1.029693), (22, 'CG', 0.85619782), (22, 'CT', -0.4632077), (23, 'AA', -0.5794924),
+    (23, 'AG', 0.64907554), (24, 'AG', -0.0773007), (24, 'CG', 0.28793562), (24, 'TG', -0.2216372),
+    (26, 'GT', 0.11787758), (28, 'GG', -0.69774),
+]
+
+
+def doench_rs1_score(thirty_mer):
+    """
+    Doench 2014 (Rule Set 1) skoru. Girdi 30-mer (4+20+3+3). Dönüş 0-1 veya
+    bağlam uygun değilse None. Pozisyonlar 30-mer üzerinde 0-tabanlıdır.
+    """
+    import math
+    s = (thirty_mer or "").upper()
+    if len(s) != 30 or any(b not in "ACGT" for b in s):
+        return None
+    score = _RS1_INTERCEPT
+    guide = s[4:24]
+    gc = guide.count("G") + guide.count("C")
+    gc_weight = _RS1_GC_LOW if gc <= 10 else _RS1_GC_HIGH
+    score += abs(10 - gc) * gc_weight
+    for pos, model_seq, weight in _RS1_PARAMS:
+        if s[pos:pos + len(model_seq)] == model_seq:
+            score += weight
+    return 1.0 / (1.0 + math.exp(-score))
+
+
 def find_guides(sequence, enzyme="SpCas9", max_results=200):
     """
     Verilen dizide seçilen enzime göre aday sgRNA'ları bulur (her iki iplik).
@@ -232,6 +285,19 @@ def find_guides(sequence, enzyme="SpCas9", max_results=200):
 
             sc, reasons = score_guide(guide, side)
             uniq = _uniqueness(guide, seq, side)
+
+            # Doench 2014 (RS1) yalnızca standart SpCas9 (NGG, 20nt kılavuz, 3nt PAM)
+            # için ve yeterli yan-dizi bağlamı (30-mer) olduğunda geçerlidir.
+            score_type = "heuristic"
+            if enzyme == "SpCas9" and side == "3prime":
+                ctx_start = i - glen - 4   # kılavuzun 4 nt yukarısı
+                ctx_end = i + plen + 3     # PAM'in 3 nt aşağısı
+                if ctx_start >= 0 and ctx_end <= len(strand_seq):
+                    rs1 = doench_rs1_score(strand_seq[ctx_start:ctx_end])
+                    if rs1 is not None:
+                        sc = round(rs1 * 100, 1)
+                        score_type = "doench"
+
             results.append({
                 "guide": guide,
                 "pam": pam,
@@ -240,6 +306,7 @@ def find_guides(sequence, enzyme="SpCas9", max_results=200):
                 "end": disp_end,
                 "gc": gc_content(guide),
                 "score": sc,
+                "score_type": score_type,
                 "uniqueness": uniq,
                 "reasons": reasons,
             })
@@ -250,8 +317,14 @@ def find_guides(sequence, enzyme="SpCas9", max_results=200):
     if not results:
         return [], None
 
-    # Skora göre (yüksek→düşük), eşitlikte benzersizliğe göre sırala
-    results.sort(key=lambda g: (g["score"], -g["uniqueness"]), reverse=True)
+    # Önce skor tipine göre (gerçek RS1 modeli, sezgisel/uç bölgenin üstünde),
+    # sonra skora göre (yüksek→düşük), eşitlikte benzersizliğe göre sırala.
+    # Tek-tip (örn. SpCas9 dışı tüm sezgisel) listelerde tip etkisizdir.
+    _type_rank = {"doench": 1, "heuristic": 0}
+    results.sort(
+        key=lambda g: (_type_rank.get(g["score_type"], 0), g["score"], -g["uniqueness"]),
+        reverse=True,
+    )
     for idx, g in enumerate(results[:max_results], start=1):
         g["rank"] = idx
     return results[:max_results], None
@@ -277,7 +350,7 @@ def summarize(guides):
         "total": len(guides),
         "plus": sum(1 for g in guides if g["strand"] == "+"),
         "minus": sum(1 for g in guides if g["strand"] == "-"),
-        "high": sum(1 for g in guides if g["score"] >= 70),
+        "high": sum(1 for g in guides if g["score"] >= 60),
         "unique": sum(1 for g in guides if g["uniqueness"] <= 1),
         "best": guides[0] if guides else None,
     }
