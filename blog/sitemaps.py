@@ -50,6 +50,7 @@ class BioToolsSitemap(Sitemap):
             'bio_tools:federated_learning',
             'bio_tools:pharmacogenomics',
             'bio_tools:variant_prioritization',
+            'bio_tools:crispr_designer',
         ]
 
     def location(self, item):

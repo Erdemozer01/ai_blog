@@ -24,6 +24,8 @@ urlpatterns = [
     path('restriction-analysis/', views.restriction_view, name='restriction_analysis'),
     path('plasmid-map/', views.plasmid_map_view, name='plasmid_map'),
 
+    path('crispr-designer/', views.crispr_designer_view, name='crispr_designer'),
+
     path('api/start-analysis/', views.start_analysis_view, name='start_analysis'),
 
     path('api/job-status/<str:job_id>/', views.get_job_status_view, name='get_job_status'),

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load plotly_dash static %}
+
+{% block stylesheet %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.ico' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="plotly-app-container">
+        {% plotly_direct name='CrisprApp' %}
+    </div>
+
+    {% if seo_html %}
+    <section class="container my-5 seo-content">
+        {{ seo_html|safe }}
+    </section>
+    {% endif %}
+
+    {% if seo_faq %}
+    <script type="application/ld+json">{{ seo_faq|safe }}</script>
+    {% endif %}
+{% endblock %}

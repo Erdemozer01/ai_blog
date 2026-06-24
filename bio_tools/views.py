@@ -93,6 +93,11 @@ def validate_job_id(job_id: str) -> bool:
 # SEO META VERİLERİ — her bio aracı için özgün başlık/açıklama/anahtar kelime
 # ==============================================================================
 BIO_SEO = {
+    'crispr_designer': {
+        'title': "CRISPR sgRNA Tasarım Aracı - AI Blog",
+        'description': "CRISPR-Cas9 için çevrimiçi sgRNA (kılavuz RNA) tasarlayın. DNA dizinizdeki PAM bölgelerini bulun, aday gRNA'ları verim skoruna göre sıralayın, SpCas9/SaCas9/Cas12a desteği, interaktif PAM haritası ve yapay zeka yorumu.",
+        'keywords': "crispr, sgRNA tasarımı, gRNA design, PAM bulucu, Cas9, gen düzenleme, guide RNA, crispr aracı, gRNA tasarımı online",
+    },
     'sequence_analyzer': {
         'title': "Sekans Analiz Aracı - AI Blog",
         'description': "DNA, RNA ve protein dizilerini çevrimiçi analiz edin: GC içeriği, moleküler ağırlık, transkripsiyon ve çeviri, izoelektrik nokta (pI), GRAVY ve Kyte-Doolittle hidrofobiklik grafiği. FASTA ve Swiss-Prot desteği.",
@@ -647,6 +652,8 @@ from dash_apps.federated_learning import create_federated_layout
 from dash_apps.pharmacogenomics import create_pharmacogenomics_layout
 from dash_apps.variant_prioritization import create_variant_layout
 
+from dash_apps.crispr_designer import app as crispr_app, create_crispr_layout
+
 
 @login_required
 def federated_view(request):
@@ -682,3 +689,16 @@ def variant_view(request):
     _layout = html.Div([main_navbar, create_variant_layout(get_lang(request))])
     variant_app.layout = lambda: _layout
     return render(request, 'bio_tools/variant_prioritization.html', _bio_seo('variant_prioritization', request))
+
+
+@login_required
+def crispr_designer_view(request):
+    """CRISPR sgRNA Tasarımcısı (DjangoDash — diğer araçlarla aynı yapı)."""
+    if not request.user.is_authenticated:
+        messages.error(request, 'Lütfen giriş yapınız.')
+        return redirect("admin:login")
+    main_navbar = create_main_navbar(request)
+    from dash_apps.i18n_helper import get_lang
+    _layout = html.Div([main_navbar, create_crispr_layout(get_lang(request))])
+    crispr_app.layout = lambda: _layout
+    return render(request, 'bio_tools/crispr_designer.html', _bio_seo('crispr_designer', request))

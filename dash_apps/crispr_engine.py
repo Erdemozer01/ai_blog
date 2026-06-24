@@ -182,7 +182,7 @@ def find_guides(sequence, enzyme="SpCas9", max_results=200):
     seq = clean_sequence(sequence)
     enz = ENZYMES.get(enzyme)
     if enz is None:
-        return None, f"Bilinmeyen enzim: {enzyme}"
+        return None, {"code": "unknown_enzyme", "enzyme": enzyme}
 
     glen = enz["guide_len"]
     plen = len(enz["pam"])
@@ -191,8 +191,7 @@ def find_guides(sequence, enzyme="SpCas9", max_results=200):
 
     min_len = glen + plen
     if len(seq) < min_len:
-        return None, (f"Dizi çok kısa. Bu enzim için en az {min_len} baz gerekir "
-                      f"(girilen: {len(seq)}).")
+        return None, {"code": "too_short", "min": min_len, "got": len(seq)}
 
     results = []
     L = len(seq)
