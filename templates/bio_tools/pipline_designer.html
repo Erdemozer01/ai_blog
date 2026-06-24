@@ -10,4 +10,14 @@
     <div class="plotly-app-container dash-container">
         {% plotly_direct name='PipelineDesignerApp' %}
     </div>
+
+    {% if seo_html %}
+    <section class="container my-5 seo-content">
+        {{ seo_html|safe }}
+    </section>
+    {% endif %}
+
+    {% if seo_faq %}
+    <script type="application/ld+json">{{ seo_faq|safe }}</script>
+    {% endif %}
 {% endblock %}
