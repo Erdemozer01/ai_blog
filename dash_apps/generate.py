@@ -129,22 +129,46 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
     if real_sources:
         ref_count = f"tam olarak {len(real_sources)}"
 
-    # Gerçek kaynaklar verildiyse, prompt'a kaynak listesi + özetleri eklenir
+    # Gerçek kaynaklar verildiyse, prompt'a kaynak listesi + özet/tam metin eklenir
     sources_block = ""
     if real_sources:
         lines = []
+        has_fulltext = False
         for i, s in enumerate(real_sources, start=1):
-            abs_short = (s.get('abstract') or '')[:400]
+            # Tam metin varsa (PMC açık erişim, ticari-uygun lisans) onu kullan;
+            # yoksa özete düş. Tam metin token bütçesi için kırpılır.
+            fulltext = s.get('fulltext')
+            if fulltext:
+                has_fulltext = True
+                body = fulltext[:2500]
+                kind = "TAM METİN"
+            else:
+                body = (s.get('abstract') or '')[:400]
+                kind = "ÖZET"
+            # Atıf izlenebilirliği: PMID/DOI varsa numaranın yanında göster
+            tag = ""
+            if s.get('pmid'):
+                tag += f" PMID:{s['pmid']}"
+            if s.get('doi'):
+                tag += f" DOI:{s['doi']}"
             lines.append(
-                f"[{i}] {s['citation']}\n"
-                f"     ÖZET: {abs_short}"
+                f"[{i}] {s['citation']}{tag}\n"
+                f"     {kind}: {body}"
             )
+        ft_note = (
+            "Bazı kaynaklar TAM METİN olarak verildi; bunların bulgularını daha "
+            "ayrıntılı kullanabilirsin. ANCAK tam metni KELİMESİ KELİMESİNE KOPYALAMA — "
+            "sayıları/bulguları aynen koru ama cümleleri kendi ifadenle yeniden yaz. "
+            if has_fulltext else ""
+        )
         sources_block = (
-            "\n\n=== KULLANILACAK GERÇEK KAYNAKLAR (CrossRef'ten doğrulanmış) ===\n"
-            "Aşağıda, bu konuda GERÇEKTEN VAR OLAN akademik kaynaklar ve özetleri var. "
-            "Makaleyi YALNIZCA bu kaynaklara dayanarak yaz. Her kaynağı özetindeki "
+            "\n\n=== KULLANILACAK GERÇEK KAYNAKLAR (PubMed/CrossRef'ten doğrulanmış) ===\n"
+            "Aşağıda, bu konuda GERÇEKTEN VAR OLAN akademik kaynaklar ve içerikleri var. "
+            "Makaleyi YALNIZCA bu kaynaklara dayanarak yaz. Her kaynağı içeriğindeki "
             "bilgiye uygun bir cümlede [N] numarasıyla kullan. Bu listenin DIŞINDA "
-            "kaynak UYDURMA. Kaynakçaya bu kaynakları aynen, verilen numaralarla yaz.\n\n"
+            "kaynak UYDURMA. Kaynakçaya bu kaynakları aynen, verilen numaralarla yaz. "
+            + ft_note +
+            "\n\n"
             + "\n\n".join(lines) +
             "\n=== GERÇEK KAYNAKLAR SONU ===\n"
         )
@@ -305,15 +329,26 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     """
     from ai_engine.services import generate_with_pool
 
-    # Üretimden önce konuya göre CrossRef'ten gerçek kaynakları topla (abstract'lı)
+    # Üretimden önce konuya göre gerçek kaynakları topla (abstract'lı + varsa tam metin).
+    # Önce PubMed/PMC (özet kapsamı geniş, açık erişimde tam metin); ulaşılamaz veya
+    # boşsa CrossRef'e düş. Her ikisi de aynı kaynak şeklini döndürür.
     real_sources = None
     try:
-        from blog.reference_check import collect_real_sources_for_topic
-        real_sources = collect_real_sources_for_topic(user_request_text, target_count=10)
+        from blog.pubmed_sources import collect_pubmed_sources_for_topic
+        real_sources = collect_pubmed_sources_for_topic(user_request_text, target_count=10)
         if not real_sources:
             real_sources = None
     except Exception:
         real_sources = None
+
+    if not real_sources:
+        try:
+            from blog.reference_check import collect_real_sources_for_topic
+            real_sources = collect_real_sources_for_topic(user_request_text, target_count=10)
+            if not real_sources:
+                real_sources = None
+        except Exception:
+            real_sources = None
 
     base_prompt = get_base_prompt(user_request_text, word_count, real_sources=real_sources)
 
