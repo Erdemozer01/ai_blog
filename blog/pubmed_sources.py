@@ -64,10 +64,14 @@ MAX_FULLTEXT_CHARS = 6000
 
 
 def _configure_entrez():
-    """Entrez.email zorunlu; api_key opsiyonel (rate limit 3->10/sn)."""
+    """Entrez.email zorunlu; api_key opsiyonel (rate limit 3->10/sn).
+
+    Mail önceliği: NCBI_EMAIL > site maili (EMAIL_HOST_USER). Böylece ayrı bir
+    ayar gerekmez; sitenin mevcut mailinden otomatik beslenir.
+    """
     if Entrez is None:
         return False
-    email = _cfg('NCBI_EMAIL')
+    email = _cfg('NCBI_EMAIL') or _cfg('EMAIL_HOST_USER')
     if not email:
         return False
     Entrez.email = email

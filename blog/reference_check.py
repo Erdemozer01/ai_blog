@@ -19,7 +19,22 @@ import urllib.parse
 
 
 CROSSREF_API = "https://api.crossref.org/works"
-USER_AGENT = "AIBlog/1.0 (academic reference verification)"
+def _build_user_agent():
+    """CrossRef 'polite pool' için User-Agent'a site mailini ekler.
+    Mail settings'ten (EMAIL_HOST_USER) çekilir; yoksa mailsiz public pool.
+    """
+    email = None
+    try:
+        from django.conf import settings
+        email = getattr(settings, 'EMAIL_HOST_USER', None)
+    except Exception:
+        email = None
+    if email and '@' in email and 'example.com' not in email:
+        return f"AIBlog/1.0 (mailto:{email})"
+    return "AIBlog/1.0 (academic reference verification)"
+
+
+USER_AGENT = _build_user_agent()
 
 
 def _parse_bibliography(bibliography_text):
@@ -926,4 +941,3 @@ def collect_real_sources_for_topic(topic, target_count=8, timeout=10, lang='tr')
         s.pop('_has_numeric', None)
 
     return collected
-
