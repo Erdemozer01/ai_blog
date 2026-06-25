@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 # ==============================================================================
 ENVIRONMENT = os.environ.get('DJANGO_ENV', 'development')
 
+NCBI_EMAIL = os.environ.get('NCBI_EMAIL', 'senin@mailin.com')  # ZORUNLU
+NCBI_API_KEY = os.environ.get('NCBI_API_KEY')                  # opsiyonel (hız)
+
 # Türkçe locale ayarları
 try:
     locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
