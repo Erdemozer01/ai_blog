@@ -1,143 +1,45 @@
-<footer class="site-footer pt-5 pb-4 mt-5">
-    <div class="container text-center text-md-start position-relative">
-        <div class="row gy-4">
+<footer class="bg-dark text-white pt-5 pb-4 mt-5">
+    <div class="container text-center text-md-start">
+        <div class="row">
 
-            <!-- Marka + açıklama -->
-            <div class="col-md-12 col-lg-4 mx-auto mb-2">
-                <h5 class="footer-brand fw-bold mb-3">
-                    <i class="fas fa-dna me-2"></i>AI Blog
-                </h5>
-                <p class="footer-tagline">
+            <div class="col-md-4 col-lg-5 col-xl-4 mx-auto mb-4">
+                <h6 class="text-uppercase fw-bold">AI Blog</h6>
+                <hr class="mb-4 mt-0 d-inline-block mx-auto"
+                    style="width: 60px; background-color: #7c4dff; height: 2px"/>
+                <p>
                     {{ footer_tagline }}
                 </p>
-                <div class="footer-social mt-3">
-                    <a href="#!" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                    <a href="#!" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-                    <a href="https://github.com/Erdemozer01/ai_blog" target="_blank" rel="noopener" aria-label="GitHub"><i class="fab fa-github"></i></a>
-                </div>
             </div>
 
-            <!-- Araçlar -->
-            <div class="col-6 col-md-4 col-lg-3 mx-auto">
-                <h6 class="footer-head text-uppercase fw-bold">
-                    {% if site_lang == 'en' %}Tools{% else %}Araçlar{% endif %}
-                </h6>
-                <span class="footer-rule"></span>
-                <ul class="footer-links list-unstyled">
-                    <li><a href="{% url 'bio_tools:crispr_designer' %}"><i class="fas fa-scissors"></i>CRISPR sgRNA</a></li>
-                    <li><a href="{% url 'bio_tools:sequence_analyzer' %}"><i class="fas fa-dna"></i>{% if site_lang == 'en' %}Sequence Analyzer{% else %}Sekans Analizi{% endif %}</a></li>
-                    <li><a href="{% url 'bio_tools:primer_design' %}"><i class="fas fa-vial"></i>{% if site_lang == 'en' %}Primer Design{% else %}Primer Tasarımı{% endif %}</a></li>
-                    <li><a href="{% url 'bio_tools:plasmid_map' %}"><i class="fas fa-circle-notch"></i>{% if site_lang == 'en' %}Plasmid Map{% else %}Plazmit Haritası{% endif %}</a></li>
-                    <li><a href="{% url 'bio_tools:pharmacogenomics' %}"><i class="fas fa-pills"></i>{% if site_lang == 'en' %}Pharmacogenomics{% else %}Farmakogenomik{% endif %}</a></li>
-                </ul>
+            <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="text-uppercase fw-bold">{{ i18n.footer_quick_access }}</h6>
+                <hr class="mb-4 mt-0 d-inline-block mx-auto"
+                    style="width: 60px; background-color: #7c4dff; height: 2px"/>
+                <p><a href="{% url 'blog:anasayfa' %}" class="text-white" style="text-decoration: none;">{{ i18n.footer_home }}</a></p>
+                <p><a href="{% url 'admin:login' %}" class="text-white" style="text-decoration: none;">{{ i18n.footer_login }}</a></p>
+                <p><a href="{% url 'blog:contact' %}" class="text-white" style="text-decoration: none;">{{ i18n.footer_contact }}</a></p>
+
+                {% if user.is_authenticated and user.is_staff %}
+                    <p><a href="{% url 'blog:generate_article' %}" class="text-white" style="text-decoration: none;">{{ i18n.footer_generate }}</a></p>
+                {% endif %}
+
             </div>
 
-            <!-- Keşfet -->
-            <div class="col-6 col-md-4 col-lg-2 mx-auto">
-                <h6 class="footer-head text-uppercase fw-bold">
-                    {% if site_lang == 'en' %}Explore{% else %}Keşfet{% endif %}
-                </h6>
-                <span class="footer-rule"></span>
-                <ul class="footer-links list-unstyled">
-                    <li><a href="{% url 'blog:anasayfa' %}"><i class="fas fa-house"></i>{{ i18n.footer_home }}</a></li>
-                    <li><a href="{% url 'blog:blog_list' %}"><i class="fas fa-newspaper"></i>{% if site_lang == 'en' %}Articles{% else %}Makaleler{% endif %}</a></li>
-                    <li><a href="{% url 'blog:contact' %}"><i class="fas fa-envelope"></i>{{ i18n.footer_contact }}</a></li>
-                    {% if user.is_authenticated and user.is_staff %}
-                        <li><a href="{% url 'blog:generate_article' %}"><i class="fas fa-wand-magic-sparkles"></i>{{ i18n.footer_generate }}</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-
-            <!-- Öne çıkan -->
-            <div class="col-md-12 col-lg-3 mx-auto">
-                <h6 class="footer-head text-uppercase fw-bold">
-                    {% if site_lang == 'en' %}Featured{% else %}Öne Çıkan{% endif %}
-                </h6>
-                <span class="footer-rule"></span>
-                <div class="footer-cta">
-                    <p class="mb-3 small">
-                        {% if site_lang == 'en' %}
-                            Try our AI engine — generate cited, academic articles from real data.
-                        {% else %}
-                            AI motorumuzu deneyin — gerçek verilerden atıflı, akademik makaleler üretin.
-                        {% endif %}
-                    </p>
-                    <a href="{% url 'bio_tools:crispr_designer' %}" class="footer-cta-btn">
-                        <i class="fas fa-flask me-2"></i>{% if site_lang == 'en' %}Launch a Tool{% else %}Aracı Başlat{% endif %}
-                    </a>
-                </div>
+            <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mb-md-0 mb-4">
+                <h6 class="text-uppercase fw-bold">{{ i18n.footer_follow }}</h6>
+                <hr class="mb-4 mt-0 d-inline-block mx-auto"
+                    style="width: 60px; background-color: #7c4dff; height: 2px"/>
+                <p>
+                    <a href="#!" class="text-white me-4"><i class="fab fa-twitter"></i></a>
+                    <a href="#!" class="text-white me-4"><i class="fab fa-linkedin-in"></i></a>
+                    <a href="#!" class="text-white me-4"><i class="fab fa-github"></i></a>
+                </p>
             </div>
 
         </div>
     </div>
 
-    <div class="footer-bottom text-center mt-4">
-        <span>© {% now "Y" %} AI Blog. {{ i18n.footer_rights }}</span>
-        <span class="footer-bottom-sep">·</span>
-        <span>{% if site_lang == 'en' %}Built with science &amp; AI{% else %}Bilim ve yapay zekâ ile geliştirildi{% endif %}</span>
+    <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2)">
+        © {% now "Y" %} AI Blog. {{ i18n.footer_rights }}
     </div>
 </footer>
-
-<style>
-.site-footer {
-    background: radial-gradient(120% 140% at 50% 0%, #221b3a 0%, #15101f 55%, #0d0a14 100%);
-    color: #d7d3e0;
-    position: relative;
-    overflow: hidden;
-}
-.site-footer::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #7c4dff 0%, #b388ff 50%, #7c4dff 100%);
-}
-.footer-brand { color: #fff; letter-spacing: .5px; }
-.footer-brand i { color: #b388ff; }
-.footer-tagline { color: #b9b3c7; line-height: 1.7; font-size: .95rem; max-width: 340px; }
-.footer-head { color: #fff; letter-spacing: 1px; font-size: .8rem; margin-bottom: .6rem; }
-.footer-rule {
-    display: block; width: 42px; height: 2px; margin-bottom: 1rem;
-    background: linear-gradient(90deg, #7c4dff, transparent);
-}
-.text-center .footer-rule, .text-md-start.text-center .footer-rule { margin-left: auto; margin-right: auto; }
-@media (min-width: 768px) { .footer-rule { margin-left: 0; } }
-.footer-links li { margin-bottom: .55rem; }
-.footer-links a {
-    color: #c3bdd1; text-decoration: none; font-size: .92rem;
-    display: inline-flex; align-items: center; transition: all .2s ease;
-}
-.footer-links a i {
-    width: 20px; margin-right: 8px; color: #7c4dff;
-    font-size: .8rem; transition: transform .2s ease;
-}
-.footer-links a:hover { color: #fff; transform: translateX(3px); }
-.footer-links a:hover i { color: #b388ff; transform: scale(1.15); }
-.footer-social a {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px; margin-right: 10px; border-radius: 50%;
-    color: #d7d3e0; background: rgba(124,77,255,.12);
-    border: 1px solid rgba(124,77,255,.25); transition: all .25s ease;
-}
-.footer-social a:hover {
-    color: #fff; background: #7c4dff; transform: translateY(-3px);
-    box-shadow: 0 6px 18px rgba(124,77,255,.4);
-}
-.footer-cta p { color: #b9b3c7; line-height: 1.6; }
-.footer-cta-btn {
-    display: inline-flex; align-items: center; padding: .6rem 1.2rem;
-    border-radius: 50px; font-weight: 600; font-size: .9rem;
-    color: #fff; text-decoration: none;
-    background: linear-gradient(135deg, #7c4dff, #b388ff);
-    box-shadow: 0 4px 14px rgba(124,77,255,.35); transition: all .25s ease;
-}
-.footer-cta-btn:hover {
-    color: #fff; transform: translateY(-2px);
-    box-shadow: 0 8px 22px rgba(124,77,255,.5);
-}
-.footer-bottom {
-    border-top: 1px solid rgba(255,255,255,.08);
-    padding-top: 1.2rem; color: #8e879e; font-size: .85rem;
-}
-.footer-bottom-sep { margin: 0 .5rem; color: #7c4dff; }
-</style>
