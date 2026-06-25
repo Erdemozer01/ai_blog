@@ -20,8 +20,12 @@ def i18n_context(request):
         'site_lang': lang,
         'i18n': {k: t(k, lang) for k in keys},
         'footer_tagline': (
-            'Çeşitli konularda üretilmiş akademik makaleleri ve Biyoinformatik Araçlarını keşfedin.'
+            'Yapay zekâ destekli akademik içerik üretimi ile güçlü biyoinformatik '
+            'araçları tek çatı altında. Sekanstan CRISPR tasarımına, makale üretiminden '
+            'veri analizine kadar bilimi erişilebilir kılıyoruz.'
             if lang == 'tr' else
-            'Discover academic articles on various topics and bioinformatics tools.'
+            'AI-powered academic content generation and a powerful suite of bioinformatics '
+            'tools under one roof. From sequence analysis to CRISPR design, we make '
+            'science accessible.'
         ),
     }
