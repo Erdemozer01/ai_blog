@@ -125,9 +125,10 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
         sections_hint = "6-8 ara başlık, alt başlıklar ve kapsamlı bir sonuç bölümü"
         ref_count = "20-30"
 
-    # Gerçek kaynaklar verildiyse, kaynakça TAM o sayıda olmalı (uydurma/eksik olmasın)
+    # Gerçek kaynaklar verildiyse: kaynakça SADECE metinde [N] ile atıf yapılanları
+    # içermeli. Atıfsız/alakasız kaynağı listeye doldurmamalı (öksüz kaynak olmasın).
     if real_sources:
-        ref_count = f"tam olarak {len(real_sources)}"
+        ref_count = f"en çok {len(real_sources)} (yalnızca metinde gerçekten kullandıkların)"
 
     # Gerçek kaynaklar verildiyse, prompt'a kaynak listesi + özet/tam metin eklenir
     sources_block = ""
@@ -166,7 +167,12 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
             "Aşağıda, bu konuda GERÇEKTEN VAR OLAN akademik kaynaklar ve içerikleri var. "
             "Makaleyi YALNIZCA bu kaynaklara dayanarak yaz. Her kaynağı içeriğindeki "
             "bilgiye uygun bir cümlede [N] numarasıyla kullan. Bu listenin DIŞINDA "
-            "kaynak UYDURMA. Kaynakçaya bu kaynakları aynen, verilen numaralarla yaz. "
+            "kaynak UYDURMA. "
+            "ÖNEMLİ: Bu listedeki TÜM kaynakları kullanmak ZORUNDA DEĞİLSİN. Konuyla "
+            "doğrudan ilgili olanları seç ve kullan; konuyla alakasız (örn. farklı bir "
+            "hastalık, ilgisiz bir model/tür, konu dışı bir bulgu) kaynağı metinde "
+            "KULLANMA ve kaynakçaya da KOYMA. Kaynakça SADECE metinde [N] ile gerçekten "
+            "atıf yaptığın kaynaklardan oluşur — sayıyı doldurmak için alakasız kaynak EKLEME. "
             + ft_note +
             "\n\n"
             + "\n\n".join(lines) +
@@ -184,10 +190,15 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir. ANCAK placeholder'ı SADECE, o yere koyacağın tablo/grafik için kaynaklarda GERÇEK sayısal veri varsa ekle. Uydurma veriyle dolduracağın placeholder KOYMA — gerçek veri yoksa hiç placeholder ekleme.
     7.  Kaynakça (ZORUNLU - ASLA ATLAMA): Makalenin SONUNDA, metindeki atıflara karşılık gelen,
-        numaralı, {ref_count} kaynakça maddesini MUTLAKA yaz. Makale içeriğini kaynakça için
-        yer kalacak şekilde planla; içeriği uzatıp kaynakçayı yarıda BIRAKMA. Kaynakça
-        bölümü eksik veya kesik OLAMAZ.
+        numaralı kaynakça maddelerini yaz. Kaynakça {ref_count} madde olmalı. Makale içeriğini
+        kaynakça için yer kalacak şekilde planla; içeriği uzatıp kaynakçayı yarıda BIRAKMA.
+        Kaynakça bölümü eksik veya kesik OLAMAZ.
         KAYNAK DOĞRULUĞU KURALLARI (ÇOK ÖNEMLİ):
+        - EN ÖNEMLİ KURAL: Kaynakça, SADECE metin içinde [N] ile GERÇEKTEN atıf yaptığın
+          kaynaklardan oluşur. Metinde kullanmadığın bir kaynağı, sırf sayıyı tamamlamak
+          için kaynakçaya EKLEME. Atıfsız kaynak = ÖKSÜZ KAYNAK = YASAK.
+        - Belirli bir sayıya ulaşmak için konuyla ALAKASIZ kaynak kullanma. 6 alakalı kaynak,
+          10 kaynağın 4'ü alakasız olmasından İYİDİR.
         - Yukarıda "GERÇEK KAYNAKLAR" listesi verildiyse: SADECE o kaynakları kullan,
           verilen numaralarla ve aynen yaz. Liste dışında HİÇBİR kaynak ekleme/uydurma.
         - Liste verilmediyse: ASLA var olmayan, uydurma kaynak, yazar veya makale üretme.
@@ -206,7 +217,11 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
           sayı bilimsel değer taşımaz ve YASAKTIR.
         - Bir tablo/grafik için kaynaklarda gerçek, sayısal veri YOKSA: o placeholder için veri üretme,
           JSON'da o anahtarı ATLA. Hiç uygun gerçek veri yoksa `{{}}` (boş nesne) döndür.
-        - 'source' alanı, verinin alındığı GERÇEK kaynağı (yazar, yıl) belirtmeli; uydurma kaynak adı yazma.
+        - 'source' alanı, verinin alındığı GERÇEK kaynağı belirtmeli ve bu kaynak MUTLAKA
+          yukarıdaki "GERÇEK KAYNAKLAR" listesinde/kaynakçada olmalı (örn. "Yau et al., 2025 [3]").
+          Listede OLMAYAN bir kuruluş/rapor/veri tabanı adını (örn. "IDF 2024", "WHO",
+          "DSÖ raporu") source olarak YAZMA — bu izlenemez ve YASAKTIR. Uygun kaynak yoksa
+          o tabloyu/grafiği hiç oluşturma.
         - Veriye en uygun grafik türünü ('bar', 'line', 'pie', 'scatter') seç.
         - Tablo formatı: `{{"1": {{"type": "table", "title": "...", "description": "...", "source": "Yazar, Yıl", "columns": ["..."], "data": [["..."]]}}}}`
         - Grafik formatı: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "...", "description": "...", "source": "Yazar, Yıl", "data": {{"x": ["..."], "y": [...]}}}}}}`
@@ -332,10 +347,20 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     # Üretimden önce konuya göre gerçek kaynakları topla (abstract'lı + varsa tam metin).
     # Önce PubMed/PMC (özet kapsamı geniş, açık erişimde tam metin); ulaşılamaz veya
     # boşsa CrossRef'e düş. Her ikisi de aynı kaynak şeklini döndürür.
+    # Kaynak sayısı makale uzunluğuna göre ölçeklenir (uzun makale = geniş kaynakça).
+    if word_count <= 500:
+        src_count = 8
+    elif word_count <= 1500:
+        src_count = 15
+    elif word_count <= 2500:
+        src_count = 20
+    else:
+        src_count = 25
+
     real_sources = None
     try:
         from blog.pubmed_sources import collect_pubmed_sources_for_topic
-        real_sources = collect_pubmed_sources_for_topic(user_request_text, target_count=10)
+        real_sources = collect_pubmed_sources_for_topic(user_request_text, target_count=src_count)
         if not real_sources:
             real_sources = None
     except Exception:
@@ -344,7 +369,7 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     if not real_sources:
         try:
             from blog.reference_check import collect_real_sources_for_topic
-            real_sources = collect_real_sources_for_topic(user_request_text, target_count=10)
+            real_sources = collect_real_sources_for_topic(user_request_text, target_count=src_count)
             if not real_sources:
                 real_sources = None
         except Exception:
@@ -530,6 +555,22 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
             # Superuser üretirse otomatik yayında; normal kullanıcı onay bekler
             is_published=bool(user.is_superuser),
         )
+
+        # --- ZORUNLU CrossRef DOĞRULAMASI (otomatik) ---
+        # Kaynakçadaki her kaynağı CrossRef'te doğrula: bulunmayanı (sahteyi)
+        # gerçek kaynakla değiştir ya da sil, içerik-uyuşmayanı kaynakçadan çıkar,
+        # yeniden numaralandır. clean_article_references makaleyi kendi kaydeder.
+        # CrossRef erişilemezse (PythonAnywhere whitelist vb.) makale mağdur
+        # edilmez; doğrulama atlanır, kaynaklar zaten PubMed'den gerçektir.
+        verify_note = ""
+        try:
+            from blog.reference_check import clean_article_references
+            ok_verify, _msg = clean_article_references(new_article)
+            new_article.refresh_from_db()
+            if not ok_verify:
+                verify_note = ""  # erişilemedi → sessiz geç
+        except Exception:
+            pass
 
         # --- Makale başarıyla üretildi → şimdi krediyi düş ---
         # (Sayfa girişinde değil, ÜRETİM başarılı olunca. Superuser muaf.)
