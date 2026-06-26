@@ -104,7 +104,8 @@ def validate_topic_ai(text, lang='en'):
         return True, ""
 
 
-def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
+def get_base_prompt(user_request_text, word_count=1500, real_sources=None,
+                    output_format='sections'):
     """Tüm modeller için ortak olan prompt metnini oluşturur.
 
     real_sources: CrossRef'ten çekilmiş gerçek kaynaklar listesi (varsa).
@@ -179,9 +180,45 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
             "\n=== GERÇEK KAYNAKLAR SONU ===\n"
         )
 
+    # Çıktı formatı: 'sections' (eski, SECTION_BREAK) veya 'json' (yeni, tek nesne).
+    if output_format == 'json':
+        fmt_intro = (
+            "Çıktıyı, başka HİÇBİR metin olmadan, TEK bir GEÇERLİ JSON nesnesi olarak ver. "
+            "JSON şu alanları (key) içermeli: \"title\", \"english_abstract\", "
+            "\"turkish_abstract\", \"category_name\", \"keywords\", \"content\", "
+            "\"used_sources\", \"bibliography\", \"structured_data\". "
+            "Aşağıdaki numaralı açıklamalar bu alanların içeriğini tanımlar "
+            "(Bölüm 1=title, 2=english_abstract, 3=turkish_abstract, 4=category_name, "
+            "5=keywords, 6=content, 7=bibliography, 8=structured_data). "
+            "EK ZORUNLU ALAN \"used_sources\": content içinde [N] ile GERÇEKTEN atıf "
+            "yaptığın TÜM kaynak numaralarının dizisi olmalı (ör. [1, 3, 5]). Bu dizi, "
+            "kaynakçadaki numaralarla birebir tutarlı olmalı."
+        )
+        fmt_outro = (
+            "ÇIKTI KURALLARI (JSON):\n"
+            "- Tüm çıktı TEK bir geçerli JSON nesnesi olmalı. Başına/sonuna ```json gibi "
+            "kod bloğu, başlık veya açıklama EKLEME.\n"
+            "- \"content\" alanı markdown METİN (string) olmalı; içindeki çift tırnak ve "
+            "satır sonları JSON'a uygun kaçışlanmalı (\\n, \\\").\n"
+            "- \"structured_data\" İÇ İÇE bir JSON nesnesi olmalı (string DEĞİL). Uygun "
+            "gerçek veri yoksa boş nesne {{}} olmalı.\n"
+            "- \"used_sources\" bir sayı dizisi olmalı; içindeki her numara hem content'te "
+            "[N] olarak geçmeli hem kaynakçada bulunmalı.\n"
+            "- \"keywords\" virgülle ayrılmış tek bir string olmalı."
+        )
+    else:
+        fmt_intro = (
+            "Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin "
+            "arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur."
+        )
+        fmt_outro = (
+            "Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, "
+            "aralarında belirtilen ayraçla birlikte ver."
+        )
+
     return f"""
     İstek Konusu: "{user_request_text}"{sources_block}
-    Makalenin bölümlerini aşağıdaki 8 bölümden oluşacak şekilde ve her birinin arasına `_||_SECTION_BREAK_||_` ayıracını koyarak oluştur.
+    {fmt_intro}
     Oluşturulacak Bölümlerin Sırası:
     1.  Başlık: Spesifik, analitik ve akademik bir başlık.
     2.  İngilizce Özet (Abstract): Yaklaşık 150 kelimelik, makaleyi özetleyen İngilizce bir abstract.
@@ -226,7 +263,7 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None):
         - Tablo formatı: `{{"1": {{"type": "table", "title": "...", "description": "...", "source": "Yazar, Yıl", "columns": ["..."], "data": [["..."]]}}}}`
         - Grafik formatı: `{{"2": {{"type": "chart", "chart_type": "bar", "title": "...", "description": "...", "source": "Yazar, Yıl", "data": {{"x": ["..."], "y": [...]}}}}}}`
         - Eğer uygun GERÇEK veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
-    Cevabında başka hiçbir açıklama veya metin olmasın. Sadece bu 8 bölümü, aralarında belirtilen ayraçla birlikte ver.
+    Cevabında başka hiçbir açıklama veya metin olmasın. {fmt_outro}
     """
 
 
@@ -358,9 +395,11 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
         src_count = 25
 
     real_sources = None
+    ft_limit = max(4, min(src_count // 2, 8))  # daha çok tam metin = daha çok gerçek içerik
     try:
         from blog.pubmed_sources import collect_pubmed_sources_for_topic
-        real_sources = collect_pubmed_sources_for_topic(user_request_text, target_count=src_count)
+        real_sources = collect_pubmed_sources_for_topic(
+            user_request_text, target_count=src_count, fulltext_limit=ft_limit)
         if not real_sources:
             real_sources = None
     except Exception:
@@ -375,11 +414,10 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
         except Exception:
             real_sources = None
 
-    base_prompt = get_base_prompt(user_request_text, word_count, real_sources=real_sources)
-
-    # Bio-analiz bağlamı varsa prompt'a ekle: makale gerçek sonucu literatürle bağdaştırsın
+    # Bio-analiz bağlamı (varsa) — her iki format prompt'una da eklenecek önek
+    bio_prefix = ""
     if bio_context:
-        base_prompt = (
+        bio_prefix = (
             f"=== KULLANICININ GERÇEK ANALİZ SONUCU ===\n{bio_context}\n\n"
             f"ÖNEMLİ: Bu makale, yukarıdaki GERÇEK biyoinformatik analiz sonucunu temel almalı "
             f"ve bu sonucu aşağıda toplanan literatürle BAĞDAŞTIRMALIDIR. Kullanıcının elde ettiği "
@@ -395,28 +433,32 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
             f"Yazılım kütüphanesi istatistiği (GitHub yıldızı, indirme sayısı, katkıcı sayısı vb.) "
             f"gibi konuyla ALAKASIZ veya UYDURMA grafikler KESİNLİKLE OLUŞTURMA. Uygun gerçek "
             f"veri yoksa tablo/grafik koyma.\n\n"
-            + base_prompt
         )
-    system_prompt = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
-                     "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
-                     "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "
-                     "konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, "
-                     "yayınlanmaya hazır bir makale taslağı oluşturmak. "
-                     "AKADEMİK DÜRÜSTLÜK: Asla var olmayan kaynak, yazar, makale veya DOI "
-                     "uydurma. Emin olmadığın bilgiyi gerçekmiş gibi sunma. Gerçek olmayan "
-                     "bir kaynağa atıf yapmaktansa o iddiayı atıfsız bırak. "
-                     "Cevabını, istenen "
-                     "8 bölümün arasına `_||_SECTION_BREAK_||_` ayıracı koyarak, başka "
-                     "hiçbir açıklama olmadan sunmalısın.")
-    # Token bütçesi: içerik + kaynakça (15 kaynak ~2000 token) için bol yer bırak.
-    # Kaynakça yarıda kesilmesin diye cömert tutulur.
+
+    json_prompt = bio_prefix + get_base_prompt(
+        user_request_text, word_count, real_sources=real_sources, output_format='json')
+    section_prompt = bio_prefix + get_base_prompt(
+        user_request_text, word_count, real_sources=real_sources, output_format='sections')
+
+    base_system = ("Sen, konusuna son derece hakim, kıdemli bir akademik yazarsın. "
+                   "Görevin, verilen konu hakkında, literatüre derinlemesine bir giriş "
+                   "yapan, orijinal argümanlar sunan, zengin kaynakçaya sahip ve içinde "
+                   "konuyla ilgili veri görselleştirmeleri (tablo/grafik) barındıran, "
+                   "yayınlanmaya hazır bir makale taslağı oluşturmak. "
+                   "AKADEMİK DÜRÜSTLÜK: Asla var olmayan kaynak, yazar, makale veya DOI "
+                   "uydurma. Emin olmadığın bilgiyi gerçekmiş gibi sunma. Gerçek olmayan "
+                   "bir kaynağa atıf yapmaktansa o iddiayı atıfsız bırak. ")
+    json_system = base_system + ("Cevabını, başka hiçbir açıklama olmadan, TEK bir geçerli "
+                                 "JSON nesnesi olarak ver.")
+    section_system = base_system + ("Cevabını, istenen 8 bölümün arasına "
+                                    "`_||_SECTION_BREAK_||_` ayıracı koyarak, başka hiçbir "
+                                    "açıklama olmadan sunmalısın.")
+
+    # Token bütçesi: içerik + kaynakça için bol yer bırak (kaynakça yarıda kesilmesin).
     max_tokens = min(int(word_count * 2.8) + 4000, 32768)
 
-    # Model fallback: seçilen modeli ve aynı sağlayıcının diğer aktif modellerini
-    # sırayla dener (biri kota dolarsa diğerine geçer).
-    from ai_engine.services import get_fallback_models
-    # Bio-makale (bio_context) veya model seçilmemişse: otomatik çağrı sayılır,
-    # kota dolunca diğer sağlayıcılara da geçer. Kullanıcı model seçtiyse ona sadık kal.
+    # Model fallback: seçilen modeli ve aynı sağlayıcının diğer aktif modellerini dener.
+    from ai_engine.services import get_fallback_models, generate_json_with_pool
     cross = bool(bio_context) or (model_name is None)
     model_chain = get_fallback_models(preferred_service=service_name,
                                       preferred_model=model_name,
@@ -424,24 +466,89 @@ def run_ai_generation_with_pool(user_request_text, word_count=1500,
     if not model_chain:
         model_chain = [(service_name, model_name)]
 
-    response_text = None
     used_key = None
     last_error = None
+
+    # --- 1) ÖNCE JSON dene (daha az parse hatası + used_sources doğrulaması) ---
+    ai_data = None
     for svc, mdl in model_chain:
         try:
-            response_text, used_key = generate_with_pool(
-                base_prompt, service_name=svc, model_name=mdl,
-                system_prompt=system_prompt, max_tokens=max_tokens, temperature=0.7)
-            if response_text:
+            data, used_key = generate_json_with_pool(
+                json_prompt, service_name=svc, model_name=mdl,
+                system_prompt=json_system, max_tokens=max_tokens, temperature=0.7)
+            if isinstance(data, dict) and (data.get('content') or '').strip():
+                ai_data = _normalize_json_article(data, real_sources)
                 break
         except Exception as e:
             last_error = e
             continue
-    if not response_text:
-        raise RuntimeError(f"Tüm modeller başarısız oldu. Son hata: {last_error}")
 
-    ai_data = _parse_article_response(response_text)
+    # --- 2) JSON başarısızsa: 8-bölüm formatına düş (geriye dönük güvence) ---
+    if not ai_data:
+        response_text = None
+        for svc, mdl in model_chain:
+            try:
+                response_text, used_key = generate_with_pool(
+                    section_prompt, service_name=svc, model_name=mdl,
+                    system_prompt=section_system, max_tokens=max_tokens, temperature=0.7)
+                if response_text:
+                    break
+            except Exception as e:
+                last_error = e
+                continue
+        if not response_text:
+            raise RuntimeError(f"Tüm modeller başarısız oldu. Son hata: {last_error}")
+        ai_data = _parse_article_response(response_text)
+
     return ai_data, used_key
+
+
+def _normalize_json_article(data, real_sources=None):
+    """
+    AI'dan gelen JSON makale nesnesini, kaydetme akışının beklediği ai_data
+    şekline çevirir ve izlenebilirlik doğrulaması yapar:
+      - structured_data dict değilse boşaltılır.
+      - Bir tablo/grafiğin 'source' alanı kaynakçadaki [N]'e bağlanamıyorsa
+        (geçersiz [N]'e işaret ediyorsa) o tablo/grafik DÜŞÜRÜLÜR — izlenemez
+        veri yayınlanmaz (örn. 'IDF 2024' gibi kaynakçada olmayan atıf).
+    """
+    def _s(v):
+        return v.strip() if isinstance(v, str) else (v or "")
+
+    biblio = _s(data.get('bibliography'))
+    valid_nums = set(int(n) for n in re.findall(r'^\s*\[?(\d+)[\].\)]', biblio, re.MULTILINE))
+
+    sd = data.get('structured_data')
+    if not isinstance(sd, dict):
+        sd = {}
+    cleaned_sd = {}
+    for k, v in sd.items():
+        if not isinstance(v, dict):
+            continue
+        src = str(v.get('source', ''))
+        ref_nums = [int(n) for n in re.findall(r'\[(\d+)\]', src)]
+        if ref_nums:
+            # source bir [N] içeriyor → N kaynakçada GERÇEKTEN varsa kabul, yoksa düşür
+            if any(n in valid_nums for n in ref_nums):
+                cleaned_sd[k] = v
+            # geçersiz [N] → izlenemez, atılır
+        else:
+            # source'ta [N] yok:
+            #   - kaynakça varsa → izlenemez kabul edilir, DÜŞÜRÜLÜR (örn. "IDF 2024")
+            #   - kaynakça hiç yoksa → filtreleme yapma (lenient)
+            if not valid_nums:
+                cleaned_sd[k] = v
+
+    return {
+        "title": _s(data.get('title')) or "Başlık Üretilemedi",
+        "english_abstract": _s(data.get('english_abstract')),
+        "turkish_abstract": _s(data.get('turkish_abstract')),
+        "category_name": _s(data.get('category_name')) or "Genel",
+        "keywords": _s(data.get('keywords')),
+        "content": _s(data.get('content')),
+        "bibliography": biblio,
+        "structured_data": cleaned_sd,
+    }
 
 
 def _parse_article_response(response_text):
