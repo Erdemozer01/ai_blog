@@ -556,7 +556,16 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
             is_published=bool(user.is_superuser),
         )
 
-        # --- ZORUNLU CrossRef DOĞRULAMASI (otomatik) ---
+        # --- 1) DETERMİNİSTİK öksüz kaynak temizliği (ağ gerektirmez, HER ZAMAN) ---
+        # Metinde [N] atfı geçmeyen kaynakları çıkar + yeniden numaralandır.
+        try:
+            from blog.reference_check import remove_orphan_references
+            remove_orphan_references(new_article)
+            new_article.refresh_from_db()
+        except Exception:
+            pass
+
+        # --- 2) ZORUNLU CrossRef DOĞRULAMASI (otomatik) ---
         # Kaynakçadaki her kaynağı CrossRef'te doğrula: bulunmayanı (sahteyi)
         # gerçek kaynakla değiştir ya da sil, içerik-uyuşmayanı kaynakçadan çıkar,
         # yeniden numaralandır. clean_article_references makaleyi kendi kaydeder.

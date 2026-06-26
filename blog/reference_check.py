@@ -490,6 +490,71 @@ def check_article_references_with_content(article, max_ai_checks=8):
     return True, msg
 
 
+def remove_orphan_references(article):
+    """
+    DETERMİNİSTİK (ağ gerektirmez) öksüz kaynak temizleyici.
+
+    Metinde [N] atfı HİÇ geçmeyen kaynakça maddelerini ("öksüz kaynak") çıkarır
+    ve kalan kaynakçayı + metindeki atıfları yeniden numaralandırır. CrossRef'e
+    erişilsin ya da erişilmesin her zaman çalışır.
+
+    (degisti: bool, kalan_sayi: int, cikarilan: list) döner.
+    """
+    bib = article.bibliography or ''
+    content = article.full_content or ''
+    if not bib.strip():
+        return False, 0, []
+
+    num_re = re.compile(r'^\[?(\d+)[\].\)]\s*(.*)')
+    refs = {}
+    order = []
+    for ln in (l.strip() for l in bib.split('\n') if l.strip()):
+        m = num_re.match(ln)
+        if m:
+            n = int(m.group(1))
+            refs[n] = m.group(2)
+            order.append(n)
+    if not order:
+        return False, 0, []
+
+    # Metinde gerçekten geçen atıf numaraları: [3] veya [3, 7] / [4, 5, 6]
+    cited = set()
+    for grp in re.findall(r'\[([\d,\s]+)\]', content):
+        for part in grp.split(','):
+            part = part.strip()
+            if part.isdigit():
+                cited.add(int(part))
+
+    orphans = [n for n in order if n not in cited]
+    if not orphans:
+        return False, len(order), []
+
+    # Kalanları yeniden numaralandır (sıra korunur)
+    remap = {}
+    new_n = 1
+    for n in order:
+        if n in cited:
+            remap[n] = new_n
+            new_n += 1
+
+    new_bib = '\n'.join(f"{remap[n]}. {refs[n]}" for n in order if n in remap)
+
+    def _remap_citation(match):
+        nums = []
+        for part in match.group(1).split(','):
+            part = part.strip()
+            if part.isdigit() and int(part) in remap:
+                nums.append(str(remap[int(part)]))
+        return '[' + ', '.join(nums) + ']' if nums else ''
+
+    new_content = re.sub(r'\[([\d,\s]+)\]', _remap_citation, content)
+
+    article.bibliography = new_bib
+    article.full_content = new_content
+    article.save(update_fields=['bibliography', 'full_content'])
+    return True, len(remap), sorted(orphans)
+
+
 def clean_article_references(article, max_ai_checks=10):
     """
     SADE TEK AKIŞ — "Makaleyi Kontrol Et":
