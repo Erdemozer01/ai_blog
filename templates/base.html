@@ -20,11 +20,13 @@
     {% endif %}
     <meta name="google-site-verification" content="z9gTV3Jr4mlODVTgdkBVbC9vPV5U76BwFFPYGibp6Xs"/>
 
-    <link rel="apple-touch-icon" sizes="180x180" href="/staticfiles/images/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/staticfiles/images/android-chrome-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/staticfiles/images/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/staticfiles/images/favicon-16x16.png">
-    <link rel="manifest" href="/staticfiles/images/site.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/android-chrome-192x192.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicon-16x16.png' %}">
+    <link rel="icon" href="{% static 'images/favicon.ico' %}" sizes="any">
+    <link rel="manifest" href="{% static 'images/site.webmanifest' %}">
+    <meta name="theme-color" content="#05050a">
 
     <meta property="og:site_name" content="AI Blog"/>
     <meta property="og:locale" content="tr_TR"/>
@@ -32,11 +34,11 @@
     <meta property="og:description" content="{{ meta_description|default:'Akademik makaleler ve yapay zeka destekli biyoinformatik analiz araçları.' }}"/>
     <meta property="og:type" content="article"/>
     <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"/>
-    <meta property="og:image" content="{{ meta_image_url|default:'/staticfiles/images/android-chrome-192x192.png' }}"/>
+    <meta property="og:image" content="{% if meta_image_url %}{{ meta_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/android-chrome-512x512.png' %}{% endif %}"/>
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="{{ meta_title|default:'AI Blog' }}"/>
     <meta name="twitter:description" content="{{ meta_description|default:'Akademik makaleler ve yapay zeka destekli biyoinformatik analiz araçları.' }}"/>
-    <meta name="twitter:image" content="{{ meta_image_url|default:'/staticfiles/images/android-chrome-192x192.png' }}"/>
+    <meta name="twitter:image" content="{% if meta_image_url %}{{ meta_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/android-chrome-512x512.png' %}{% endif %}"/>
 
     {% if structured_data_json %}
         <script type="application/ld+json">
