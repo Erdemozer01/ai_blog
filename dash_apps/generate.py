@@ -627,6 +627,81 @@ def _parse_article_response(response_text):
     State('gen-lang-store', 'data'),
     prevent_initial_call=True
 )
+def resolve_category(ai_category_name, title="", abstract=""):
+    """Makaleye kategori atar.
+
+    1) AI'in onerdigi ad mevcut bir kategoriyle (buyuk/kucuk harf duyarsiz) eslesirse onu kullanir.
+    2) Eslesmezse, TUM mevcut kategorileri AI'a gosterip en uygununu sectirir.
+    3) AI hicbiri uymuyor derse yeni bir kategori olusturur.
+    Hata/AI yoksa guvenli sekilde isimle eslestirir veya olusturur.
+    """
+    import re as _re
+    from blog.models import Category
+
+    ai_name = (ai_category_name or "").strip()
+
+    # 1) Hizli yol: dogrudan isim eslesmesi
+    if ai_name:
+        obj = Category.objects.filter(name__iexact=ai_name).first()
+        if obj:
+            return obj
+
+    existing = list(Category.objects.order_by("name").values_list("id", "name"))
+
+    # 2) AI ile anlamsal eslestirme (mevcut kategoriler arasindan)
+    if existing:
+        try:
+            from ai_engine.services import generate_with_pool, get_fallback_models
+            cat_lines = "\n".join(f"{cid}: {cname}" for cid, cname in existing)
+            prompt = (
+                "Bir makale icin en uygun kategoriyi sececeksin.\n"
+                f"Makale basligi: {title}\n"
+                f"Makale ozeti: {(abstract or '')[:400]}\n"
+                f"AI'in onerdigi kategori: {ai_name or '(yok)'}\n\n"
+                "MEVCUT KATEGORILER (id: ad):\n"
+                f"{cat_lines}\n\n"
+                "Makale konu olarak yukaridaki kategorilerden birine uyuyorsa SADECE o "
+                "kategorinin id numarasini yaz (ornek: 5). Hicbiri uymuyorsa 1-2 kelimelik "
+                "yeni bir kategori adini su bicimde yaz: YENI: <kategori adi>. "
+                "Baska hicbir aciklama ekleme."
+            )
+            result = None
+            for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
+                try:
+                    result, _key = generate_with_pool(
+                        prompt, service_name=svc, model_name=mdl,
+                        max_tokens=20, temperature=0.2)
+                    if result:
+                        break
+                except Exception:
+                    continue
+            answer = (result or "").strip()
+            if answer:
+                valid_ids = {cid for cid, _ in existing}
+                # Yeni kategori istendi mi?
+                new_match = _re.search(r"YEN[İI]\s*:\s*(.+)", answer, _re.IGNORECASE)
+                if new_match:
+                    new_name = new_match.group(1).strip().strip('"').strip().title()
+                    if new_name:
+                        return (Category.objects.filter(name__iexact=new_name).first()
+                                or Category.objects.create(name=new_name))
+                # Mevcut kategori id'si mi?
+                id_match = _re.search(r"\d+", answer)
+                if id_match:
+                    cid = int(id_match.group())
+                    if cid in valid_ids:
+                        obj = Category.objects.filter(id=cid).first()
+                        if obj:
+                            return obj
+        except Exception:
+            pass
+
+    # 3) Fallback: AI'in onerdigi (yoksa 'Genel') ile eslestir/olustur
+    name = (ai_name or "Genel").title()
+    return (Category.objects.filter(name__iexact=name).first()
+            or Category.objects.create(name=name))
+
+
 def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length, lang):
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
@@ -664,11 +739,11 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
 
-        category_name = (ai_data.get("category_name") or "Genel").strip().title()
-        # Mevcut kategoriyle buyuk/kucuk harf duyarsiz eslestir; gercekten yeni ise olustur
-        category_obj = Category.objects.filter(name__iexact=category_name).first()
-        if category_obj is None:
-            category_obj = Category.objects.create(name=category_name)
+        category_obj = resolve_category(
+            ai_data.get("category_name"),
+            title=ai_data.get("title", "") or "",
+            abstract=(ai_data.get("turkish_abstract") or ai_data.get("english_abstract") or ""),
+        )
 
         new_article = GeneratedArticle.objects.create(
             owner=user,
