@@ -229,11 +229,18 @@ def blog_list_view(request):
 
 
 def anasayfa_view(request):
-    """Karşılama (landing) sayfası — sunucu-render, SEO dostu."""
+    """Anasayfa — Dash uygulaması (navbar diğer sayfalarla tutarlı)."""
     from dash_apps.i18n_helper import get_lang
     lang = get_lang(request)
-    recent_articles = GeneratedArticle.objects.select_related('category').filter(
-        status='tamamlandi', is_published=True).order_by('-created_at')[:6]
+    main_navbar = create_main_navbar(request)
+    dash_content = create_anasayfa_content_layout(lang)
+    _anasayfa_layout = html.Div([main_navbar, dash_content])
+
+    def serve_anasayfa_layout():
+        return _anasayfa_layout
+
+    anasayfa_app.layout = serve_anasayfa_layout
+
     if lang == 'en':
         meta_title = "AI Blog — AI-Powered Bioinformatics Tools & Articles"
         meta_description = ("Free online bioinformatics tools — CRISPR sgRNA design, "
@@ -244,8 +251,7 @@ def anasayfa_view(request):
         meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
                             "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
                             "yapay zeka destekli akademik makaleler.")
-    return render(request, 'blog/landing.html', {
-        'recent_articles': recent_articles,
+    return render(request, 'blog/anasayfa.html', {
         'meta_title': meta_title,
         'meta_description': meta_description,
     })
