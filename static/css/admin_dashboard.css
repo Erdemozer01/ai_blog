@@ -95,3 +95,11 @@ html, body {
         margin-left: 0;
     }
 }
+
+/* Mobil: içerik başlık ve istatistik sayılarını küçült */
+@media (max-width: 576px) {
+    #content-container h1 { font-size: 1.6rem; }
+    #content-container h2 { font-size: 1.3rem; }
+    #content-container .card-title { font-size: 1.5rem; }
+    #content-container .card-text { font-size: 0.85rem; }
+}

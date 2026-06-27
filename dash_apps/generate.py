@@ -216,6 +216,26 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None,
             "aralarında belirtilen ayraçla birlikte ver."
         )
 
+    try:
+        from blog.models import Category
+        existing_categories = list(
+            Category.objects.order_by('name').values_list('name', flat=True)
+        )
+    except Exception:
+        existing_categories = []
+    if existing_categories:
+        category_instruction = (
+            "Kategori Adı: Aşağıdaki MEVCUT kategori listesinden konuya EN uygun olanı "
+            "AYNEN (aynı yazımla) seç. Listedekilerden biri makul ölçüde uyuyorsa MUTLAKA "
+            "onu kullan, yeni kategori UYDURMA. Yalnızca hiçbiri gerçekten uymuyorsa "
+            "1-2 kelimelik yeni, genel bir kategori adı öner. "
+            "MEVCUT KATEGORİLER: " + ", ".join(existing_categories)
+        )
+    else:
+        category_instruction = (
+            "Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik genel bir kategori adı."
+        )
+
     return f"""
     İstek Konusu: "{user_request_text}"{sources_block}
     {fmt_intro}
@@ -223,7 +243,7 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None,
     1.  Başlık: Spesifik, analitik ve akademik bir başlık.
     2.  İngilizce Özet (Abstract): Yaklaşık 150 kelimelik, makaleyi özetleyen İngilizce bir abstract.
     3.  Türkçe Özet: İngilizce özetin anlam olarak aynısı olan, akıcı bir Türkçe çevirisi.
-    4.  Kategori Adı: Konuyu en iyi özetleyen 1-2 kelimelik kategori adı.
+    4.  {category_instruction}
     5.  Anahtar Kelimeler: Virgülle ayrılmış 5-6 anahtar kelime.
     6.  Tam İçerik: Markdown formatında, yaklaşık {word_count} kelime uzunluğunda (en az {int(word_count * 0.85)} kelime). Metin, son 5 yıla ({current_year - 5}-{current_year}) odaklanan güncel bir literatür taramasıyla başlamalıdır. Konuyu analiz eden {sections_hint} ekle. Metin içinde [1], [2] gibi atıflar olsun. ÇOK ÖNEMLİ: Metnin içinde, verilerin görselleştirileceği uygun yerlere `_||_STRUCTURED_DATA_1_||_`, `_||_STRUCTURED_DATA_2_||_` gibi placeholder'lar yerleştir. ANCAK placeholder'ı SADECE, o yere koyacağın tablo/grafik için kaynaklarda GERÇEK sayısal veri varsa ekle. Uydurma veriyle dolduracağın placeholder KOYMA — gerçek veri yoksa hiç placeholder ekleme.
     7.  Kaynakça (ZORUNLU - ASLA ATLAMA): Makalenin SONUNDA, metindeki atıflara karşılık gelen,
@@ -644,8 +664,11 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
         if not isinstance(ai_data, dict) or "content" not in ai_data:
             raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
 
-        category_name = ai_data.get("category_name", "Genel").strip().title()
-        category_obj, _ = Category.objects.get_or_create(name=category_name)
+        category_name = (ai_data.get("category_name") or "Genel").strip().title()
+        # Mevcut kategoriyle buyuk/kucuk harf duyarsiz eslestir; gercekten yeni ise olustur
+        category_obj = Category.objects.filter(name__iexact=category_name).first()
+        if category_obj is None:
+            category_obj = Category.objects.create(name=category_name)
 
         new_article = GeneratedArticle.objects.create(
             owner=user,

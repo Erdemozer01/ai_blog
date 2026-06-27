@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from billing.decorators import require_credits, check_credits
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
 from django.utils.text import slugify
@@ -210,7 +210,11 @@ def create_main_navbar(request):
     )
     return navbar
 
+@login_required
 def admin_dashboard_view(request):
+    # Yonetim paneli yalnizca superuser'lara acik (veri sizintisini onler).
+    if not request.user.is_superuser:
+        raise Http404()
     admin_dash_app
     return render(request, "admin_dashboard.html")
 
