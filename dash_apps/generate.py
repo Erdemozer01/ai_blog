@@ -616,17 +616,6 @@ def _parse_article_response(response_text):
     return ai_data
 
 
-@app.callback(
-    Output('form-feedback-message', 'children'),
-    Output('url', 'href', allow_duplicate=True),
-    Input('gen-modal-confirm', 'n_clicks'),
-    State('request-textarea', 'value'),
-    State('user-session-store', 'data'),
-    State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
-    State('article-length-dropdown', 'value'),  # YENİ: Makale uzunluğu
-    State('gen-lang-store', 'data'),
-    prevent_initial_call=True
-)
 def resolve_category(ai_category_name, title="", abstract=""):
     """Makaleye kategori atar.
 
@@ -702,6 +691,17 @@ def resolve_category(ai_category_name, title="", abstract=""):
             or Category.objects.create(name=name))
 
 
+@app.callback(
+    Output('form-feedback-message', 'children'),
+    Output('url', 'href', allow_duplicate=True),
+    Input('gen-modal-confirm', 'n_clicks'),
+    State('request-textarea', 'value'),
+    State('user-session-store', 'data'),
+    State('ai-service-dropdown', 'value'),  # YENİ: Dropdown'dan seçilen değeri al
+    State('article-length-dropdown', 'value'),  # YENİ: Makale uzunluğu
+    State('gen-lang-store', 'data'),
+    prevent_initial_call=True
+)
 def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length, lang):
     from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
