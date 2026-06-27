@@ -515,22 +515,35 @@ def article_detail_view(request, article_id, slug):
     if article.slug != slug:
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)', re.MULTILINE)
+    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)$')
+    # Tamamen kalin yazilmis satirlari da baslik say (or. **Giris**, **Sonuc**).
+    # Sadece tum satiri kaplayan kalinlari yakalar; paragraf ici kalinlari degil.
+    bold_heading_pattern = re.compile(r'^\s*\*\*(.+?)\*\*\s*$')
     headings = []
     content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_\d+_\|\|_)', article.full_content or "")
     for part in content_parts:
-        if not part.startswith('_||_'):
-            found_headings = heading_pattern.findall(part)
-            for heading in found_headings:
-                level = len(heading[0])
-                raw_title = heading[1].strip()
+        if part.startswith('_||_'):
+            continue
+        for line in part.splitlines():
+            md_match = heading_pattern.match(line)
+            if md_match:
+                level = len(md_match.group(1))
+                raw_title = md_match.group(2).strip()
                 display_title = raw_title.replace("**", "").title()
-                headings.append({
-                    "display_title": display_title,
-                    "slug": slugify(raw_title, allow_unicode=True),
-                    "level": level,
-                    "raw_title": raw_title
-                })
+            else:
+                bold_match = bold_heading_pattern.match(line)
+                if not bold_match:
+                    continue
+                level = 2
+                raw_title = bold_match.group(1).strip()
+                # Yazarin yazdigi buyuk/kucuk harfi koru (Turkce .title() bozmasin)
+                display_title = raw_title.replace("**", "").strip()
+            headings.append({
+                "display_title": display_title,
+                "slug": slugify(raw_title, allow_unicode=True),
+                "level": level,
+                "raw_title": raw_title
+            })
 
     toc_links = []
     if headings:
