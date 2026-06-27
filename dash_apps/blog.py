@@ -10,7 +10,7 @@ from blog.models import GeneratedArticle, Category
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 
-app = DjangoDash('Anasayfa', external_stylesheets=external_stylesheets)
+app = DjangoDash('Blog', external_stylesheets=external_stylesheets)
 
 
 def create_post_cards(article_queryset, lang='en'):
@@ -179,7 +179,7 @@ def get_sidebar(lang='en'):
     return html.Div([search_card, sort_card, category_card, stats_card])
 
 
-def create_anasayfa_content_layout(lang='en'):
+def create_blog_content_layout(lang='en'):
     """Anasayfanın Dash ile kontrol edilen içeriğini (sidebar, postlar) döndürür."""
     return html.Div([
         dcc.Store(id='filter-state-store'),

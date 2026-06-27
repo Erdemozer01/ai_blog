@@ -2,6 +2,38 @@
 
 {% load plotly_dash %}
 
+{% block stylesheet %}
+<style>
+    :root { --brand: #2563eb; --brand-dark: #1e3a8a; --accent: #7c3aed; }
+    body { background: #f8fafc; }
+    .lp-hero {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #7c3aed 100%);
+        color: #fff; padding: 5rem 0 4.5rem;
+    }
+    .lp-hero h1 { font-weight: 800; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.15; }
+    .lp-hero p.lead { opacity: .92; max-width: 680px; }
+    .lp-section { padding: 4rem 0; }
+    .lp-section h2 { font-weight: 700; }
+    .lp-eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+    .tool-card {
+        height: 100%; border: 1px solid #e8edf3; border-radius: 14px; background: #fff;
+        transition: transform .15s ease, box-shadow .15s ease; text-decoration: none; color: inherit;
+        display: block;
+    }
+    .tool-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(37,99,235,.13); color: inherit; }
+    .tool-ico {
+        width: 50px; height: 50px; border-radius: 12px; display: grid; place-items: center;
+        font-size: 1.3rem; color: #fff; margin-bottom: .9rem;
+    }
+    .article-card { border: 1px solid #e8edf3; border-radius: 14px; overflow: hidden; height: 100%; background: #fff; }
+    .article-card .cover { height: 150px; object-fit: cover; width: 100%; background: #eef2f7; }
+    .lp-feature-ico { font-size: 1.5rem; color: var(--brand); }
+    .lp-cta { background: #0f172a; color: #fff; border-radius: 18px; }
+    a.btn-light-soft { background: rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35); }
+    a.btn-light-soft:hover { background: rgba(255,255,255,.28); color:#fff; }
+</style>
+{% endblock %}
+
 {% block content %}
 
     {% if messages %}
@@ -17,7 +49,5 @@
     {% endif %}
 
     {% plotly_direct name="Anasayfa" %}
-
-    <hr>
 
 {% endblock %}

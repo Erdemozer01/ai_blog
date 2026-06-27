@@ -22,7 +22,8 @@ from dash import html, dcc
 from .models import GeneratedArticle, Profile
 from dash_apps.generate import app as generate_app
 from dash_apps.article_detail import app as article_detail_app
-from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
+from dash_apps.blog import app as blog_app, create_blog_content_layout
+from dash_apps.anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 from dash_apps.resume import app as resume_app, create_resume_layout
 from dash_apps.contact import app as contact_app
 import dash_apps.article_edit  # noqa: F401 — ArticleEditApp callback'lerini kaydeder
@@ -218,14 +219,14 @@ def blog_list_view(request):
     """Blog: tüm makalelerin listesi (eski anasayfa içeriği)."""
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
-    dash_content = create_anasayfa_content_layout(get_lang(request))
-    _anasayfa_layout = html.Div([main_navbar, dash_content])
+    dash_content = create_blog_content_layout(get_lang(request))
+    _blog_layout = html.Div([main_navbar, dash_content])
 
-    def serve_anasayfa_layout():
-        return _anasayfa_layout
+    def serve_blog_layout():
+        return _blog_layout
 
-    anasayfa_app.layout = serve_anasayfa_layout
-    return render(request, 'blog/anasayfa.html')
+    blog_app.layout = serve_blog_layout
+    return render(request, 'blog/blog_list.html')
 
 
 def anasayfa_view(request):
