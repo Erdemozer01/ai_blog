@@ -9,7 +9,7 @@ diğer sayfalarla tutarlı şekilde eklenir.
 templates/blog/anasayfa.html içindeki {% block stylesheet %} bölümündedir.
 """
 import dash_bootstrap_components as dbc
-from dash import html
+from dash import html, dcc, Input, Output, State
 from django.urls import reverse
 from django.utils.html import strip_tags
 from django_plotly_dash import DjangoDash
@@ -376,8 +376,18 @@ def create_anasayfa_content_layout(lang='en'):
         className="lp-section",
     )
 
-    children = [hero, why, tools, ai_feature]
+    children = [dcc.Location(id='url', refresh=False), hero, why, tools, ai_feature]
     if recent_section is not None:
         children.append(recent_section)
     children.append(cta)
     return html.Div(children)
+
+
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    Input("navbar-toggler", "n_clicks"),
+    State("navbar-collapse", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_navbar(n_clicks, is_open):
+    return not is_open
