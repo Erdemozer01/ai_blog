@@ -81,7 +81,7 @@ def get_dashboard_content():
                 html.P("Toplam Makale", className="card-text"),
                 html.Span([html.I(className="fas fa-file-alt me-2")], className="text-muted")
             ])
-        ], className="shadow-sm"), width=3),
+        ], className="shadow-sm"), xs=6, lg=3),
 
         dbc.Col(dbc.Card([
             dbc.CardBody([
@@ -89,7 +89,7 @@ def get_dashboard_content():
                 html.P("Son 7 Günde Yazılan", className="card-text"),
                 html.Span([html.I(className="fas fa-calendar-alt me-2")], className="text-muted")
             ])
-        ], className="shadow-sm"), width=3),
+        ], className="shadow-sm"), xs=6, lg=3),
 
         dbc.Col(dbc.Card([
             dbc.CardBody([
@@ -97,7 +97,7 @@ def get_dashboard_content():
                 html.P("Toplam Kategori", className="card-text"),
                 html.Span([html.I(className="fas fa-list-alt me-2")], className="text-muted")
             ])
-        ], className="shadow-sm"), width=3),
+        ], className="shadow-sm"), xs=6, lg=3),
 
         dbc.Col(dbc.Card([
             dbc.CardBody([
@@ -105,8 +105,8 @@ def get_dashboard_content():
                 html.P("Okunmamış Mesaj", className="card-text"),
                 html.Span([html.I(className="fas fa-envelope me-2")], className="text-muted")
             ])
-        ], className="shadow-sm"), width=3),
-    ], className="mb-4")
+        ], className="shadow-sm"), xs=6, lg=3),
+    ], className="mb-4 g-3")
 
     # Kategori bazlı makale dağılımı grafiği
     try:
@@ -240,7 +240,7 @@ def get_articles_content(search_term=""):
         dbc.Card([
             dbc.CardHeader([
                 dbc.Row([
-                    dbc.Col(html.H5("Tüm Makaleler"), width="auto"),
+                    dbc.Col(html.H5("Tüm Makaleler"), xs=12, md="auto"),
                     dbc.Col([
                         dbc.InputGroup([
                             dbc.Input(
@@ -262,7 +262,7 @@ def get_articles_content(search_term=""):
                                 outline=True
                             )
                         ])
-                    ], width="auto", className="ms-auto")
+                    ], xs=12, md="auto", className="ms-md-auto mt-2 mt-md-0")
                 ])
             ]),
             dbc.CardBody([
