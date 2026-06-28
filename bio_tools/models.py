@@ -117,7 +117,7 @@ class FastqUpload(models.Model):
 
     def get_absolute_path(self):
         """
-        Dosyanın C:\... gibi tam (mutlak) sistem yolunu döndürür.
+        Dosyanın C:\\... gibi tam (mutlak) sistem yolunu döndürür.
 
         DEĞİŞİKLİK: Artık self.file.path'e GÜVENMİYORUZ, çünkü bu, Dash'in
         settings'ine bağlı olarak yanlış yolu oluşturabilir.

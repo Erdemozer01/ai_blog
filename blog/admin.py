@@ -30,12 +30,15 @@ class OnayBekleyenFilter(admin.SimpleListFilter):
 
 @admin.register(GeneratedArticle)
 class GeneratedArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published', 'ai_review_score', 'view_count', 'cover_image_preview')
+    list_display = (
+        'title', 'owner', 'category', 'status', 'yayin_talebi', 'is_published',
+        'ai_review_score', 'view_count', 'cover_image_preview'
+    )
     list_filter = ('status', 'category', 'created_at')
     search_fields = ('title', 'user_request', 'full_content')
-    readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug', 'cover_image_preview',
-                       'ai_review_score', 'ai_review_notes', 'ai_reviewed_at',
-                       'reference_check_result', 'reference_checked_at')
+    readonly_fields = ('view_count', 'likes', 'dislikes', 'created_at', 'slug',
+                       'cover_image_preview', 'ai_review_score', 'ai_review_notes',
+                       'ai_reviewed_at', 'reference_check_result', 'reference_checked_at')
     list_per_page = 25
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
@@ -46,18 +49,20 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         }),
         ('Yayın Durumu', {
             'fields': ('yayin_talebi', 'is_published'),
-            'description': "Makalenizin anasayfada yayınlanması için 'Yayın için başvuruldu' kutusunu işaretleyin. "
-                           "Yöneticiler başvurunuzu inceleyip onayladığında makaleniz anasayfada görünür."
+            'description': ("Makalenizin anasayfada yayınlanması için 'Yayın için başvuruldu' kutusunu işaretleyin. "
+                            "Yöneticiler başvurunuzu inceleyip onayladığında makaleniz anasayfada görünür.")
         }),
         ('AI Yayınlanabilirlik İncelemesi', {
             'fields': ('ai_review_score', 'ai_review_notes', 'ai_reviewed_at'),
-            'description': "Makaleyi AI ile incelemek için listede makaleyi seçip 'AI ile İncele' aksiyonunu çalıştırın. "
-                           "Skor 0-100 arasıdır; öneriler kullanıcıya e-posta ile gönderilir."
+            'description': ("Makaleyi AI ile incelemek için listede makaleyi seçip "
+                            "'AI ile İncele' aksiyonunu çalıştırın. Skor 0-100 arasıdır; "
+                            "öneriler kullanıcıya e-posta ile gönderilir.")
         }),
         ('Kaynak Doğrulama (CrossRef)', {
             'fields': ('reference_check_result', 'reference_checked_at'),
-            'description': "Kaynakların gerçekliğini CrossRef'te kontrol etmek için 'Kaynakları Doğrula' aksiyonunu çalıştırın. "
-                           "Yalnızca kaynağın varlığını doğrular, atıf içeriğini değil.",
+            'description': ("Kaynakların gerçekliğini CrossRef'te kontrol etmek için "
+                            "'Kaynakları Doğrula' aksiyonunu çalıştırın. "
+                            "Yalnızca kaynağın varlığını doğrular, atıf içeriğini değil."),
             'classes': ('collapse',)
         }),
         ('İçerik', {
@@ -166,8 +171,6 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
         return actions
-
-
 
 
 @admin.register(Category)
@@ -304,6 +307,7 @@ class ProfileAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             ro.append('user')
         return ro
+
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):

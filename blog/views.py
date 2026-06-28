@@ -1,12 +1,9 @@
 import json
-from io import BytesIO
-from pathlib import Path
 from urllib.parse import quote_plus
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from billing.decorators import require_credits, check_credits
+from billing.decorators import check_credits
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
@@ -31,8 +28,6 @@ from dash_apps.article_search import app as article_search_app, create_article_s
 from dash_apps.admin_dash import app as admin_dash_app
 
 
-
-
 def create_main_navbar(request):
     """
     Tüm sayfalarda tutarlı, dinamik ve mobil uyumlu bir Navbar oluşturur.
@@ -45,24 +40,45 @@ def create_main_navbar(request):
     nav_items = []
 
     # Herkesin görebileceği ana linkleri listeye ekle
-    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:blog_list'), active="exact", external_link=True)))
+    nav_items.append(
+        dbc.NavItem(
+            dbc.NavLink(
+                t('nav_blog', lang),
+                href=reverse('blog:blog_list'),
+                active="exact",
+                external_link=True
+            )
+        )
+    )
 
     # --- Makale dropdown'ı (AI oluştur / oluştur / ara) ---
     makale_children = []
     if request.user.is_authenticated and (request.user.is_superuser or request.user.is_staff):
         makale_children.append(
-            dbc.DropdownMenuItem(t('nav_generate', lang),
-                                 href=reverse('blog:generate_article'),
-                                 external_link=True, id="nav_generate_item"))
+            dbc.DropdownMenuItem(
+                t('nav_generate', lang),
+                href=reverse('blog:generate_article'),
+                external_link=True,
+                id="nav_generate_item"
+            )
+        )
     if request.user.is_authenticated:
         makale_children.append(
-            dbc.DropdownMenuItem(t('nav_create_article', lang),
-                                 href=reverse('blog:create_article'),
-                                 external_link=True, id="nav_create_item"))
+            dbc.DropdownMenuItem(
+                t('nav_create_article', lang),
+                href=reverse('blog:create_article'),
+                external_link=True,
+                id="nav_create_item"
+            )
+        )
     makale_children.append(
-        dbc.DropdownMenuItem(t('nav_article_search', lang),
-                             href=reverse('blog:article_search'),
-                             external_link=True, id="nav_search_item"))
+        dbc.DropdownMenuItem(
+            t('nav_article_search', lang),
+            href=reverse('blog:article_search'),
+            external_link=True,
+            id="nav_search_item"
+        )
+    )
 
     makale_dropdown = dbc.DropdownMenu(
         label=t('nav_makale', lang),
@@ -123,15 +139,39 @@ def create_main_navbar(request):
         # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
         if request.user.is_superuser:
-            dropdown_items.append(dbc.DropdownMenuItem(t('nav_admin_dash', lang), href=reverse('blog:admin_dashboard'), external_link=True))
+            dropdown_items.append(
+                dbc.DropdownMenuItem(
+                    t('nav_admin_dash', lang),
+                    href=reverse('blog:admin_dashboard'),
+                    external_link=True
+                )
+            )
             dropdown_items.append(dbc.DropdownMenuItem(t('nav_django_admin', lang), href="/admin/", external_link=True))
         if request.user.is_superuser or request.user.is_staff:
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
-        dropdown_items.append(dbc.DropdownMenuItem(t('nav_profile', lang), href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
-        dropdown_items.append(dbc.DropdownMenuItem(t('nav_credits', lang), href=reverse('billing:credits'), external_link=True))
+        dropdown_items.append(
+            dbc.DropdownMenuItem(
+                t('nav_profile', lang),
+                href=reverse('blog:resume_user', kwargs={'username': request.user.username}),
+                external_link=True
+            )
+        )
+        dropdown_items.append(
+            dbc.DropdownMenuItem(
+                t('nav_credits', lang),
+                href=reverse('billing:credits'),
+                external_link=True
+            )
+        )
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-        dropdown_items.append(dbc.DropdownMenuItem(t('nav_logout', lang), href=reverse('blog:logout'), external_link=True))
+        dropdown_items.append(
+            dbc.DropdownMenuItem(
+                t('nav_logout', lang),
+                href=reverse('blog:logout'),
+                external_link=True
+            )
+        )
 
         user_menu = dbc.DropdownMenu(
             label=request.user.username,
@@ -162,12 +202,29 @@ def create_main_navbar(request):
                 external_link=True,
             )))
 
-        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_contact', lang), href=reverse('blog:contact'), external_link=True, active="exact")))
+        nav_items.append(
+            dbc.NavItem(
+                dbc.NavLink(
+                    t('nav_contact', lang),
+                    href=reverse('blog:contact'),
+                    external_link=True,
+                    active="exact"
+                )
+            )
+        )
 
     else:
         # --- KULLANICI GİRİŞ YAPMAMIŞSA ---
         nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_login', lang), href="/admin/login/", external_link=True)))
-        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_register', lang), href=reverse('blog:register'), external_link=True)))
+        nav_items.append(
+            dbc.NavItem(
+                dbc.NavLink(
+                    t('nav_register', lang),
+                    href=reverse('blog:register'),
+                    external_link=True
+                )
+            )
+        )
 
     # --- DİL SEÇİMİ (herkes görür) ---
     current_lang = lang
@@ -209,6 +266,7 @@ def create_main_navbar(request):
         sticky="top",
     )
     return navbar
+
 
 @login_required
 def admin_dashboard_view(request):
@@ -294,7 +352,6 @@ def request_publish_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
-@login_required
 @login_required
 def edit_article_view(request, article_id):
     """
@@ -612,8 +669,13 @@ def article_detail_view(request, article_id, slug):
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
-    _is_owner_for_badges = request.user.is_authenticated and (article.owner_id == request.user.id or request.user.is_superuser)
-    formatted_bibliography_items = _build_bibliography_items(article, references_list, apa_style, show_badges=_is_owner_for_badges)
+    _is_owner_for_badges = (
+        request.user.is_authenticated and
+        (article.owner_id == request.user.id or request.user.is_superuser)
+    )
+    formatted_bibliography_items = _build_bibliography_items(
+        article, references_list, apa_style, show_badges=_is_owner_for_badges
+    )
 
     total_votes = article.likes + article.dislikes
     average_rating = 0
@@ -857,7 +919,13 @@ def download_article_as_pdf(request, article_id):
                     data = data_item.get('data', [])
                     thead = "".join(f"<th>{col}</th>" for col in columns)
                     tbody = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in data)
-                    table_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Tablo")}</p><table class="pdf-table"><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table><p class="description">{data_item.get("description", "")}</p></div>'
+                    table_html = (
+                        f'<div class="pdf-figure">'
+                        f'<p class="title">{data_item.get("title", "Tablo")}</p>'
+                        f'<table class="pdf-table"><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table>'
+                        f'<p class="description">{data_item.get("description", "")}</p>'
+                        f'</div>'
+                    )
                     final_html_parts.append(table_html)
                 elif item_type == 'chart':
                     try:
@@ -875,7 +943,13 @@ def download_article_as_pdf(request, article_id):
                         if fig:
                             img_bytes = fig.to_image(format="svg", engine="kaleido")
                             encoded_img = base64.b64encode(img_bytes).decode('utf-8')
-                            img_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Grafik")}</p><img src="data:image/svg+xml;base64,{encoded_img}"><p class="description">{data_item.get("description", "")}</p></div>'
+                            img_html = (
+                                f'<div class="pdf-figure">'
+                                f'<p class="title">{data_item.get("title", "Grafik")}</p>'
+                                f'<img src="data:image/svg+xml;base64,{encoded_img}">'
+                                f'<p class="description">{data_item.get("description", "")}</p>'
+                                f'</div>'
+                            )
                             final_html_parts.append(img_html)
                     except Exception as e:
                         print(f"Grafik resme çevrilirken hata: {e}")
@@ -1036,15 +1110,20 @@ def generate_article_view(request):
         messages.error(request, t('gen_msg_no_provider', lang))
         return redirect('blog:anasayfa')
 
-    main_navbar = create_main_navbar(request) # Bu fonksiyonun sizde olduğunu varsayıyorum.
+    main_navbar = create_main_navbar(request)  # Bu fonksiyonun sizde olduğunu varsayıyorum.
 
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Store(id='gen-lang-store', data=lang),
         dcc.Location(id='url', refresh=True),
-        html.Div([html.I(className="fa-solid fa-wand-magic-sparkles fa-4x text-success mb-3"), html.H1(t('gen_h1', lang)),
-                  html.P(t('gen_lead', lang), className="lead text-muted")],
-                 className="text-center mb-5"),
+        html.Div(
+            [
+                html.I(className="fa-solid fa-wand-magic-sparkles fa-4x text-success mb-3"),
+                html.H1(t('gen_h1', lang)),
+                html.P(t('gen_lead', lang), className="lead text-muted")
+            ],
+            className="text-center mb-5"
+        ),
         dbc.Card(dbc.CardBody([
             # YENİ: AI Servis Seçimi Dropdown
             dbc.Row([
@@ -1098,9 +1177,12 @@ def generate_article_view(request):
     ]), md=8, className="mx-auto"))
 
     from billing.dash_helpers import build_confirm_modal
-    full_layout = html.Div([main_navbar, dbc.Container(generate_content, className="my-5"), build_confirm_modal('gen-modal', lang=lang)])
-    # Navbar olmadan direkt container'ı layout olarak atıyorum, siz kendi yapınıza göre düzenleyin
-    #full_layout = dbc.Container(generate_content, className="my-5")
+    full_layout = html.Div([
+        main_navbar,
+        dbc.Container(generate_content, className="my-5"),
+        build_confirm_modal('gen-modal', lang=lang)
+    ])
+    # full_layout = dbc.Container(generate_content, className="my-5")
 
     _generate_layout = full_layout
 

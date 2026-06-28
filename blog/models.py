@@ -10,9 +10,13 @@ class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Kategori Adı")
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self): return self.name
+    def __str__(self):
+        return self.name
 
-    class Meta: verbose_name = "Kategori"; verbose_name_plural = "Kategoriler"; ordering = ['name']
+    class Meta:
+        verbose_name = "Kategori"
+        verbose_name_plural = "Kategoriler"
+        ordering = ['name']
 
 
 class GeneratedArticle(models.Model):
@@ -26,7 +30,14 @@ class GeneratedArticle(models.Model):
     turkish_abstract = models.TextField(blank=True, null=True, verbose_name="Türkçe Özet")
     full_content = models.TextField(blank=True, null=True, verbose_name="Üretilen Tam İçerik")
     bibliography = models.TextField(blank=True, null=True, verbose_name="Üretilen Kaynakça")
-    slug = AutoSlugField(populate_from='title', unique=True, always_update=True, allow_unicode=True, slugify=custom_slugify, max_length=255)
+    slug = AutoSlugField(
+        populate_from='title',
+        unique=True,
+        always_update=True,
+        allow_unicode=True,
+        slugify=custom_slugify,
+        max_length=255
+    )
     cover_image = models.ImageField(
         upload_to='article_covers/',
         blank=True,
@@ -34,8 +45,6 @@ class GeneratedArticle(models.Model):
         verbose_name="Kapak Fotoğrafı",
         help_text="Makale listeleme ve paylaşım için kullanılacak kapak fotoğrafı."
     )
-
-
     structured_data = models.JSONField(blank=True, null=True, verbose_name="Grafik/Tablo Verileri")
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Sahibi")
@@ -106,14 +115,23 @@ class GeneratedArticle(models.Model):
             return GeneratedArticle.objects.get(pk=self.pk).title
         return ""
 
-    def __str__(self): return self.title or f"'{self.user_request[:20]}...' için istek"
+    def __str__(self):
+        return self.title or f"'{self.user_request[:20]}...' için istek"
 
-    class Meta: ordering = ['-created_at']; verbose_name = "AI Makalesi"; verbose_name_plural = "AI Makaleleri"
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "AI Makalesi"
+        verbose_name_plural = "AI Makaleleri"
 
 
 class ArticleFeedback(models.Model):
     VOTE_CHOICES = (('like', 'Faydalı'), ('dislike', 'Faydasız'))
-    article = models.ForeignKey(GeneratedArticle, on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Makale")
+    article = models.ForeignKey(
+        GeneratedArticle,
+        on_delete=models.CASCADE,
+        related_name='feedbacks',
+        verbose_name="Makale"
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Kullanıcı")
     vote = models.CharField(max_length=10, choices=VOTE_CHOICES, verbose_name="Oy")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -209,6 +227,7 @@ class Skill(models.Model):
         ordering = ['-level']
         verbose_name = "Yetenek"
         verbose_name_plural = "Yetenekler"
+
 
 class Notification(models.Model):
     """

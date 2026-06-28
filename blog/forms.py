@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import GeneratedArticle, Category
+from .models import GeneratedArticle
 
 
 class SignUpForm(UserCreationForm):
@@ -35,6 +35,7 @@ class SignUpForm(UserCreationForm):
             user.save()
         return user
 
+
 class ArticleRequestForm(forms.ModelForm):
     class Meta:
         model = GeneratedArticle
@@ -48,7 +49,8 @@ class ArticleRequestForm(forms.ModelForm):
             'user_request': forms.Textarea(
                 attrs={
                     'rows': 5,
-                    'placeholder': 'Örn: "Yenilenebilir enerji kaynaklarının Türkiye ekonomisine etkileri üzerine bir analiz"'
+                    'placeholder': ('Örn: "Yenilenebilir enerji kaynaklarının Türkiye ekonomisine '
+                                    'etkileri üzerine bir analiz"')
                 }
             ),
         }
