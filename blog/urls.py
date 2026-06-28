@@ -37,5 +37,5 @@ urlpatterns = [
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
 
     path('search-articles/', views.article_search_view, name='article_search'),
-
+    path('api/article-status/<int:article_id>/', views.get_article_status_view, name='get_article_status'), # Yeni eklendi
 ]

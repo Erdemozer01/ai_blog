@@ -2,11 +2,15 @@ import re
 import json
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
-from dash import Input, Output, State, no_update, html
+from dash import Input, Output, State, no_update, html, dcc
 from dash_apps.i18n_helper import t
 import threading
+import requests # Yeni eklendi
 from ai_engine.tasks import generate_article_task
 from ai_engine.services import generate_with_pool, get_fallback_models
+from blog.models import GeneratedArticle
+from django.urls import reverse
+from django.conf import settings # settings.BASE_URL için gerekli
 
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -184,9 +188,28 @@ def screen_and_interpret_topic(text, lang='en'):
         return True, "", text
 
 
+app.layout = html.Div([
+    # generate_article_view'den gelen ana içerik burada olacak
+    # Bu kısım generate_article_view fonksiyonu tarafından render edilen template'e yerleştirilecek.
+    # Bu nedenle, Dash uygulamasının layout'u sadece Dash'e özgü bileşenleri içermeli.
+    # generate_article_view'deki generate_content değişkeni bu layout'u oluşturuyor.
+
+    dcc.Store(id='article-id-store', data=None),  # Makale ID'sini saklamak için
+    dcc.Interval(
+        id='article-status-interval',
+        interval=2 * 1000,  # Her 2 saniyede bir kontrol et
+        n_intervals=0,
+        disabled=True,  # Başlangıçta devre dışı
+    ),
+    html.Div(id='article-status-toast-container', style={"position": "fixed", "bottom": 20, "right": 20, "zIndex": 1050}),
+])
+
+
 @app.callback(
     Output('form-feedback-message', 'children'),
     Output('url', 'href', allow_duplicate=True),
+    Output('article-id-store', 'data'), # Yeni: Makale ID'sini saklamak için
+    Output('article-status-interval', 'disabled', allow_duplicate=True), # Interval'i etkinleştirmek için
     Input('gen-modal-confirm', 'n_clicks'),
     State('request-textarea', 'value'),
     State('user-session-store', 'data'),
@@ -198,19 +221,19 @@ def screen_and_interpret_topic(text, lang='en'):
 def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length, lang):
     lang = lang or 'en'
     if not user_data or 'user_id' not in user_data:
-        return dbc.Alert(t('gen_no_session', lang), color="danger"), no_update
+        return dbc.Alert(t('gen_no_session', lang), color="danger"), no_update, no_update, no_update
     if not request_text or len(request_text.strip()) < 10:
-        return dbc.Alert(t('gen_min_chars', lang), color="warning"), no_update
+        return dbc.Alert(t('gen_min_chars', lang), color="warning"), no_update, no_update, no_update
 
     if not selected_value:
-        return dbc.Alert(t('gen_select_model', lang), color="warning"), no_update
+        return dbc.Alert(t('gen_select_model', lang), color="warning"), no_update, no_update, no_update
 
     valid, reason = validate_topic_rules(request_text, lang)
     if not valid:
-        return dbc.Alert(reason, color="warning"), no_update
+        return dbc.Alert(reason, color="warning"), no_update, no_update, no_update
     ok_topic, reason_topic, interpreted_topic = screen_and_interpret_topic(request_text, lang)
     if not ok_topic:
-        return dbc.Alert(reason_topic, color="warning"), no_update
+        return dbc.Alert(reason_topic, color="warning"), no_update, no_update, no_update
 
     if '|' in selected_value:
         selected_service, selected_model = selected_value.split('|', 1)
@@ -219,29 +242,50 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
 
     try:
         user_id = user_data['user_id']
+        
+        # Yer tutucu makale oluştur
+        new_article = GeneratedArticle.objects.create(
+            owner_id=user_id,
+            user_request=request_text,
+            title=f"{request_text[:50]}...", # Geçici başlık
+            status='beklemede',
+            is_published=False,
+        )
+
         thread = threading.Thread(
             target=generate_article_task,
-            args=(user_id, request_text, interpreted_topic, article_length or 1500,
+            args=(user_id, new_article.id, request_text, interpreted_topic, article_length or 1500,
                   selected_service, selected_model, lang),
             daemon=True
         )
         thread.start()
 
-        return dbc.Alert(
-            [html.I(className="fas fa-hourglass-half me-2"),
-             t('gen_started_bg', lang).format(topic=request_text[:50] + '...'),
-             html.Br(),
-             html.Small(t('gen_check_profile_later', lang))],
-            color="info"
-        ), no_update
+        # Kullanıcıya hemen geri bildirim ver, makale ID'sini sakla ve interval'i etkinleştir
+        return (
+            dbc.Alert(
+                [html.I(className="fas fa-hourglass-half me-2"),
+                 t('gen_article_creating', lang).format(topic=request_text[:50] + '...'), # Yeni mesaj
+                 html.Br(),
+                 html.Small(t('gen_check_profile_later', lang))],
+                color="info"
+            ),
+            no_update,
+            new_article.id, # Makale ID'sini dcc.Store'a gönder
+            False # Interval'i etkinleştir
+        )
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return dbc.Alert(
-            [html.I(className="fas fa-exclamation-circle me-2"),
-             t('gen_error_starting_task', lang).format(error=str(e))],
-            color="danger"
-        ), no_update
+        return (
+            dbc.Alert(
+                [html.I(className="fas fa-exclamation-circle me-2"),
+                 t('gen_error_starting_task', lang).format(error=str(e))],
+                color="danger"
+            ),
+            no_update,
+            None, # Hata durumunda ID gönderme
+            True # Interval'i devre dışı bırak
+        )
 
 
 @app.callback(
@@ -293,3 +337,80 @@ def toggle_gen_modal(open_click, cancel_click, confirm_click, request_text, lang
         body, can_proceed = confirm_modal_body(kwargs, 'makale_uretim', cost=15, lang=lang)
         return True, body, (not can_proceed)
     return False, no_update, no_update
+
+
+# --- Yeni callback: Makale durumunu kontrol et ve bildirim göster ---
+@app.callback(
+    Output('article-status-toast-container', 'children'),
+    Output('article-status-interval', 'disabled'),
+    Output('article-id-store', 'data', allow_duplicate=True), # Makale ID'sini sıfırlamak için
+    Input('article-status-interval', 'n_intervals'),
+    State('article-id-store', 'data'),
+    State('gen-lang-store', 'data'),
+    prevent_initial_call=True
+)
+def check_article_status(n_intervals, article_id, lang):
+    if not article_id:
+        return no_update, True, no_update # Makale ID'si yoksa interval'i kapat
+
+    try:
+        # Django API endpoint'ini çağır
+        # settings.BASE_URL veya request.build_absolute_uri kullanmak daha güvenli olabilir
+        # Ancak Dash callback'leri request objesine doğrudan erişemez.
+        # Bu nedenle, URL'yi manuel olarak oluşturuyoruz veya settings'ten alıyoruz.
+        # settings.BASE_URL'in tanımlı olduğunu varsayıyorum.
+        base_url = getattr(settings, 'BASE_URL', 'http://127.0.0.1:8000')
+        api_url = f"{base_url}/blog/api/article-status/{article_id}/"
+        response = requests.get(api_url)
+        response.raise_for_status() # HTTP hatalarını yakala
+        data = response.json()
+
+        status = data.get('status')
+        title = data.get('title', 'Makale')
+        article_url = data.get('url')
+
+        if status == 'tamamlandi':
+            toast = dbc.Toast(
+                [html.P(t('gen_article_completed', lang).format(title=title), className="mb-0"),
+                 html.A(t('gen_view_article', lang), href=article_url, className="btn btn-primary mt-2")],
+                header=t('gen_success_header', lang),
+                icon="success",
+                duration=10000, # 10 saniye göster
+                is_open=True,
+            )
+            return toast, True, None # Bildirimi göster, interval'i kapat, ID'yi sıfırla
+        elif status == 'hata':
+            toast = dbc.Toast(
+                [html.P(t('gen_article_error', lang).format(title=title), className="mb-0"),
+                 html.A(t('gen_retry_article', lang), href=article_url, className="btn btn-warning mt-2")],
+                header=t('gen_error_header', lang),
+                icon="danger",
+                duration=10000,
+                is_open=True,
+            )
+            return toast, True, None # Bildirimi göster, interval'i kapat, ID'yi sıfırla
+        else:
+            # Henüz tamamlanmadıysa veya hata yoksa, beklemeye devam et
+            return no_update, False, no_update
+
+    except requests.exceptions.RequestException as e:
+        print(f"API çağrısı hatası: {e}")
+        # API'ye ulaşılamazsa veya hata verirse, interval'i kapat
+        toast = dbc.Toast(
+            html.P(t('gen_api_error', lang), className="mb-0"),
+            header=t('gen_error_header', lang),
+            icon="danger",
+            duration=10000,
+            is_open=True,
+        )
+        return toast, True, None
+    except Exception as e:
+        print(f"Beklenmedik hata: {e}")
+        toast = dbc.Toast(
+            html.P(t('gen_unexpected_error', lang), className="mb-0"),
+            header=t('gen_error_header', lang),
+            icon="danger",
+            duration=10000,
+            is_open=True,
+        )
+        return toast, True, None

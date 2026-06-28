@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from billing.decorators import check_credits
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse # JsonResponse eklendi
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
 from django.utils.text import slugify
@@ -1324,3 +1324,25 @@ def article_search_view(request):
 
     # 5. Dash uygulamasını içeren template'i render et
     return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
+
+
+def get_article_status_view(request, article_id):
+    """
+    Belirli bir makalenin durumunu ve URL'sini döndüren API endpoint'i.
+    """
+    article = get_object_or_404(GeneratedArticle, id=article_id)
+
+    status_data = {
+        'id': article.id,
+        'status': article.status,
+        'title': article.title,
+        'url': None
+    }
+
+    if article.status == 'tamamlandi':
+        status_data['url'] = reverse('blog:article_detail', kwargs={'article_id': article.id, 'slug': article.slug})
+    elif article.status == 'hata':
+        # Hata durumunda belki bir hata sayfasına yönlendirme veya sadece mesaj
+        status_data['url'] = reverse('blog:generate_article') # Yeniden deneme sayfası
+    
+    return JsonResponse(status_data)
