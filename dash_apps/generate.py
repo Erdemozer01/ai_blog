@@ -5,12 +5,12 @@ from django_plotly_dash import DjangoDash
 from dash import Input, Output, State, no_update, html, dcc
 from dash_apps.i18n_helper import t
 import threading
-import requests # Yeni eklendi
+import requests
 from ai_engine.tasks import generate_article_task
 from ai_engine.services import generate_with_pool, get_fallback_models
 from blog.models import GeneratedArticle
 from django.urls import reverse
-from django.conf import settings # settings.BASE_URL için gerekli
+from django.conf import settings
 
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -27,7 +27,6 @@ def validate_topic_rules(text, lang='en'):
     if len(txt) < 10:
         return False, t('gen_val_short', lang)
 
-    # Asiri uzun girdi = kotuye kullanim / prompt enjeksiyonu riski
     if len(text) > 300:
         return False, (
             "Konu cok uzun. Lutfen kisa ve net bir konu girin (en fazla 300 karakter)."
@@ -39,7 +38,6 @@ def validate_topic_rules(text, lang='en'):
     if len(words) < 2:
         return False, t('gen_val_words', lang)
 
-    # Selamlaşma / sohbet kalıpları
     chat_patterns = [
         'merhaba', 'selam', 'nasılsın', 'naber', 'günaydın', 'iyi misin',
         'teşekkür', 'sağol', 'görüşürüz', 'hoşçakal', 'kimsin', 'adın ne',
@@ -50,18 +48,13 @@ def validate_topic_rules(text, lang='en'):
         if p in txt:
             return False, t('gen_val_chat', lang)
 
-    # Anlamsız tekrar (asdasd, aaaaa)
     if re.match(r'^(.)\1{4,}$', txt.replace(' ', '')):
         return False, t('gen_val_gibberish', lang)
 
-    # Tek-iki harflik kelime grupları (asdf qwer)
     if all(len(w) <= 2 for w in words) and len(words) < 5:
         return False, t('gen_val_meaningful', lang)
 
-    # Argo / müstehcen / küfür içeren konular
     import re as _re
-
-    # 1) Normalleştirme: leetspeak ve ayırıcıları temizle
     leet = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's'})
     normalized = txt.translate(leet)
     collapsed = _re.sub(r'[\s.\-_*]+', '', normalized)
@@ -188,28 +181,16 @@ def screen_and_interpret_topic(text, lang='en'):
         return True, "", text
 
 
-app.layout = html.Div([
-    # generate_article_view'den gelen ana içerik burada olacak
-    # Bu kısım generate_article_view fonksiyonu tarafından render edilen template'e yerleştirilecek.
-    # Bu nedenle, Dash uygulamasının layout'u sadece Dash'e özgü bileşenleri içermeli.
-    # generate_article_view'deki generate_content değişkeni bu layout'u oluşturuyor.
-
-    dcc.Store(id='article-id-store', data=None),  # Makale ID'sini saklamak için
-    dcc.Interval(
-        id='article-status-interval',
-        interval=2 * 1000,  # Her 2 saniyede bir kontrol et
-        n_intervals=0,
-        disabled=True,  # Başlangıçta devre dışı
-    ),
-    html.Div(id='article-status-toast-container', style={"position": "fixed", "bottom": 20, "right": 20, "zIndex": 1050}),
-])
+# app.layout tanımı blog/views.py'deki generate_article_view içine taşındı.
+# Bu dosyada app.layout'u tanımlamak yerine, generate_article_view'deki
+# _generate_layout değişkenini kullanıyoruz.
 
 
 @app.callback(
     Output('form-feedback-message', 'children'),
     Output('url', 'href', allow_duplicate=True),
-    Output('article-id-store', 'data'), # Yeni: Makale ID'sini saklamak için
-    Output('article-status-interval', 'disabled', allow_duplicate=True), # Interval'i etkinleştirmek için
+    Output('article-id-store', 'data'),
+    Output('article-status-interval', 'disabled', allow_duplicate=True),
     Input('gen-modal-confirm', 'n_clicks'),
     State('request-textarea', 'value'),
     State('user-session-store', 'data'),

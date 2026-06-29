@@ -1,10 +1,13 @@
 import json
+from io import BytesIO
+from pathlib import Path
 from urllib.parse import quote_plus
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from billing.decorators import check_credits
-from django.http import HttpResponse, Http404, JsonResponse # JsonResponse eklendi
+from billing.decorators import require_credits, check_credits
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
 from django.utils.text import slugify
@@ -19,13 +22,14 @@ from dash import html, dcc
 from .models import GeneratedArticle, Profile
 from dash_apps.generate import app as generate_app
 from dash_apps.article_detail import app as article_detail_app
-from dash_apps.blog import app as blog_app, create_blog_content_layout
-from dash_apps.anasayfa import app as anasayfa_app, create_anasayfa_content_layout
+from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 from dash_apps.resume import app as resume_app, create_resume_layout
 from dash_apps.contact import app as contact_app
 import dash_apps.article_edit  # noqa: F401 — ArticleEditApp callback'lerini kaydeder
 from dash_apps.article_search import app as article_search_app, create_article_search_layout
 from dash_apps.admin_dash import app as admin_dash_app
+
+
 
 
 def create_main_navbar(request):
@@ -40,45 +44,24 @@ def create_main_navbar(request):
     nav_items = []
 
     # Herkesin görebileceği ana linkleri listeye ekle
-    nav_items.append(
-        dbc.NavItem(
-            dbc.NavLink(
-                t('nav_blog', lang),
-                href=reverse('blog:blog_list'),
-                active="exact",
-                external_link=True
-            )
-        )
-    )
+    nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_blog', lang), href=reverse('blog:blog_list'), active="exact", external_link=True)))
 
     # --- Makale dropdown'ı (AI oluştur / oluştur / ara) ---
     makale_children = []
     if request.user.is_authenticated and (request.user.is_superuser or request.user.is_staff):
         makale_children.append(
-            dbc.DropdownMenuItem(
-                t('nav_generate', lang),
-                href=reverse('blog:generate_article'),
-                external_link=True,
-                id="nav_generate_item"
-            )
-        )
+            dbc.DropdownMenuItem(t('nav_generate', lang),
+                                 href=reverse('blog:generate_article'),
+                                 external_link=True, id="nav_generate_item"))
     if request.user.is_authenticated:
         makale_children.append(
-            dbc.DropdownMenuItem(
-                t('nav_create_article', lang),
-                href=reverse('blog:create_article'),
-                external_link=True,
-                id="nav_create_item"
-            )
-        )
+            dbc.DropdownMenuItem(t('nav_create_article', lang),
+                                 href=reverse('blog:create_article'),
+                                 external_link=True, id="nav_create_item"))
     makale_children.append(
-        dbc.DropdownMenuItem(
-            t('nav_article_search', lang),
-            href=reverse('blog:article_search'),
-            external_link=True,
-            id="nav_search_item"
-        )
-    )
+        dbc.DropdownMenuItem(t('nav_article_search', lang),
+                             href=reverse('blog:article_search'),
+                             external_link=True, id="nav_search_item"))
 
     makale_dropdown = dbc.DropdownMenu(
         label=t('nav_makale', lang),
@@ -139,39 +122,15 @@ def create_main_navbar(request):
         # --- KULLANICI GİRİŞ YAPMIŞSA ---
         dropdown_items = []
         if request.user.is_superuser:
-            dropdown_items.append(
-                dbc.DropdownMenuItem(
-                    t('nav_admin_dash', lang),
-                    href=reverse('blog:admin_dashboard'),
-                    external_link=True
-                )
-            )
+            dropdown_items.append(dbc.DropdownMenuItem(t('nav_admin_dash', lang), href=reverse('blog:admin_dashboard'), external_link=True))
             dropdown_items.append(dbc.DropdownMenuItem(t('nav_django_admin', lang), href="/admin/", external_link=True))
         if request.user.is_superuser or request.user.is_staff:
             dropdown_items.append(dbc.DropdownMenuItem(divider=True))
 
-        dropdown_items.append(
-            dbc.DropdownMenuItem(
-                t('nav_profile', lang),
-                href=reverse('blog:resume_user', kwargs={'username': request.user.username}),
-                external_link=True
-            )
-        )
-        dropdown_items.append(
-            dbc.DropdownMenuItem(
-                t('nav_credits', lang),
-                href=reverse('billing:credits'),
-                external_link=True
-            )
-        )
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_profile', lang), href=reverse('blog:resume_user', kwargs={'username': request.user.username}), external_link=True))
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_credits', lang), href=reverse('billing:credits'), external_link=True))
         dropdown_items.append(dbc.DropdownMenuItem(divider=True))
-        dropdown_items.append(
-            dbc.DropdownMenuItem(
-                t('nav_logout', lang),
-                href=reverse('blog:logout'),
-                external_link=True
-            )
-        )
+        dropdown_items.append(dbc.DropdownMenuItem(t('nav_logout', lang), href=reverse('blog:logout'), external_link=True))
 
         user_menu = dbc.DropdownMenu(
             label=request.user.username,
@@ -202,29 +161,12 @@ def create_main_navbar(request):
                 external_link=True,
             )))
 
-        nav_items.append(
-            dbc.NavItem(
-                dbc.NavLink(
-                    t('nav_contact', lang),
-                    href=reverse('blog:contact'),
-                    external_link=True,
-                    active="exact"
-                )
-            )
-        )
+        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_contact', lang), href=reverse('blog:contact'), external_link=True, active="exact")))
 
     else:
         # --- KULLANICI GİRİŞ YAPMAMIŞSA ---
         nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_login', lang), href="/admin/login/", external_link=True)))
-        nav_items.append(
-            dbc.NavItem(
-                dbc.NavLink(
-                    t('nav_register', lang),
-                    href=reverse('blog:register'),
-                    external_link=True
-                )
-            )
-        )
+        nav_items.append(dbc.NavItem(dbc.NavLink(t('nav_register', lang), href=reverse('blog:register'), external_link=True)))
 
     # --- DİL SEÇİMİ (herkes görür) ---
     current_lang = lang
@@ -267,12 +209,7 @@ def create_main_navbar(request):
     )
     return navbar
 
-
-@login_required
 def admin_dashboard_view(request):
-    # Yonetim paneli yalnizca superuser'lara acik (veri sizintisini onler).
-    if not request.user.is_superuser:
-        raise Http404()
     admin_dash_app
     return render(request, "admin_dashboard.html")
 
@@ -281,29 +218,22 @@ def blog_list_view(request):
     """Blog: tüm makalelerin listesi (eski anasayfa içeriği)."""
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
-    dash_content = create_blog_content_layout(get_lang(request))
-    _blog_layout = html.Div([main_navbar, dash_content])
-
-    def serve_blog_layout():
-        return _blog_layout
-
-    blog_app.layout = serve_blog_layout
-    return render(request, 'blog/blog_list.html')
-
-
-def anasayfa_view(request):
-    """Anasayfa — Dash uygulaması (navbar diğer sayfalarla tutarlı)."""
-    from dash_apps.i18n_helper import get_lang
-    lang = get_lang(request)
-    main_navbar = create_main_navbar(request)
-    dash_content = create_anasayfa_content_layout(lang)
+    dash_content = create_anasayfa_content_layout(get_lang(request))
     _anasayfa_layout = html.Div([main_navbar, dash_content])
 
     def serve_anasayfa_layout():
         return _anasayfa_layout
 
     anasayfa_app.layout = serve_anasayfa_layout
+    return render(request, 'blog/anasayfa.html')
 
+
+def anasayfa_view(request):
+    """Karşılama (landing) sayfası — sunucu-render, SEO dostu."""
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    recent_articles = GeneratedArticle.objects.select_related('category').filter(
+        status='tamamlandi', is_published=True).order_by('-created_at')[:6]
     if lang == 'en':
         meta_title = "AI Blog — AI-Powered Bioinformatics Tools & Articles"
         meta_description = ("Free online bioinformatics tools — CRISPR sgRNA design, "
@@ -314,7 +244,8 @@ def anasayfa_view(request):
         meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
                             "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
                             "yapay zeka destekli akademik makaleler.")
-    return render(request, 'blog/anasayfa.html', {
+    return render(request, 'blog/landing.html', {
+        'recent_articles': recent_articles,
         'meta_title': meta_title,
         'meta_description': meta_description,
     })
@@ -352,6 +283,7 @@ def request_publish_view(request, article_id):
     return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
 
+@login_required
 @login_required
 def edit_article_view(request, article_id):
     """
@@ -583,35 +515,22 @@ def article_detail_view(request, article_id, slug):
     if article.slug != slug:
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)$')
-    # Tamamen kalin yazilmis satirlari da baslik say (or. **Giris**, **Sonuc**).
-    # Sadece tum satiri kaplayan kalinlari yakalar; paragraf ici kalinlari degil.
-    bold_heading_pattern = re.compile(r'^\s*\*\*(.+?)\*\*\s*$')
+    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)', re.MULTILINE)
     headings = []
     content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_\d+_\|\|_)', article.full_content or "")
     for part in content_parts:
-        if part.startswith('_||_'):
-            continue
-        for line in part.splitlines():
-            md_match = heading_pattern.match(line)
-            if md_match:
-                level = len(md_match.group(1))
-                raw_title = md_match.group(2).strip()
+        if not part.startswith('_||_'):
+            found_headings = heading_pattern.findall(part)
+            for heading in found_headings:
+                level = len(heading[0])
+                raw_title = heading[1].strip()
                 display_title = raw_title.replace("**", "").title()
-            else:
-                bold_match = bold_heading_pattern.match(line)
-                if not bold_match:
-                    continue
-                level = 2
-                raw_title = bold_match.group(1).strip()
-                # Yazarin yazdigi buyuk/kucuk harfi koru (Turkce .title() bozmasin)
-                display_title = raw_title.replace("**", "").strip()
-            headings.append({
-                "display_title": display_title,
-                "slug": slugify(raw_title, allow_unicode=True),
-                "level": level,
-                "raw_title": raw_title
-            })
+                headings.append({
+                    "display_title": display_title,
+                    "slug": slugify(raw_title, allow_unicode=True),
+                    "level": level,
+                    "raw_title": raw_title
+                })
 
     toc_links = []
     if headings:
@@ -669,13 +588,8 @@ def article_detail_view(request, article_id, slug):
     raw_bibliography = article.bibliography or ""
     references_list = [ref.strip() for ref in raw_bibliography.splitlines() if ref.strip()]
     apa_style = {'paddingLeft': '1.5em', 'textIndent': '-1.5em'}
-    _is_owner_for_badges = (
-        request.user.is_authenticated and
-        (article.owner_id == request.user.id or request.user.is_superuser)
-    )
-    formatted_bibliography_items = _build_bibliography_items(
-        article, references_list, apa_style, show_badges=_is_owner_for_badges
-    )
+    _is_owner_for_badges = request.user.is_authenticated and (article.owner_id == request.user.id or request.user.is_superuser)
+    formatted_bibliography_items = _build_bibliography_items(article, references_list, apa_style, show_badges=_is_owner_for_badges)
 
     total_votes = article.likes + article.dislikes
     average_rating = 0
@@ -919,13 +833,7 @@ def download_article_as_pdf(request, article_id):
                     data = data_item.get('data', [])
                     thead = "".join(f"<th>{col}</th>" for col in columns)
                     tbody = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in data)
-                    table_html = (
-                        f'<div class="pdf-figure">'
-                        f'<p class="title">{data_item.get("title", "Tablo")}</p>'
-                        f'<table class="pdf-table"><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table>'
-                        f'<p class="description">{data_item.get("description", "")}</p>'
-                        f'</div>'
-                    )
+                    table_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Tablo")}</p><table class="pdf-table"><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table><p class="description">{data_item.get("description", "")}</p></div>'
                     final_html_parts.append(table_html)
                 elif item_type == 'chart':
                     try:
@@ -943,13 +851,7 @@ def download_article_as_pdf(request, article_id):
                         if fig:
                             img_bytes = fig.to_image(format="svg", engine="kaleido")
                             encoded_img = base64.b64encode(img_bytes).decode('utf-8')
-                            img_html = (
-                                f'<div class="pdf-figure">'
-                                f'<p class="title">{data_item.get("title", "Grafik")}</p>'
-                                f'<img src="data:image/svg+xml;base64,{encoded_img}">'
-                                f'<p class="description">{data_item.get("description", "")}</p>'
-                                f'</div>'
-                            )
+                            img_html = f'<div class="pdf-figure"><p class="title">{data_item.get("title", "Grafik")}</p><img src="data:image/svg+xml;base64,{encoded_img}"><p class="description">{data_item.get("description", "")}</p></div>'
                             final_html_parts.append(img_html)
                     except Exception as e:
                         print(f"Grafik resme çevrilirken hata: {e}")
@@ -1110,20 +1012,15 @@ def generate_article_view(request):
         messages.error(request, t('gen_msg_no_provider', lang))
         return redirect('blog:anasayfa')
 
-    main_navbar = create_main_navbar(request)  # Bu fonksiyonun sizde olduğunu varsayıyorum.
+    main_navbar = create_main_navbar(request) # Bu fonksiyonun sizde olduğunu varsayıyorum.
 
     generate_content = dbc.Row(dbc.Col(html.Div([
         dcc.Store(id='user-session-store', data={'user_id': request.user.id}),
         dcc.Store(id='gen-lang-store', data=lang),
         dcc.Location(id='url', refresh=True),
-        html.Div(
-            [
-                html.I(className="fa-solid fa-wand-magic-sparkles fa-4x text-success mb-3"),
-                html.H1(t('gen_h1', lang)),
-                html.P(t('gen_lead', lang), className="lead text-muted")
-            ],
-            className="text-center mb-5"
-        ),
+        html.Div([html.I(className="fa-solid fa-wand-magic-sparkles fa-4x text-success mb-3"), html.H1(t('gen_h1', lang)),
+                  html.P(t('gen_lead', lang), className="lead text-muted")],
+                 className="text-center mb-5"),
         dbc.Card(dbc.CardBody([
             # YENİ: AI Servis Seçimi Dropdown
             dbc.Row([
@@ -1177,12 +1074,9 @@ def generate_article_view(request):
     ]), md=8, className="mx-auto"))
 
     from billing.dash_helpers import build_confirm_modal
-    full_layout = html.Div([
-        main_navbar,
-        dbc.Container(generate_content, className="my-5"),
-        build_confirm_modal('gen-modal', lang=lang)
-    ])
-    # full_layout = dbc.Container(generate_content, className="my-5")
+    full_layout = html.Div([main_navbar, dbc.Container(generate_content, className="my-5"), build_confirm_modal('gen-modal', lang=lang)])
+    # Navbar olmadan direkt container'ı layout olarak atıyorum, siz kendi yapınıza göre düzenleyin
+    #full_layout = dbc.Container(generate_content, className="my-5")
 
     _generate_layout = full_layout
 
@@ -1324,25 +1218,3 @@ def article_search_view(request):
 
     # 5. Dash uygulamasını içeren template'i render et
     return render(request, 'blog/article_search.html', {'meta_title': "Makale arama sayfası - AI Blog"})
-
-
-def get_article_status_view(request, article_id):
-    """
-    Belirli bir makalenin durumunu ve URL'sini döndüren API endpoint'i.
-    """
-    article = get_object_or_404(GeneratedArticle, id=article_id)
-
-    status_data = {
-        'id': article.id,
-        'status': article.status,
-        'title': article.title,
-        'url': None
-    }
-
-    if article.status == 'tamamlandi':
-        status_data['url'] = reverse('blog:article_detail', kwargs={'article_id': article.id, 'slug': article.slug})
-    elif article.status == 'hata':
-        # Hata durumunda belki bir hata sayfasına yönlendirme veya sadece mesaj
-        status_data['url'] = reverse('blog:generate_article') # Yeniden deneme sayfası
-    
-    return JsonResponse(status_data)
