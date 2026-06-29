@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from billing.decorators import require_credits, check_credits
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
 from django.utils.text import slugify
@@ -22,7 +22,8 @@ from dash import html, dcc
 from .models import GeneratedArticle, Profile
 from dash_apps.generate import app as generate_app
 from dash_apps.article_detail import app as article_detail_app
-from dash_apps.statik_anasayfa import app as anasayfa_app, create_anasayfa_content_layout
+from dash_apps.blog import app as blog_app, create_blog_content_layout
+from dash_apps.anasayfa import app as anasayfa_app, create_anasayfa_content_layout
 from dash_apps.resume import app as resume_app, create_resume_layout
 from dash_apps.contact import app as contact_app
 import dash_apps.article_edit  # noqa: F401 — ArticleEditApp callback'lerini kaydeder
@@ -209,7 +210,11 @@ def create_main_navbar(request):
     )
     return navbar
 
+@login_required
 def admin_dashboard_view(request):
+    # Yonetim paneli yalnizca superuser'lara acik (veri sizintisini onler).
+    if not request.user.is_superuser:
+        raise Http404()
     admin_dash_app
     return render(request, "admin_dashboard.html")
 
@@ -218,22 +223,29 @@ def blog_list_view(request):
     """Blog: tüm makalelerin listesi (eski anasayfa içeriği)."""
     main_navbar = create_main_navbar(request)
     from dash_apps.i18n_helper import get_lang
-    dash_content = create_anasayfa_content_layout(get_lang(request))
+    dash_content = create_blog_content_layout(get_lang(request))
+    _blog_layout = html.Div([main_navbar, dash_content])
+
+    def serve_blog_layout():
+        return _blog_layout
+
+    blog_app.layout = serve_blog_layout
+    return render(request, 'blog/blog_list.html')
+
+
+def anasayfa_view(request):
+    """Anasayfa — Dash uygulaması (navbar diğer sayfalarla tutarlı)."""
+    from dash_apps.i18n_helper import get_lang
+    lang = get_lang(request)
+    main_navbar = create_main_navbar(request)
+    dash_content = create_anasayfa_content_layout(lang)
     _anasayfa_layout = html.Div([main_navbar, dash_content])
 
     def serve_anasayfa_layout():
         return _anasayfa_layout
 
     anasayfa_app.layout = serve_anasayfa_layout
-    return render(request, 'blog/anasayfa.html')
 
-
-def anasayfa_view(request):
-    """Karşılama (landing) sayfası — sunucu-render, SEO dostu."""
-    from dash_apps.i18n_helper import get_lang
-    lang = get_lang(request)
-    recent_articles = GeneratedArticle.objects.select_related('category').filter(
-        status='tamamlandi', is_published=True).order_by('-created_at')[:6]
     if lang == 'en':
         meta_title = "AI Blog — AI-Powered Bioinformatics Tools & Articles"
         meta_description = ("Free online bioinformatics tools — CRISPR sgRNA design, "
@@ -244,8 +256,7 @@ def anasayfa_view(request):
         meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
                             "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
                             "yapay zeka destekli akademik makaleler.")
-    return render(request, 'blog/landing.html', {
-        'recent_articles': recent_articles,
+    return render(request, 'blog/anasayfa.html', {
         'meta_title': meta_title,
         'meta_description': meta_description,
     })
@@ -515,22 +526,35 @@ def article_detail_view(request, article_id, slug):
     if article.slug != slug:
         return redirect('blog:article_detail', article_id=article.id, slug=article.slug)
 
-    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)', re.MULTILINE)
+    heading_pattern = re.compile(r'^(#{2,3})\s+(.*)$')
+    # Tamamen kalin yazilmis satirlari da baslik say (or. **Giris**, **Sonuc**).
+    # Sadece tum satiri kaplayan kalinlari yakalar; paragraf ici kalinlari degil.
+    bold_heading_pattern = re.compile(r'^\s*\*\*(.+?)\*\*\s*$')
     headings = []
     content_parts = re.split(r'(_\|\|_STRUCTURED_DATA_\d+_\|\|_)', article.full_content or "")
     for part in content_parts:
-        if not part.startswith('_||_'):
-            found_headings = heading_pattern.findall(part)
-            for heading in found_headings:
-                level = len(heading[0])
-                raw_title = heading[1].strip()
+        if part.startswith('_||_'):
+            continue
+        for line in part.splitlines():
+            md_match = heading_pattern.match(line)
+            if md_match:
+                level = len(md_match.group(1))
+                raw_title = md_match.group(2).strip()
                 display_title = raw_title.replace("**", "").title()
-                headings.append({
-                    "display_title": display_title,
-                    "slug": slugify(raw_title, allow_unicode=True),
-                    "level": level,
-                    "raw_title": raw_title
-                })
+            else:
+                bold_match = bold_heading_pattern.match(line)
+                if not bold_match:
+                    continue
+                level = 2
+                raw_title = bold_match.group(1).strip()
+                # Yazarin yazdigi buyuk/kucuk harfi koru (Turkce .title() bozmasin)
+                display_title = raw_title.replace("**", "").strip()
+            headings.append({
+                "display_title": display_title,
+                "slug": slugify(raw_title, allow_unicode=True),
+                "level": level,
+                "raw_title": raw_title
+            })
 
     toc_links = []
     if headings:
