@@ -76,6 +76,18 @@
         .seo-content h2 { font-size: 1.2rem; font-weight: 600; margin-top: 1.75rem; }
         .seo-content ul, .seo-content ol { padding-left: 1.2rem; }
         .seo-content .faq-q { font-weight: 600; margin-top: 1rem; }
+        /* Navbar logosu — kristal beyin (hafif süzülme + parıltı) */
+        .nav-brain {
+            width: 34px; height: 34px; object-fit: contain; margin-right: .5rem;
+            filter: drop-shadow(0 0 5px rgba(90,180,255,.55));
+            animation: navBrainFloat 4s ease-in-out infinite, navBrainGlow 3s ease-in-out infinite;
+        }
+        @keyframes navBrainFloat { 0%,100% { transform: translateY(-1.5px); } 50% { transform: translateY(1.5px); } }
+        @keyframes navBrainGlow {
+            0%,100% { filter: drop-shadow(0 0 4px rgba(90,180,255,.4)); }
+            50%     { filter: drop-shadow(0 0 9px rgba(120,210,255,.85)); }
+        }
+        @media (prefers-reduced-motion: reduce) { .nav-brain { animation: none; } }
     </style>
 
     {% block stylesheet %}{% endblock %}

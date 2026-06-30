@@ -11,6 +11,7 @@ from django.http import HttpResponse, Http404, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.shortcuts import render, redirect, get_object_or_404, reverse
+from django.templatetags.static import static
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 from django.db.models import F
@@ -191,7 +192,8 @@ def create_main_navbar(request):
         dbc.Container([
             html.A(
                 dbc.Row([
-                    dbc.Col(html.I(className="fas fa-brain fa-2x me-2 text-primary")),
+                    dbc.Col(html.Img(src=static('anim/crystal-brain.png'),
+                                     className="nav-brain", alt="AI Blog")),
                     dbc.Col(dbc.NavbarBrand("AI Blog", className="ms-2")),
                 ], align="center", className="g-0"),
                 href="/", style={"textDecoration": "none"},
