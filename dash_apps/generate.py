@@ -31,17 +31,6 @@ def validate_topic_rules(text, lang='en'):
     if len(words) < 2:
         return False, t('gen_val_words', lang)
 
-    # Selamlaşma / sohbet kalıpları
-    chat_patterns = [
-        'merhaba', 'selam', 'nasılsın', 'naber', 'günaydın', 'iyi misin',
-        'teşekkür', 'sağol', 'görüşürüz', 'hoşçakal', 'kimsin', 'adın ne',
-        'şiir yaz', 'fıkra', 'şaka yap', 'hikaye anlat', 'masal anlat',
-        'hello', 'how are you', 'thanks', 'tell me a joke', 'write a poem',
-    ]
-    for p in chat_patterns:
-        if p in txt:
-            return False, t('gen_val_chat', lang)
-
     # Anlamsız tekrar (asdasd, aaaaa)
     if re.match(r'^(.)\1{4,}$', txt.replace(' ', '')):
         return False, t('gen_val_gibberish', lang)
@@ -50,30 +39,10 @@ def validate_topic_rules(text, lang='en'):
     if all(len(w) <= 2 for w in words) and len(words) < 5:
         return False, t('gen_val_meaningful', lang)
 
-    # Argo / müstehcen / küfür içeren konular
-    import re as _re
-
-    # 1) Normalleştirme: leetspeak ve ayırıcıları temizle
-    leet = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's'})
-    normalized = txt.translate(leet)
-    collapsed = _re.sub(r'[\s.\-_*]+', '', normalized)
-
-    hard_roots = [
-        'amcık', 'amcik', 'amcığ', 'amcig', 'yarrak', 'yarrağ', 'orospu',
-        'sikiş', 'sikis', 'siktir', 'pezevenk', 'gavat', 'kahpe',
-        'penis', 'vajina', 'porno', 'pussy', 'fuck', 'porn', 'whore', 'bitch',
-    ]
-    for root in hard_roots:
-        root_norm = root.translate(leet)
-        if root_norm in collapsed:
-            return False, t('gen_val_inappropriate', lang)
-
-    word_bound = [
-        'sik', 'piç', 'pic', 'göt', 'seks', 'sex', 'dick', 'shit',  # 'meme' (tibbi: meme kanseri) ve 'got' (ing.) cikarildi
-    ]
-    for p in word_bound:
-        if _re.search(r'(^|[\s.,;:!?\-])' + _re.escape(p) + r'($|[\s.,;:!?\-])', normalized):
-            return False, t('gen_val_inappropriate', lang)
+    # NOT: Sabit kufur/argo/sohbet kelime listeleri KALDIRILDI (liste hem eksik kalir
+    # hem 'meme kanseri' gibi tibbi terimleri yanlis pozitif yakalardi). Icerik uygunlugu,
+    # kelimenin GERCEK anlami ve literatur karsiligi screen_and_interpret_topic icindeki
+    # AI tarafindan degerlendirilir.
 
     return True, ""
 
@@ -90,6 +59,13 @@ def validate_topic_ai(text, lang='en'):
             f'"""{text}"""\n\n'
             "Gorevin: Bu konunun, GERCEK bilimsel/akademik literature dayanan, ciddi ve "
             "bilgilendirici bir makale yazilmaya UYGUN olup olmadigina karar vermek.\n"
+            "KELIME ANLAMI: Kelime ve ifadeleri GERCEK, baglamsal ve sozluk anlamiyla degerlendir; "
+            "yuzeysel ya da argo varsayim YAPMA. Bir terim hem gunluk/argo hem bilimsel olabilir; "
+            "bilimsel/tibbi/akademik bir anlami varsa UYGUN say (orn. 'meme kanseri', 'cinsel saglik', "
+            "'seks kromozomu', 'goz tansiyonu' gecerli tibbi/bilimsel konulardir).\n"
+            "LITERATUR GERCEKLIGI: Konunun gercek bilimsel/akademik literaturde karsiligi -hakkinda "
+            "ciddi yayin, kaynak ve bilgi bulunabilmesi- var mi degerlendir. Varsa UYGUN; gercek bir "
+            "literatur/bilgi temeli yoksa veya uydurma/absurd ise RED.\n"
             "SADECE su JSON'u dondur (baska hicbir metin yok):\n"
             '{"durum": "UYGUN|RED", "sebep": "<RED ise kisa, kullanicinin dilinde sebep>"}\n\n'
             "UYGUN say: Konu, hakkinda gercek bilgi/literatur bulunan SOMUT bir alan, olgu, "
