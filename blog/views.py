@@ -7,7 +7,9 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from billing.decorators import require_credits, check_credits
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.template.loader import render_to_string
 from django.utils.text import slugify
@@ -217,6 +219,35 @@ def admin_dashboard_view(request):
         raise Http404()
     admin_dash_app
     return render(request, "admin_dashboard.html")
+
+
+@login_required
+@ensure_csrf_cookie
+def notifications_unread_api(request):
+    """Giris yapan kullanicinin okunmamis bildirimleri (JSON) — site geneli toast icin."""
+    from blog.models import Notification
+    qs = (Notification.objects
+          .filter(related_user=request.user, is_read=False)
+          .order_by('-created_at')[:10])
+    items = [{'id': n.id, 'title': n.title, 'message': n.message} for n in qs]
+    return JsonResponse({'items': items})
+
+
+@login_required
+@require_POST
+def notifications_mark_read(request):
+    """Bildirimleri okundu isaretler (govdede ids varsa onlari, yoksa tumunu)."""
+    import json as _json
+    from blog.models import Notification
+    try:
+        ids = (_json.loads(request.body or b'{}') or {}).get('ids')
+    except Exception:
+        ids = None
+    qs = Notification.objects.filter(related_user=request.user, is_read=False)
+    if ids:
+        qs = qs.filter(id__in=ids)
+    qs.update(is_read=True)
+    return JsonResponse({'ok': True})
 
 
 def blog_list_view(request):
