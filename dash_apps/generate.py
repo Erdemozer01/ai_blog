@@ -174,8 +174,8 @@ def screen_and_interpret_topic(text, lang='en'):
         if "RED" in durum:
             reason = (data.get("sebep") or "").strip() or t('gen_val_ai_invalid', lang)
             return False, reason, text
-        topic = (data.get("konu") or "").strip() or text
-        return True, "", topic
+        # Konuyu YENIDEN YAZMA/akademik basliga cevirme yok: orijinal metni kullan.
+        return True, "", text
     except Exception:
         return True, "", text
 
