@@ -821,120 +821,30 @@ def handle_form_submission(n_clicks, request_text, user_data, selected_value, ar
 
     try:
         user = User.objects.get(id=user_data['user_id'])
-
-        # Havuz ile üret — seçilen modelin sağlayıcı anahtarlarını sırayla dener
-        ai_data, used_key = run_ai_generation_with_pool(
-            interpreted_topic, word_count=article_length or 1500,
-            service_name=selected_service, model_name=selected_model)
-
-        if not isinstance(ai_data, dict) or "content" not in ai_data:
-            raise TypeError("Yapay zekadan beklenen formatta bir yanıt alınamadı.")
-
-        category_obj = resolve_category(
-            ai_data.get("category_name"),
-            title=ai_data.get("title", "") or "",
-            abstract=(ai_data.get("turkish_abstract") or ai_data.get("english_abstract") or ""),
-        )
-
-        new_article = GeneratedArticle.objects.create(
-            owner=user,
-            user_request=request_text,
-            title=ai_data.get("title"),
-            category=category_obj,
-            keywords=ai_data.get("keywords", ""),
-            english_abstract=ai_data.get("english_abstract"),
-            turkish_abstract=ai_data.get("turkish_abstract"),
-            full_content=ai_data.get("content"),
-            bibliography=ai_data.get("bibliography"),
-            structured_data=ai_data.get("structured_data"),
-            status='tamamlandi',
-            # Superuser üretirse otomatik yayında; normal kullanıcı onay bekler
-            is_published=bool(user.is_superuser),
-        )
-
-        # --- 1) DETERMİNİSTİK öksüz kaynak temizliği (ağ gerektirmez, HER ZAMAN) ---
-        # Metinde [N] atfı geçmeyen kaynakları çıkar + yeniden numaralandır.
-        try:
-            from blog.reference_check import remove_orphan_references
-            remove_orphan_references(new_article)
-            new_article.refresh_from_db()
-        except Exception:
-            pass
-
-        # --- 2) ZORUNLU CrossRef DOĞRULAMASI (otomatik) ---
-        # Kaynakçadaki her kaynağı CrossRef'te doğrula: bulunmayanı (sahteyi)
-        # gerçek kaynakla değiştir ya da sil, içerik-uyuşmayanı kaynakçadan çıkar,
-        # yeniden numaralandır. clean_article_references makaleyi kendi kaydeder.
-        # CrossRef erişilemezse (PythonAnywhere whitelist vb.) makale mağdur
-        # edilmez; doğrulama atlanır, kaynaklar zaten PubMed'den gerçektir.
-        verify_note = ""
-        try:
-            from blog.reference_check import clean_article_references
-            ok_verify, _msg = clean_article_references(new_article)
-            new_article.refresh_from_db()
-            if not ok_verify:
-                verify_note = ""  # erişilemedi → sessiz geç
-        except Exception:
-            pass
-
-        # --- Makale başarıyla üretildi → şimdi krediyi düş ---
-        # (Sayfa girişinde değil, ÜRETİM başarılı olunca. Superuser muaf.)
-        remaining_note = ""
-        if not user.is_superuser:
-            try:
-                from billing.services import charge
-                remaining = charge(user, 'makale_uretim', default_cost=15,
-                                   description=t('gen_charge_desc', lang).format(title=ai_data.get('title', '')[:50]))
-                if remaining is not None:
-                    remaining_note = t('gen_remaining', lang).format(n=remaining)
-            except Exception:
-                pass
-
-        success_message = dbc.Alert(
-            [t('gen_success', lang) + remaining_note + " ",
-             html.A(t('gen_view_click', lang), href=new_article.get_absolute_url(), className="alert-link")],
-            color="success"
-        )
-        return success_message, no_update
     except User.DoesNotExist:
         return dbc.Alert(t('gen_invalid_user', lang), color="danger"), no_update
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        traceback.print_exc()
 
-        # Hatayı bildirim olarak kaydet (ham detay sadece superuser admin'de görünür)
-        try:
-            from blog.models import create_notification
-            uid = user_data.get('user_id') if isinstance(user_data, dict) else None
-            ruser = None
-            if uid:
-                try:
-                    ruser = User.objects.get(id=uid)
-                except Exception:
-                    ruser = None
-            create_notification(
-                category='makale_hatasi',
-                title=f"Makale oluşturma hatası: {str(request_text)[:60]}",
-                message=f"Konu: {request_text}",
-                technical_detail=tb,
-                related_user=ruser,
-            )
-        except Exception:
-            pass
+    # Uretimi ARKA PLANDA calistir — uzun AI cagrisi sunucuyu/istegi BLOKLAMAZ.
+    # Boylece uretim surerken baska kullanicilar ve sayfalar normal calisir.
+    import threading
+    from ai_engine.tasks import generate_article_task
+    threading.Thread(
+        target=generate_article_task,
+        args=(user.id, request_text, interpreted_topic, article_length or 1500,
+              selected_service, selected_model, lang),
+        daemon=True,
+    ).start()
 
-        # Kullanıcıya nazik, teknik olmayan mesaj + geri bildirim butonu
-        friendly = dbc.Alert([
-            html.Div([
-                html.I(className="fas fa-exclamation-circle me-2"),
-                html.Strong(t('gen_system_busy', lang)),
-            ]),
-            html.P(t('gen_busy_retry', lang), className="mb-2 mt-2"),
-            dbc.Button(t('gen_feedback_btn', lang), id="gen-feedback-btn",
-                       color="link", size="sm", className="p-0"),
-            html.Div(id="gen-feedback-result", className="mt-2 text-success"),
-        ], color="warning")
-        return friendly, no_update
+    return dbc.Alert(
+        ("Makaleniz arka planda hazirlaniyor. Birkac dakika surebilir; tamamlaninca "
+         "bildirimlerinizde gorunecek ve makaleleriniz arasina eklenecek. Bu sirada "
+         "siteyi kullanmaya devam edebilirsiniz.")
+        if lang != 'en' else
+        ("Your article is being prepared in the background. It may take a few minutes; "
+         "it will appear in your notifications and among your articles when ready. "
+         "You can keep using the site in the meantime."),
+        color="info"
+    ), no_update
 
 
 @app.callback(
