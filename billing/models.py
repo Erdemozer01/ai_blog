@@ -81,26 +81,46 @@ class UserCredit(models.Model):
         return obj.balance if obj else 0
 
     def add(self, amount, description="Kredi yükleme", transaction_type="topup"):
-        """Bakiyeye kredi ekler ve işlem kaydı oluşturur."""
-        self.balance = (self.balance or 0) + amount
-        self.save(update_fields=['balance', 'updated_at'])
-        CreditTransaction.objects.create(
-            user=self.user, amount=amount,
-            transaction_type=transaction_type, description=description)
+        """Bakiyeye kredi ekler ve işlem kaydı oluşturur (atomik)."""
+        from django.db import transaction
+        from django.db.models import F
+        if amount < 0:
+            raise ValueError("Eklenecek miktar negatif olamaz.")
+        with transaction.atomic():
+            UserCredit.objects.filter(pk=self.pk).update(
+                balance=F('balance') + amount)
+            CreditTransaction.objects.create(
+                user=self.user, amount=amount,
+                transaction_type=transaction_type, description=description)
+        self.refresh_from_db(fields=['balance'])
         return self.balance
 
     def spend(self, amount, description="Kullanım", transaction_type="usage"):
         """
         Bakiyeden kredi düşer. Yetersizse ValueError fırlatır.
+        Eşzamanlı isteklere karşı ATOMİK: yalnızca bakiye >= amount ise düşer,
+        böylece yarış durumunda bakiye eksiye düşemez (koşullu F() update).
         İşlem kaydı oluşturur (amount negatif yazılır).
         """
-        if (self.balance or 0) < amount:
-            raise ValueError(f"Yetersiz kredi. Gerekli: {amount}, mevcut: {self.balance}")
-        self.balance -= amount
-        self.save(update_fields=['balance', 'updated_at'])
-        CreditTransaction.objects.create(
-            user=self.user, amount=-amount,
-            transaction_type=transaction_type, description=description)
+        from django.db import transaction
+        from django.db.models import F
+        if amount < 0:
+            raise ValueError("Harcama miktarı negatif olamaz.")
+        with transaction.atomic():
+            # Tek atomik SQL UPDATE: SADECE yeterli bakiye varsa düşer.
+            updated = UserCredit.objects.filter(
+                pk=self.pk, balance__gte=amount
+            ).update(balance=F('balance') - amount)
+            if not updated:
+                current = (UserCredit.objects
+                           .filter(pk=self.pk)
+                           .values_list('balance', flat=True).first()) or 0
+                raise ValueError(
+                    f"Yetersiz kredi. Gerekli: {amount}, mevcut: {current}")
+            CreditTransaction.objects.create(
+                user=self.user, amount=-amount,
+                transaction_type=transaction_type, description=description)
+        self.refresh_from_db(fields=['balance'])
         return self.balance
 
 
