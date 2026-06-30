@@ -295,7 +295,6 @@ def request_publish_view(request, article_id):
 
 
 @login_required
-@login_required
 def edit_article_view(request, article_id):
     """
     Kullanıcının kendi makalesini düzenlemesi (Dash sayfası).

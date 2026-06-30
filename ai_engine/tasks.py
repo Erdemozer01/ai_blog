@@ -334,6 +334,17 @@ def generate_article_task(
 
         logger.info(f"Makale başarıyla üretildi: {new_article.title} (ID: {new_article.id})")
 
+        # Kullaniciya basari bildirimi (makale hazir + link)
+        try:
+            create_notification(
+                category='sistem',
+                title=f"Makaleniz hazir: {new_article.title[:60]}",
+                message=f"'{new_article.title}' makaleniz olusturuldu. Goruntulemek icin: {new_article.get_absolute_url()}",
+                related_user=user,
+            )
+        except Exception:
+            pass
+
     except Exception as e:
         logger.error(f"Makale üretim görevinde hata oluştu (user_id: {user_id}, request: {request_text}): {e}", exc_info=True)
         # Hata durumunda bildirim oluştur
@@ -344,3 +355,10 @@ def generate_article_task(
             technical_detail=str(e),
             related_user=User.objects.get(id=user_id),
         )
+    finally:
+        # Arka plan thread'inin DB baglantisini kapat (baglanti sizintisini onler)
+        try:
+            from django.db import connection
+            connection.close()
+        except Exception:
+            pass
