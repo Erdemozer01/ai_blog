@@ -78,6 +78,7 @@ def validate_topic_rules(text, lang='en'):
     return True, ""
 
 
+
 def validate_topic_ai(text, lang='en'):
     """
     AI ile konu doğrulama: 'bu geçerli akademik/bilgi konusu mu?'
