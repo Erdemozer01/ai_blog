@@ -135,16 +135,9 @@ def create_anasayfa_content_layout(lang='en'):
                         html.Iframe(
                             src=static('anim/crystal-brain.html'),
                             title=L("Yapay zeka — kristal beyin", "AI — crystal brain"),
-                            style={
-                                "border": "0",
-                                "width": "100%",
-                                "height": "440px",
-                                "background": "transparent",
-                                "pointerEvents": "none",
-                                "overflow": "hidden",
-                            },
+                            className="hero-brain",
                         ),
-                        lg=5, className="text-center d-none d-lg-block",
+                        lg=5, className="text-center mt-4 mt-lg-0",
                     ),
                 ],
                 className="align-items-center g-4",

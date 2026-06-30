@@ -12,6 +12,10 @@
     }
     .lp-hero h1 { font-weight: 800; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.15; }
     .lp-hero p.lead { opacity: .92; max-width: 680px; }
+    .hero-brain { border: 0; width: 100%; background: transparent; pointer-events: none; overflow: hidden; display: block; }
+    .hero-brain { height: 300px; }                              /* mobil */
+    @media (min-width: 768px) { .hero-brain { height: 380px; } } /* tablet */
+    @media (min-width: 992px) { .hero-brain { height: 480px; } } /* masaüstü */
     .lp-section { padding: 4rem 0; }
     .lp-section h2 { font-weight: 700; }
     .lp-eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
