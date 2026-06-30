@@ -67,8 +67,6 @@ def screen_and_interpret_topic(text, lang='en'):
             "bilgi/akademik degeri tasiyan ciddi bir konu hakkinda mi makale istiyor; yoksa seni "
             "kiskirtmak, dalga gecmek, trollemek ya da gerceklikte karsiligi olmayan absurd/imkansiz "
             "bir sey urettirmek mi istiyor?\n"
-            "- Konu gercek ve ciddiyse (gunluk, sade ya da teknik olmayan bir dille yazilmis olsa "
-            "bile) durum=UYGUN.\n"
             "- Niyet troll/alay/saka ise, ya da premise harfi anlamda imkansiz/absurd ise (mecaza "
             "cevirip kurtarma) durum=RED.\n"
             "Gercek bir konuyu gunluk dille soran kullaniciyi yanlislikla REDDETME.\n"
