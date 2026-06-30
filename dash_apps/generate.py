@@ -69,7 +69,7 @@ def validate_topic_rules(text, lang='en'):
             return False, t('gen_val_inappropriate', lang)
 
     word_bound = [
-        'sik', 'piç', 'pic', 'göt', 'got', 'meme', 'seks', 'sex', 'dick', 'shit',
+        'sik', 'piç', 'pic', 'göt', 'seks', 'sex', 'dick', 'shit',  # 'meme' (tibbi: meme kanseri) ve 'got' (ing.) cikarildi
     ]
     for p in word_bound:
         if _re.search(r'(^|[\s.,;:!?\-])' + _re.escape(p) + r'($|[\s.,;:!?\-])', normalized):
