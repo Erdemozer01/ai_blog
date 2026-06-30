@@ -181,7 +181,7 @@ def _research(query, lang='en'):
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
     text, _key = generate_with_pool(
-        _build_prompt(query, lang), service_name="Google Gemini", model_name="gemini-2.5-flash",
+        _build_prompt(query, lang), service_name="Google Gemini", model_name="gemini-3.5-flash",
         safety_settings=safety)
     return _parse_json(text)
 

@@ -5,7 +5,7 @@ Tüm site bu modülü import ederek AI çağrısı yapar.
 
 Mimari:
   Provider (sağlayıcı) → API anahtarı havuzu (model'den bağımsız)
-                       → birden çok Model (gemini-2.5-flash, ...)
+                       → birden çok Model (gemini-3.5-flash, ...)
 
 Ana giriş noktaları:
   generate_with_pool(prompt, service_name=..., model_name=...)  -> (str, key)
@@ -19,7 +19,7 @@ Ana giriş noktaları:
 Örnek (bio-tool, model sabit):
     from ai_engine.services import generate_with_pool
     text, key = generate_with_pool("Özetle...", service_name="Google Gemini",
-                                   model_name="gemini-2.5-flash")
+                                   model_name="gemini-3.5-flash")
 
 Örnek (makale, kullanıcı modeli seçti):
     text, key = generate_with_pool(prompt, service_name="Google Gemini",
@@ -32,10 +32,8 @@ from datetime import date # Yeni eklendi
 try:
     # Yeni resmi SDK (google-genai). Eski 'google-generativeai' kullanimdan kaldirildi.
     from google import genai
-    from google.genai import types as genai_types
 except Exception:
     genai = None
-    genai_types = None
 try:
     import openai
 except Exception:
@@ -444,3 +442,4 @@ def get_base_prompt(user_request_text, word_count=1500, real_sources=None,
         - Eğer uygun GERÇEK veri yoksa, `{{}}` şeklinde boş bir nesne döndür.
     Cevabında başka hiçbir açıklama veya metin olmasın. {fmt_outro}
     """
+     

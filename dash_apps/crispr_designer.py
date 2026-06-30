@@ -322,7 +322,7 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
     try:
         from ai_engine.services import generate_with_pool
         comment, _key = generate_with_pool(
-            prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
+            prompt, service_name='Google Gemini', model_name='gemini-3.5-flash')
         return dcc.Markdown(comment)
     except Exception as e:
         return dbc.Alert(f"{t('crispr_ai_error', lang)}: {e}", color="danger")

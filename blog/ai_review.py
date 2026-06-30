@@ -87,9 +87,9 @@ def _get_review_models():
     """
     İnceleme için denenecek modelleri sırayla döndürür:
     (service_name, model_name) tuple listesi.
-    Önce gemini-2.5-flash (tercih), sonra kayıtlı diğer aktif modeller.
+    Önce gemini-3.5-flash (tercih), sonra kayıtlı diğer aktif modeller.
     """
-    preferred = [("Google Gemini", "gemini-2.5-flash")]
+    preferred = [("Google Gemini", "gemini-3.5-flash")]
     try:
         from ai_engine.models import AIModel
         actives = (AIModel.objects

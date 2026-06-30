@@ -485,7 +485,7 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             ai_response_text, _key = generate_with_pool(
-                prompt, service_name='Google Gemini', model_name='gemini-2.5-flash', safety_settings=safety_settings)
+                prompt, service_name='Google Gemini', model_name='gemini-3.5-flash', safety_settings=safety_settings)
         except Exception as e:
             alert = dbc.Alert(f"Gemini API'ından cevap alınırken hata oluştu: {e}", color="danger")
             return alert, *initial_outputs, current_clicks
@@ -537,7 +537,7 @@ def generate_interpretation_callback(n_clicks, analysis_data):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
         interpretation_text, _key = generate_with_pool(
-            prompt, service_name='Google Gemini', model_name='gemini-2.5-flash', safety_settings=safety_settings)
+            prompt, service_name='Google Gemini', model_name='gemini-3.5-flash', safety_settings=safety_settings)
     except Exception as e:
         print(f"Gemini API Hatası (generate_interpretation_callback): {e}")
         return dbc.Alert(f"Gemini API'ından cevap alınırken hata oluştu: {e}", color="danger")

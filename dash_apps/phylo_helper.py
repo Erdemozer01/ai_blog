@@ -277,7 +277,7 @@ def interpret_tree_ai(tree_result, lang='tr'):
                 "Sadece 1-2 TAM cümle yaz. Başlık, madde işareti veya liste KULLANMA. "
                 "Her cümleyi tamamla. Uzun yazma."
             )
-        for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash",
+        for svc, mdl in get_fallback_models("Google Gemini", "gemini-3.5-flash",
                                             cross_provider=True):
             try:
                 text, _ = generate_with_pool(prompt, service_name=svc, model_name=mdl,

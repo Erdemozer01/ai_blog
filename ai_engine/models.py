@@ -41,13 +41,13 @@ class Provider(models.Model):
 
 class AIModel(models.Model):
     """
-    Bir sağlayıcıya ait yapay zeka modeli (örn. gemini-2.5-flash).
+    Bir sağlayıcıya ait yapay zeka modeli (örn. gemini-3.5-flash).
     Aynı sağlayıcı altında birden fazla model tanımlanabilir.
     """
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE,
                                  related_name='ai_models', verbose_name="Sağlayıcı")
     model_name = models.CharField(max_length=100, verbose_name="Model Adı",
-                                  help_text="Örn: gemini-2.5-flash, gpt-4o, claude-sonnet-4")
+                                  help_text="Örn: gemini-3.5-flash, gpt-4o, claude-sonnet-4")
     label = models.CharField(max_length=100, blank=True, verbose_name="Görünen Ad",
                              help_text="İsteğe bağlı (örn: 'Gemini 2.5 Flash')")
     is_active = models.BooleanField(default=True, verbose_name="Aktif mi?")

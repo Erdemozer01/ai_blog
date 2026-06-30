@@ -417,7 +417,7 @@ def check_citation_relevance_ai(sentence, abstract, lang='tr'):
     try:
         from ai_engine.services import generate_with_pool
         answer, _key = generate_with_pool(
-            prompt, service_name='Google Gemini', model_name='gemini-2.5-flash'
+            prompt, service_name='Google Gemini', model_name='gemini-3.5-flash'
         )
         if not answer:
             return {'relevance': 'uncertain', 'note': 'AI yanıt vermedi.'}
@@ -717,7 +717,7 @@ def _ai_extract_search_terms(sentence, lang='tr'):
     try:
         from ai_engine.services import generate_with_pool
         answer, _ = generate_with_pool(prompt, service_name='Google Gemini',
-                                       model_name='gemini-2.5-flash')
+                                       model_name='gemini-3.5-flash')
         if answer:
             terms = answer.strip().strip('"').strip()
             # İlk satırı al, kısalt
@@ -812,7 +812,7 @@ def _ai_topic_to_keywords(topic, lang='tr'):
     try:
         from ai_engine.services import generate_with_pool, get_fallback_models
         answer = None
-        for svc, mdl in get_fallback_models('Google Gemini', 'gemini-2.5-flash', cross_provider=True):
+        for svc, mdl in get_fallback_models('Google Gemini', 'gemini-3.5-flash', cross_provider=True):
             try:
                 answer, _ = generate_with_pool(prompt, service_name=svc, model_name=mdl)
                 if answer:

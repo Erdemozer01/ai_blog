@@ -190,7 +190,7 @@ def get_ai_report(protein_name, organism, lang='en'):
             f"Format your answer in Markdown using headings.")
     try:
         from ai_engine.services import generate_with_pool
-        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-2.5-flash")
+        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-3.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
         return None, f"{t('mv_ai_error', lang)}: {e}"
@@ -226,7 +226,7 @@ def get_ai_removal_analysis(pdb_content, removed_items):
     """
     try:
         from ai_engine.services import generate_with_pool
-        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-2.5-flash")
+        text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-3.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
         return None, f"Yapay zeka analizi sırasında hata: {e}"

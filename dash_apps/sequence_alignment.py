@@ -82,7 +82,7 @@ def get_alignment_interpretation(fasta_data, lang='en'):
             Provide your answer in Markdown format, organized with headings.
             """
 
-        text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
+        text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-3.5-flash')
         return text
 
     except Exception as e:

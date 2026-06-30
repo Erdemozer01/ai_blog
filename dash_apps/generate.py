@@ -429,7 +429,7 @@ KONU: <biyolojik/tıbbi makale konusu - Türkçe, 1 cümle başlık>"""
     # Model fallback ile dene (kota dolarsa diğer kayıtlı modele geç)
     from ai_engine.services import get_fallback_models
     text = None
-    for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
+    for svc, mdl in get_fallback_models("Google Gemini", "gemini-3.5-flash", cross_provider=True):
         try:
             text, _key = generate_with_pool(
                 prompt, service_name=svc, model_name=mdl,
@@ -731,7 +731,7 @@ def resolve_category(ai_category_name, title="", abstract=""):
                 "Baska hicbir aciklama ekleme."
             )
             result = None
-            for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
+            for svc, mdl in get_fallback_models("Google Gemini", "gemini-3.5-flash", cross_provider=True):
                 try:
                     result, _key = generate_with_pool(
                         prompt, service_name=svc, model_name=mdl,

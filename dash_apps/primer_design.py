@@ -368,7 +368,7 @@ def ai_comment(n_clicks, pairs, seq, lang, **kwargs):
     try:
         from ai_engine.services import generate_with_pool
         text, _key = generate_with_pool(
-            prompt, service_name="Google Gemini", model_name="gemini-2.5-flash",
+            prompt, service_name="Google Gemini", model_name="gemini-3.5-flash",
             max_tokens=2500, temperature=0.5)
     except Exception as e:
         return dbc.Alert(f"{t('primer_ai_failed', lang)}: {e}", color="warning")

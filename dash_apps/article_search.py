@@ -14,7 +14,7 @@ def translate_to_english(text_to_translate):
         from ai_engine.services import generate_with_pool
 
         prompt = f"Translate the following Turkish medical phrase to English for a PubMed search. Return only the accurately translated English text and nothing else, no quotation marks:\n\n'{text_to_translate}'"
-        text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-2.5-flash')
+        text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-3.5-flash')
         return text.strip()
 
     except Exception as e:
