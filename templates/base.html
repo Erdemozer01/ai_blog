@@ -100,6 +100,65 @@
 <!-- Bootstrap JS (alert kapatma, dropdown vb. için) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+{% if request.user.is_authenticated %}
+{# --- Site geneli bildirim sistemi: makale hazir olunca her sayfada toast gosterir --- #}
+<div id="cw-toast-area" style="position:fixed; top:1rem; right:1rem; z-index:1090; max-width:360px;"></div>
+<script>
+(function () {
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function escapeHtml(s) {
+        return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    var UNREAD_URL = "{% url 'blog:notifications_unread' %}";
+    var MARK_URL = "{% url 'blog:notifications_mark_read' %}";
+
+    async function poll() {
+        try {
+            var r = await fetch(UNREAD_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!r.ok) return;
+            var data = await r.json();
+            if (!data.items || !data.items.length) return;
+            var area = document.getElementById('cw-toast-area');
+            var shown = [];
+            data.items.forEach(function (n) {
+                shown.push(n.id);
+                var msg = n.message || '';
+                // Mesaj icindeki makale linkini yakala (/article/.. veya tam URL)
+                var lm = msg.match(/https?:\/\/\S+|\/article\/\S+/);
+                var link = lm ? lm[0] : null;
+                if (link) { msg = msg.replace(link, '').replace(/Goruntulemek icin:?/i, '').trim(); }
+                var el = document.createElement('div');
+                el.className = 'toast show mb-2';
+                el.setAttribute('role', 'alert');
+                el.innerHTML =
+                    '<div class="toast-header">' +
+                        '<i class="fas fa-circle-check text-success me-2"></i>' +
+                        '<strong class="me-auto">' + escapeHtml(n.title || 'Bildirim') + '</strong>' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Kapat"></button>' +
+                    '</div>' +
+                    '<div class="toast-body">' + escapeHtml(msg) +
+                        (link ? '<div class="mt-2"><a class="btn btn-sm btn-primary" href="' + link + '">Görüntüle</a></div>' : '') +
+                    '</div>';
+                area.appendChild(el);
+            });
+            // Gosterilenleri okundu isaretle (tekrar gosterilmesin)
+            fetch(MARK_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: shown })
+            });
+        } catch (e) { /* sessiz gec */ }
+    }
+    setTimeout(poll, 3000);
+    setInterval(poll, 25000);
+})();
+</script>
+{% endif %}
+
+
 
 {% block js %}{% endblock %}
 

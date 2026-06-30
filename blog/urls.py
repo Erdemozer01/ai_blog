@@ -9,6 +9,9 @@ urlpatterns = [
 
     path('blog/', views.blog_list_view, name='blog_list'),
 
+    path('api/notifications/unread/', views.notifications_unread_api, name='notifications_unread'),
+    path('api/notifications/mark-read/', views.notifications_mark_read, name='notifications_mark_read'),
+
     path('article/<int:article_id>/download-pdf/', views.download_article_as_pdf, name='download_article_pdf'),
     path('article/<int:article_id>/yayin-talebi/', views.request_publish_view, name='request_publish'),
     path('article/<int:article_id>/duzeltme-talebi/', views.request_correction_view, name='request_correction'),
