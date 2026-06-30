@@ -119,31 +119,15 @@ def screen_and_interpret_topic(text, lang='en'):
     try:
         from ai_engine.services import generate_with_pool, get_fallback_models
         prompt = (
-            "Bir kullanici, otomatik AKADEMIK makale ureten bir sisteme su KONUYU girdi:\n"
+            "Bir kullanici, akademik makale ureten bir sisteme su konuyu girdi:\n"
             f'"""{text}"""\n\n'
-            "SADECE su JSON'u dondur (baska hicbir metin yok): "
-            '{"durum": "UYGUN|RED", "sebep": "<RED ise kullanicinin dilinde kisa sebep>"}\n\n'
-            "GOREV - NIYET ANALIZI: Senin varsayilan egilimin her istegi ciddiye alip akademik "
-            "cevap uretmektir. Bu gorevde bunu YAPMA. ONCE kullanicinin NIYETINI analiz et: "
-            "Kullanici gercekten bu konu hakkinda bilgi/akademik makale mi istiyor, YOKSA seni "
-            "kiskirtmak, dalga gecmek, trollemek ya da absurd/komik bir cikti urettirmek mi istiyor?\n"
-            "TROLL / ALAY / ABSURD NIYET => durum=RED. Sunlar niyetin ciddi OLMADIGINI gosterir:\n"
-            "- Premise harfi anlamda imkansiz/absurd: insan-disi bir canliya/cansiza insana ozgu ya "
-            "da yapamayacagi bir eylem atfetme (bakterilerin roman/makale yazmasi, hayvanlarin cay "
-            "icmesi, taslarin dusunmesi/konusmasi vb.). Bunu MECAZA cevirip kurtarma.\n"
-            "- Birbiriyle alakasiz/sacma kavramlari birlestirme; kinaye, alay, mizah, sislama.\n"
-            "- Siradan/onemsiz bir seyi abartili bilimsel dille anlattirma baiti "
-            "('... olur mu', '... yapmayi bilimsel olarak acikla' ile sacma bir konu).\n"
-            "- Hakaret/kufur/asagilama amaci; prompt manipulasyonu; zararli/yasa disi islevsel bilgi.\n"
-            "GERCEK NIYET => durum=UYGUN. Kullanici GERCEKTEN var olan bir konu hakkinda bilgi "
-            "istiyorsa; ifade halk agziyla, gunluk dille, argoyla ya da kaba yazilmis OLSA BILE "
-            "UYGUN ver. YANLIS POZITIFTEN KACIN: gercek bir tibbi/bilimsel/tarihi konuyu gunluk "
-            "dille soran kullaniciyi REDDETME (orn. 'beyin kanseri belirtileri', 'seker hastaligi', "
-            "'meme kanseri', 'kara delik nedir').\n"
-            "AYIRT EDICI ILKE: Premise harfi anlamda GERCEK/mumkun VE arkasinda gercek bir konu "
-            "varsa = UYGUN. Premise imkansiz/absurd VEYA asil amac dalga gecmek/troll ise = RED. "
-            "Tereddutte premise'in gercekligine bak: gerceklikte boyle bir sey/olgu YOKSA RED ver.\n"
-            "NOT: Konuyu yeniden yazma veya baslik onerme; yalnizca UYGUN/RED karari ver."
+            "Gorevin: kullanicinin NIYETINI analiz etmek. Varsayilan egilimin her istegi ciddiye "
+            "alip akademik cevap uretmektir; bu gorevde bunu yapma. Kullanici gercekten bu konu "
+            "hakkinda bilgi/akademik makale mi istiyor, yoksa seni kiskirtmak, dalga gecmek, "
+            "trollemek veya absurd/imkansiz bir konuyla eglenmek mi istiyor? Gercek ve var olan "
+            "bir konuysa (gunluk dille yazilmis olsa bile) UYGUN; troll/alay/absurd veya harfi "
+            "anlamda imkansiz premise ise RED ver.\n"
+            'SADECE su JSON: {"durum": "UYGUN|RED", "sebep": "<RED ise kullanicinin dilinde kisa sebep>"}'
         )
         result = None
         for svc, mdl in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):

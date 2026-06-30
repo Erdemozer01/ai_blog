@@ -285,48 +285,6 @@ def generate_article_task(
             if not ai_data:
                 raise RuntimeError(f"Tüm modeller başarısız oldu. Son hata: {last_error}")
 
-        # --- CIKTI KONTROLU: uretilen makale gercekten ciddi/akademik mi? ---
-        # Giris taramasini gecmis olsa bile, uretilen ICERIK absurd/saka/temelsizse KAYDETME.
-        try:
-            from ai_engine.services import generate_with_pool, get_fallback_models
-            import json as _vjson, re as _vre
-            _vtitle = (ai_data.get('title') or '')[:200]
-            _vabs = (ai_data.get('turkish_abstract') or ai_data.get('english_abstract') or '')[:700]
-            _vprompt = (
-                "Asagida otomatik uretilmis bir makalenin BASLIGI ve OZETI var. Bu makale; "
-                "gercek, ciddi ve akademik/bilimsel temeli olan bir konuyu mu isliyor, yoksa "
-                "absurd/saka/alayci/anlamsiz/temelsiz veya insan-disi bir varliga imkansiz eylem "
-                "atfeden bir kurgu mu? SADECE su JSON'u dondur: "
-                '{"gecerli": true veya false, "sebep": "<kisa, kullanicinin dilinde>"}\n\n'
-                f"BASLIK: {_vtitle}\nOZET: {_vabs}"
-            )
-            _vr = None
-            for _s, _m in get_fallback_models("Google Gemini", "gemini-2.5-flash", cross_provider=True):
-                try:
-                    _vr, _ = generate_with_pool(_vprompt, service_name=_s, model_name=_m,
-                                                max_tokens=120, temperature=0.1)
-                    if _vr:
-                        break
-                except Exception:
-                    continue
-            if _vr:
-                _mm = _vre.search(r'\{.*\}', _vr, _vre.DOTALL)
-                if _mm:
-                    _verdict = _vjson.loads(_mm.group())
-                    if _verdict.get('gecerli') is False:
-                        _sebep = (_verdict.get('sebep') or '').strip()
-                        logger.info(f"Cikti kontrolu reddetti (user {user_id}): {request_text} -> {_sebep}")
-                        create_notification(
-                            category='sistem',
-                            title="Makale olusturulmadi",
-                            message=(f"\"{request_text}\" konusu akademik bir makale icin uygun "
-                                     f"bulunmadi; makale olusturulmadi. {_sebep}"),
-                            related_user=user,
-                        )
-                        return  # KAYDETME ve KREDI DUSME
-        except Exception as _e:
-            logger.warning(f"Cikti kontrolu hatasi: {_e}")
-
         # 3. Makaleyi kaydet
         with transaction.atomic():
             category_obj = resolve_category(
