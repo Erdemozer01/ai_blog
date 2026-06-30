@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kristal Beyin</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:transparent;overflow:hidden}
+  body{display:grid;place-items:center;-webkit-font-smoothing:antialiased}
+  .perspective{perspective:1200px;width:88vmin;height:88vmin;display:grid;place-items:center}
+  .float{animation:float 6s ease-in-out infinite;transform-style:preserve-3d;width:100%;height:100%;display:grid;place-items:center}
+  .scene{position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:turn 9s ease-in-out infinite}
+  .glow{position:absolute;inset:8%;background:radial-gradient(circle at 38% 45%,rgba(80,210,255,.55),transparent 55%),
+    radial-gradient(circle at 66% 55%,rgba(178,96,255,.5),transparent 58%);
+    filter:blur(34px);animation:pulse 4.5s ease-in-out infinite;transform:translateZ(-40px)}
+  .brain{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+    filter:drop-shadow(0 0 26px rgba(90,180,255,.28));}
+  .sheen{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;
+    background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.16) 48%,transparent 58%);
+    animation:sheen 9s ease-in-out infinite}
+  .sparkles{position:absolute;inset:0;pointer-events:none}
+  .sp{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,rgba(190,240,255,.8) 40%,transparent 70%);
+    box-shadow:0 0 8px 2px rgba(180,235,255,.8);opacity:0;animation:tw 3s ease-in-out infinite}
+  .sp::before,.sp::after{content:"";position:absolute;left:50%;top:50%;background:rgba(255,255,255,.9);transform:translate(-50%,-50%)}
+  .sp::before{width:1.5px;height:18px}.sp::after{width:18px;height:1.5px}
+  @keyframes turn{0%{transform:rotateY(-17deg) rotateX(3deg)}50%{transform:rotateY(17deg) rotateX(-2deg)}100%{transform:rotateY(-17deg) rotateX(3deg)}}
+  @keyframes float{0%,100%{transform:translateY(-1.5%)}50%{transform:translateY(1.5%)}}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:.8}}
+  @keyframes sheen{0%,100%{transform:translateX(-30%)}50%{transform:translateX(30%)}}
+  @keyframes tw{0%,100%{opacity:0;transform:scale(.4)}45%{opacity:.95;transform:scale(1)}60%{opacity:.5;transform:scale(.8)}}
+  @media (prefers-reduced-motion: reduce){.float,.scene,.glow,.sheen,.sp{animation:none}}
+</style></head>
+<body>
+<div class="perspective"><div class="float"><div class="scene">
+  <div class="glow"></div>
+  <img class="brain" alt="kristal beyin" src="crystal-brain.png"/>
+  <div class="sheen"></div>
+  <div class="sparkles" id="sparkles"></div>
+</div></div></div>
+<script>
+const PTS=[[0.8008,0.6172],[0.7363,0.6172],[0.6797,0.6289],[0.8789,0.5332],[0.6895,0.1426],[0.5352,0.252],[0.6738,0.5371],[0.6738,0.2285],[0.6582,0.2852],[0.5957,0.2812],[0.791,0.584],[0.6777,0.4805],[0.7969,0.4766],[0.5098,0.3223],[0.7578,0.6855],[0.6152,0.1641],[0.5391,0.1621],[0.6289,0.3262],[0.582,0.3496],[0.793,0.707],[0.7188,0.6895],[0.6855,0.5781],[0.666,0.1895],[0.6152,0.6152],[0.5938,0.8965],[0.7168,0.2871],[0.6738,0.6699],[0.7754,0.3906],[0.8066,0.2598],[0.8691,0.4629]];
+const wrap=document.getElementById("sparkles");
+PTS.forEach((p)=>{const s=document.createElement("div");s.className="sp";
+  s.style.left=(p[0]*100)+"%";s.style.top=(p[1]*100)+"%";
+  s.style.animationDelay=(Math.random()*3).toFixed(2)+"s";
+  s.style.animationDuration=(2.4+Math.random()*2.4).toFixed(2)+"s";
+  const sc=(0.6+Math.random()*0.7).toFixed(2);s.style.transform="scale("+sc+")";
+  wrap.appendChild(s);});
+</script>
+</body></html>

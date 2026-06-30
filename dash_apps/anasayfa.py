@@ -11,6 +11,7 @@ templates/blog/anasayfa.html içindeki {% block stylesheet %} bölümündedir.
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, State
 from django.urls import reverse
+from django.templatetags.static import static
 from django.utils.html import strip_tags
 from django_plotly_dash import DjangoDash
 
@@ -131,8 +132,18 @@ def create_anasayfa_content_layout(lang='en'):
                         lg=7,
                     ),
                     dbc.Col(
-                        html.I(className="fas fa-dna",
-                               style={"fontSize": "11rem", "opacity": ".22"}),
+                        html.Iframe(
+                            src=static('anim/crystal-brain.html'),
+                            title=L("Yapay zeka — kristal beyin", "AI — crystal brain"),
+                            style={
+                                "border": "0",
+                                "width": "100%",
+                                "height": "440px",
+                                "background": "transparent",
+                                "pointerEvents": "none",
+                            },
+                            **{"loading": "lazy", "scrolling": "no"},
+                        ),
                         lg=5, className="text-center d-none d-lg-block",
                     ),
                 ],
