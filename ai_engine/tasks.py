@@ -148,7 +148,7 @@ def resolve_category(ai_category_name, title="", abstract=""):
                 try:
                     result, _key = generate_with_pool(
                         prompt, service_name=svc, model_name=mdl,
-                        max_tokens=20, temperature=0.2)
+                        max_tokens=256, temperature=0.2)
                     if result:
                         break
                 except Exception:
