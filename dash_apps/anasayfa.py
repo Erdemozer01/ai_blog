@@ -187,12 +187,12 @@ def create_anasayfa_content_layout(lang='en'):
                                    "openly, never hidden.")),
                         _feature("fas fa-check-double",
                                  L("Doğrulanabilir, uydurma değil", "Verifiable, not fabricated"),
-                                 L("Hesaplamalar tekrarlanabilir; AI'a sayı uydurmadan gerçek "
-                                   "veriyi yorumlaması söylenir; üretilen makaleler konu ve kaynak "
-                                   "kontrolünden geçer.",
-                                   "Computations are reproducible, AI is instructed to interpret "
-                                   "real data without inventing numbers, and generated articles "
-                                   "pass topic and reference checks.")),
+                                 L("Hesaplamalar tekrarlanabilir; makale kaynakları PubMed'den "
+                                   "gelir, CrossRef'te doğrulanır ve her atıf kaynağına sadakat "
+                                   "için denetlenir.",
+                                   "Computations are reproducible; article references come from "
+                                   "PubMed, are verified in CrossRef, and every citation is checked "
+                                   "for faithfulness to its source.")),
                     ],
                     className="g-4 text-center",
                 ),
@@ -293,12 +293,40 @@ def create_anasayfa_content_layout(lang='en'):
                                 [
                                     html.Li(L("Türkçe ve İngilizce özet",
                                               "Turkish & English abstracts")),
-                                    html.Li(L("Konu doğrulama ve kaynak kontrolü",
-                                              "Topic validation & reference checks")),
+                                    html.Li(L(["Kaynaklar ",
+                                               html.Strong("PubMed"),
+                                               "'den çekilir ve ",
+                                               html.Strong("CrossRef"),
+                                               " ile doğrulanır"],
+                                              ["References pulled from ",
+                                               html.Strong("PubMed"),
+                                               " and verified against ",
+                                               html.Strong("CrossRef")])),
+                                    html.Li(L("Her atıf, kaynağına sadakat için otomatik "
+                                              "denetlenir ve gerekirse düzeltilir",
+                                              "Every citation is auto-checked for faithfulness "
+                                              "to its source — and corrected when needed")),
                                     html.Li(L("Gerektiğinde grafik ve tablolar",
                                               "Charts & tables where relevant")),
                                 ],
                                 className="text-muted",
+                            ),
+                            html.Div(
+                                [
+                                    html.Span(L("Kaynak altyapısı:", "Powered by:"),
+                                              className="text-muted small me-1"),
+                                    html.Span(
+                                        [html.I(className="fas fa-book-medical me-1"), "PubMed"],
+                                        className="badge rounded-pill",
+                                        style={"background": "#e0edff", "color": "#1d4ed8",
+                                               "fontSize": ".8rem", "padding": ".45em .8em"}),
+                                    html.Span(
+                                        [html.I(className="fas fa-link me-1"), "CrossRef"],
+                                        className="badge rounded-pill",
+                                        style={"background": "#dcfce7", "color": "#15803d",
+                                               "fontSize": ".8rem", "padding": ".45em .8em"}),
+                                ],
+                                className="d-flex align-items-center flex-wrap gap-2 mb-3",
                             ),
                             html.A([html.I(className="fas fa-robot me-2"),
                                     L("Makale üret", "Generate an article")],
