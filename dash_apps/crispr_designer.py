@@ -509,6 +509,18 @@ def toggle_active_link(pathname):
         return False
 
 
+# --- Navbar menü (mobil "Menü" aç/kapa) — diğer araçlarla aynı ---
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    [Input("navbar-toggler", "n_clicks")],
+    [State("navbar-collapse", "is_open")],
+)
+def toggle_navbar_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+
 # --- Kredi onay modalı: tasarım ---
 @app.callback(
     Output('crispr-analyze-modal', 'is_open'),
