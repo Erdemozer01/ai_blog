@@ -484,7 +484,12 @@ def _build_reference_check_badge(article):
     verified = result.get('verified', 0)
     not_found = result.get('not_found', 0)
 
-    if total == 0:
+    # Atıf–kaynak sadakat sonucu (citation_check ile yapıldıysa)
+    faith = result.get('faithfulness') if isinstance(result, dict) else None
+    has_faith = isinstance(faith, dict) and (faith.get('checked') or 0) > 0
+    faith_unsupported = len(faith.get('unsupported') or []) if has_faith else 0
+
+    if total == 0 and not has_faith:
         return html.Div()
 
     # İçerik kontrolü yapıldı mı
@@ -493,12 +498,16 @@ def _build_reference_check_badge(article):
     content_relevant = result.get('content_relevant', 0)
 
     # Renk: çoğu doğrulandıysa yeşil, şüpheli varsa sarı
-    if not_found == 0 and content_unrelated == 0:
-        color, icon = "success", "fa-check-circle"
-    elif verified > not_found:
-        color, icon = "warning", "fa-exclamation-triangle"
+    if total > 0:
+        if not_found == 0 and content_unrelated == 0 and faith_unsupported == 0:
+            color, icon = "success", "fa-check-circle"
+        elif verified > not_found:
+            color, icon = "warning", "fa-exclamation-triangle"
+        else:
+            color, icon = "danger", "fa-times-circle"
     else:
-        color, icon = "danger", "fa-times-circle"
+        color, icon = (("warning", "fa-exclamation-triangle")
+                       if faith_unsupported else ("info", "fa-quote-right"))
 
     # İçerik kontrolü satırı (yapıldıysa)
     content_line = html.Span("")
@@ -530,14 +539,42 @@ def _build_reference_check_badge(article):
                 "Ancak her atfın ilgili kaynağı içerik olarak doğru yansıtıp yansıtmadığı "
                 "otomatik teyit edilmemiştir; kaynakları kendiniz de değerlendiriniz.")
 
-    return dbc.Alert([
-        html.Div([
+    # CrossRef başlık satırı (yalnız CrossRef çalıştıysa)
+    if total > 0:
+        header = html.Div([
             html.I(className=f"fas {icon} me-2"),
             html.Strong(f"Kaynak Doğrulama: {verified}/{total} kaynak CrossRef'te bulundu"),
             (html.Span(f" — {not_found} kaynak bulunamadı (şüpheli).",
                        className="ms-1") if not_found else html.Span("")),
-        ], className="mb-1"),
+        ], className="mb-1")
+    else:
+        header = html.Div([
+            html.I(className=f"fas {icon} me-2"),
+            html.Strong("Atıf–Kaynak Doğrulama"),
+        ], className="mb-1")
+
+    # Atıf–kaynak sadakat satırı
+    faith_line = html.Span("")
+    if has_faith:
+        fc = faith.get('checked') or 0
+        fs = faith.get('supported') or 0
+        fsc = faith.get('score')
+        fkids = [
+            html.I(className="fas fa-quote-right me-2"),
+            html.Strong("Atıf–kaynak sadakati: "),
+            html.Span(f"{fs}/{fc} atıf kaynağınca destekleniyor"
+                      + (f" (skor {fsc}/100)" if fsc is not None else "") + "."),
+        ]
+        if faith_unsupported:
+            fkids.append(html.Span(
+                f" {faith_unsupported} atıf kaynakta açıkça bulunamadı (şüpheli).",
+                className="fw-bold text-danger ms-1"))
+        faith_line = html.Div(fkids, className="mb-1 mt-1")
+
+    return dbc.Alert([
+        header,
         content_line,
+        faith_line,
         html.Small([
             html.I(className="fas fa-info-circle me-1"),
             note,

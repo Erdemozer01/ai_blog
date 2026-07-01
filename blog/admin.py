@@ -128,7 +128,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     # --- Toplu onay aksiyonları (yalnızca superuser) ---
-    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele']
+    actions = ['yayinla', 'yayindan_kaldir', 'ai_ile_incele', 'atif_dogrula']
 
     @admin.action(description="Seçili makaleleri YAYINLA (anasayfada göster)")
     def yayinla(self, request, queryset):
@@ -163,6 +163,39 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✗ '{article.title}': {msg}", level='error')
         self.message_user(request, f"İnceleme bitti: {basarili} başarılı, {hatali} hatalı.")
 
+    @admin.action(description="🔎 Atıf–Kaynak Doğrula (arka planda + kullanıcıya e-posta)")
+    def atif_dogrula(self, request, queryset):
+        if not request.user.is_superuser:
+            self.message_user(request, "Bu işlem için yetkiniz yok.", level='error')
+            return
+        import threading
+        ids = list(queryset.values_list('id', flat=True))
+
+        def _run(article_ids):
+            from .models import GeneratedArticle
+            from .citation_check import verify_article_citations
+            from django.db import connection
+            try:
+                for aid in article_ids:
+                    try:
+                        art = GeneratedArticle.objects.get(id=aid)
+                        verify_article_citations(art)
+                    except Exception:
+                        continue
+            finally:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+        threading.Thread(target=_run, args=(ids,), daemon=True).start()
+        self.message_user(
+            request,
+            f"{len(ids)} makale için atıf–kaynak doğrulaması ARKA PLANDA başlatıldı. "
+            "Bitince sonuç makaleye kaydedilip sahibine e-posta gönderilecek; "
+            "sonucu makale detay sayfasında ve burada görebilirsiniz."
+        )
+
     def get_actions(self, request):
         """Toplu yayın aksiyonlarını yalnızca superuser görsün."""
         actions = super().get_actions(request)
@@ -170,6 +203,7 @@ class GeneratedArticleAdmin(admin.ModelAdmin):
             actions.pop('yayinla', None)
             actions.pop('yayindan_kaldir', None)
             actions.pop('ai_ile_incele', None)
+            actions.pop('atif_dogrula', None)
         return actions
 
 
