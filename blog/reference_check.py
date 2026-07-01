@@ -14,9 +14,11 @@ AI'ın ürettiği kaynakçadaki her atfı CrossRef veritabanında arar:
 """
 import re
 import json
+import logging
 import urllib.request
 import urllib.parse
 
+logger = logging.getLogger(__name__)
 
 CROSSREF_API = "https://api.crossref.org/works"
 def _build_user_agent():
@@ -525,11 +527,19 @@ def remove_orphan_references(article):
             if part.isdigit():
                 cited.add(int(part))
 
+    valid = set(order)
+    # (a) Kaynakçada var ama metinde HİÇ atıf yapılmayan kaynaklar (öksüz kaynak)
     orphans = [n for n in order if n not in cited]
-    if not orphans:
+    # (b) Metinde atıf var ama kaynakçada KARŞILIĞI OLMAYAN numaralar (öksüz atıf),
+    #     ör. kaynakça 10'da biterken metinde [14, 15] geçmesi.
+    bad_citations = sorted(n for n in cited if n not in valid)
+
+    # İkisi de yoksa dokunma
+    if not orphans and not bad_citations:
         return False, len(order), []
 
-    # Kalanları yeniden numaralandır (sıra korunur)
+    # Kalanları yeniden numaralandır (sıra korunur) — yalnız hem kaynakçada olan
+    # hem de metinde atıf yapılan kaynaklar kalır.
     remap = {}
     new_n = 1
     for n in order:
@@ -540,6 +550,7 @@ def remove_orphan_references(article):
     new_bib = '\n'.join(f"{remap[n]}. {refs[n]}" for n in order if n in remap)
 
     def _remap_citation(match):
+        # remap'te olmayan numaralar (öksüz atıflar dahil) düşürülür.
         nums = []
         for part in match.group(1).split(','):
             part = part.strip()
@@ -548,10 +559,15 @@ def remove_orphan_references(article):
         return '[' + ', '.join(nums) + ']' if nums else ''
 
     new_content = re.sub(r'\[([\d,\s]+)\]', _remap_citation, content)
+    # Atıf silinince kalan çift boşluk / boşluk+noktalama artıklarını temizle
+    new_content = re.sub(r'[ \t]{2,}', ' ', new_content)
+    new_content = re.sub(r'[ \t]+([.,;:])', r'\1', new_content)
 
     article.bibliography = new_bib
     article.full_content = new_content
     article.save(update_fields=['bibliography', 'full_content'])
+    if bad_citations:
+        logger.info(f"Öksüz atıflar silindi (kaynakçada yok): {bad_citations}")
     return True, len(remap), sorted(orphans)
 
 
