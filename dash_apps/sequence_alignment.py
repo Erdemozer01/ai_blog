@@ -91,7 +91,7 @@ def get_alignment_interpretation(fasta_data, lang='en'):
 # --- Ön Yüz: Dash Layout Fonksiyonu ---
 def create_sequence_alignment_layout(lang='en'):
     """Gelişmiş Sekans Hizalama Görüntüleyicisi'nin layout'unu oluşturur."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     sidebar = dbc.Col([
         dcc.Tabs(id='alignment-control-tabs', value='data-tab', children=[

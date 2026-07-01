@@ -202,7 +202,7 @@ def create_plasmid_figure(total_length, orfs, cutters, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_plasmid_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('pm_input', lang)),

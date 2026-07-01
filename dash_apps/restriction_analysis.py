@@ -151,7 +151,7 @@ def create_cut_map_figure(results, seq_length, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_restriction_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('re_input', lang)),

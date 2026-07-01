@@ -77,7 +77,7 @@ def get_about_text():
 
 
 def bacterial_create_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
         dbc.Tab(label=t('bd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
         dbc.Tab(label=t('bd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[

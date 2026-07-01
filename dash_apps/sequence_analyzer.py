@@ -291,7 +291,7 @@ def _render_record_detail(r, lang='en'):
 
 def create_sequence_analyzer_layout(lang='en'):
     """Sekans Analiz Aracı sayfasının iki sütunlu ve dosya yüklemeli içeriğini oluşturur."""
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
 
     sidebar = dbc.Col(
         [

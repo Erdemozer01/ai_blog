@@ -104,7 +104,7 @@ def fetch_sequence_from_ebi(accession):
 # ----------------------------- Layout -----------------------------
 
 def create_primer_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
         build_confirm_modal('primer-design-modal', lang=lang),
@@ -224,7 +224,7 @@ def fetch_sequence(n_clicks, accession, lang):
     prevent_initial_call=True,
 )
 def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang, **kwargs):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     lang = lang or 'en'
     if not sequence:
         return dbc.Alert(t('primer_no_seq', lang), color="warning"), None, None, ""

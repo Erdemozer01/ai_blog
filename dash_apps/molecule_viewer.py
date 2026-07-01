@@ -356,7 +356,7 @@ def get_unique_chains_from_content(content, ext):
 
 # --- UYGULAMA YERLEŞİMİ (LAYOUT) ---
 def create_molecule_viewer_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     data_tab = dbc.CardBody([
         dbc.Label(t('mv_pdb_label', lang), html_for="pdb-id-input", className="fw-bold"),
         dbc.InputGroup([dbc.Input(id="pdb-id-input", placeholder=t('mv_pdb_placeholder', lang), type="text"),

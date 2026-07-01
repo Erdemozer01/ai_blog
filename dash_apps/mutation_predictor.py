@@ -194,7 +194,7 @@ def train_and_predict_mutation_effect(features):
 
 
 def mutation_create_layout(lang='en'):
-    from dash_apps.i18n_helper import t
+    from dash_apps.i18n_helper import t, credit_label
     control_panel = dbc.Card([
         dbc.CardHeader(t('mp_menu', lang)),
         dbc.CardBody([
