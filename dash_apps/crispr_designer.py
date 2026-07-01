@@ -185,60 +185,63 @@ app.layout = create_crispr_layout()
 
 # ----------------------------- Callbacks -----------------------------
 
+# Örnek dizi yükleme + Ensembl'den gen çekme TEK callback'te birleştirildi
+# (aynı 'value' çıktısına iki ayrı callback yazınca DjangoDash'te duplicate
+# çıktı sessizce düşüyordu; tek çıktı sahibiyle bu sorun ortadan kalkar).
 @app.callback(
     Output('crispr-sequence-input', 'value'),
-    Input('crispr-example-btn', 'n_clicks'),
-    prevent_initial_call=True,
-)
-def load_example(n_clicks):
-    if not n_clicks:
-        return no_update
-    return EXAMPLE_SEQUENCE
-
-
-@app.callback(
-    Output('crispr-sequence-input', 'value', allow_duplicate=True),
     Output('crispr-gene-status', 'children'),
+    Input('crispr-example-btn', 'n_clicks'),
     Input('crispr-gene-btn', 'n_clicks'),
     State('crispr-gene-input', 'value'),
     State('crispr-species', 'value'),
     State('crispr-lang-store', 'data'),
     prevent_initial_call=True,
 )
-def fetch_gene(n_clicks, gene, species, lang):
+def fill_sequence(ex_clicks, gene_clicks, gene, species, lang):
+    import dash
     lang = lang or 'en'
 
     def L(tr, en):
         return tr if lang == 'tr' else en
 
-    if not n_clicks:
-        return no_update, no_update
-    gene = (gene or '').strip()
-    if not gene:
-        return no_update, dbc.Alert(L("Gen adı girin.", "Enter a gene name."),
-                                    color="warning", className="py-1 my-1 small")
+    triggered = dash.callback_context.triggered
+    trig_id = triggered[0]['prop_id'].split('.')[0] if triggered else ''
 
-    seq, meta, err = fetch_gene_sequence(gene, species or 'homo_sapiens')
-    if err or not seq:
-        msgs = {
-            'not_found': L("Gen bulunamadı. Adı/türü kontrol edin.",
-                           "Gene not found. Check the name/species."),
-            'network': L("Ensembl'e ulaşılamadı. Biraz sonra tekrar deneyin.",
-                         "Could not reach Ensembl. Please try again shortly."),
-            'no_seq': L("Bu gen için dizi bulunamadı.",
-                        "No sequence found for this gene."),
-        }
-        return no_update, dbc.Alert(
-            msgs.get(err, L("Dizi getirilemedi.", "Could not fetch the sequence.")),
-            color="danger", className="py-1 my-1 small")
+    # 1) Örnek diziyi yükle
+    if trig_id == 'crispr-example-btn':
+        return EXAMPLE_SEQUENCE, no_update
 
-    note = L(
-        f"{meta['symbol']} ({meta['id']}) — kromozom {meta['chr']}, "
-        f"{meta['length']} bp getirildi" + (" (kırpıldı)" if meta['truncated'] else "") + ".",
-        f"{meta['symbol']} ({meta['id']}) — chr {meta['chr']}, "
-        f"fetched {meta['length']} bp" + (" (truncated)" if meta['truncated'] else "") + ".",
-    )
-    return seq, dbc.Alert(note, color="success", className="py-1 my-1 small")
+    # 2) Ensembl'den gen adıyla dizi getir
+    if trig_id == 'crispr-gene-btn':
+        gene = (gene or '').strip()
+        if not gene:
+            return no_update, dbc.Alert(L("Gen adı girin.", "Enter a gene name."),
+                                        color="warning", className="py-1 my-1 small")
+
+        seq, meta, err = fetch_gene_sequence(gene, species or 'homo_sapiens')
+        if err or not seq:
+            msgs = {
+                'not_found': L("Gen bulunamadı. Adı/türü kontrol edin.",
+                               "Gene not found. Check the name/species."),
+                'network': L("Ensembl'e ulaşılamadı. Biraz sonra tekrar deneyin.",
+                             "Could not reach Ensembl. Please try again shortly."),
+                'no_seq': L("Bu gen için dizi bulunamadı.",
+                            "No sequence found for this gene."),
+            }
+            return no_update, dbc.Alert(
+                msgs.get(err, L("Dizi getirilemedi.", "Could not fetch the sequence.")),
+                color="danger", className="py-1 my-1 small")
+
+        note = L(
+            f"{meta['symbol']} ({meta['id']}) — kromozom {meta['chr']}, "
+            f"{meta['length']} bp getirildi" + (" (kırpıldı)" if meta['truncated'] else "") + ".",
+            f"{meta['symbol']} ({meta['id']}) — chr {meta['chr']}, "
+            f"fetched {meta['length']} bp" + (" (truncated)" if meta['truncated'] else "") + ".",
+        )
+        return seq, dbc.Alert(note, color="success", className="py-1 my-1 small")
+
+    return no_update, no_update
 
 
 @app.callback(
