@@ -172,11 +172,11 @@ def create_crispr_layout(lang='en'):
                     className="w-100",
                 ),
                 html.Small(
-                    L("Referans genoma NCBI BLAST hizalaması; guide başına ~30-90 sn sürebilir. "
-                      "MM0/MM1/MM2/MM3 = genomda 0/1/2/3 uyumsuzlukla eşleşen bölge sayısı. "
-                      "MM0 hedefin kendisini de içerir (beklenen ≥1). Tarama sürerken üstteki "
-                      "tablo ve grafik yerinde kalır.",
-                      "NCBI BLAST alignment to the reference genome; may take ~30-90 s per guide. "
+                    L("NCBI'nin genomik kayıtlarına BLAST hizalaması; guide başına ~30-90 sn "
+                      "sürebilir. MM0/MM1/MM2/MM3 = 0/1/2/3 uyumsuzlukla eşleşen genomik bölge "
+                      "sayısı. MM0 hedefin kendisini de içerir (beklenen ≥1). Tarama sürerken "
+                      "üstteki tablo ve grafik yerinde kalır.",
+                      "BLAST alignment to NCBI genomic records; may take ~30-90 s per guide. "
                       "MM0/MM1/MM2/MM3 = number of genomic sites matching with 0/1/2/3 mismatches. "
                       "MM0 includes the intended target itself (≥1 expected). The table and chart "
                       "above stay in place while scanning."),

@@ -40,39 +40,52 @@ def blast_offtarget(guide, organism="Homo sapiens", hitlist=HITLIST):
     except Exception:
         return {"ok": False, "error": "biopython_missing"}
 
-    try:
-        handle = NCBIWWW.qblast(
-            program="blastn",
-            database="refseq_genomic",          # referans genomlar (nt DEĞİL)
-            sequence=guide,
-            expect=1000,
-            word_size=7,                          # kısa dizi için
-            hitlist_size=hitlist,
-            megablast=False,
-            entrez_query=f"{organism}[Organism]",
-        )
-        record = NCBIXML.read(handle)
+    # Sırayla denenecek (veritabanı, entrez_query) çiftleri:
+    #  1) nt + sadece GENOMİK kayıtlar → mRNA/EST/patent tekrarı elenir (temiz sayım)
+    #  2) yedek: filtresiz nt (her koşulda bir sonuç dönsün diye)
+    attempts = [
+        ("nt", f"{organism}[Organism] AND biomol_genomic[PROP]"),
+        ("nt", f"{organism}[Organism]"),
+    ]
+
+    glen = len(guide)
+    last_err = None
+    for database, entrez in attempts:
         try:
-            handle.close()
-        except Exception:
-            pass
+            handle = NCBIWWW.qblast(
+                program="blastn",
+                database=database,
+                sequence=guide,
+                expect=1000,
+                word_size=7,                      # kısa dizi için
+                hitlist_size=hitlist,
+                megablast=False,
+                entrez_query=entrez,
+            )
+            record = NCBIXML.read(handle)
+            try:
+                handle.close()
+            except Exception:
+                pass
 
-        glen = len(guide)
-        mm = {0: 0, 1: 0, 2: 0, 3: 0}
-        for aln in record.alignments:
-            for hsp in aln.hsps:
-                # guide'ın büyük kısmını kaplamayan kısa hizalamaları at
-                if hsp.align_length < glen - MIN_COVER_SLACK:
-                    continue
-                # uyumsuzluk ~ (hizada uymayan + boşluk) + (hizalanmayan uçlar)
-                mismatches = (hsp.align_length - hsp.identities) + (glen - hsp.align_length)
-                if 0 <= mismatches <= 3:
-                    mm[mismatches] += 1
-        return {"ok": True, "mm": mm}
+            mm = {0: 0, 1: 0, 2: 0, 3: 0}
+            for aln in record.alignments:
+                for hsp in aln.hsps:
+                    # guide'ın büyük kısmını kaplamayan kısa hizalamaları at
+                    if hsp.align_length < glen - MIN_COVER_SLACK:
+                        continue
+                    # uyumsuzluk ~ (hizada uymayan + boşluk) + (hizalanmayan uçlar)
+                    mismatches = (hsp.align_length - hsp.identities) + (glen - hsp.align_length)
+                    if 0 <= mismatches <= 3:
+                        mm[mismatches] += 1
+            return {"ok": True, "mm": mm, "db": database}
 
-    except Exception as e:
-        logger.warning(f"BLAST off-target failed: {e}")
-        return {"ok": False, "error": "blast_error"}
+        except Exception as e:
+            last_err = e
+            logger.warning(f"BLAST attempt failed (db={database}): {e}")
+            continue
+
+    return {"ok": False, "error": "blast_error", "detail": str(last_err)}
 
 
 def risk_label(mm, lang="en"):
