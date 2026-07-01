@@ -50,8 +50,8 @@ TRANSLATIONS = {
     # ---- Primer Tasarım Aracı ----
     'primer_title': {'tr': 'Primer Tasarım Aracı', 'en': 'Primer Design Tool'},
     'primer_subtitle': {
-        'tr': 'PCR primer tasarımı (Primer3 motoru). DNA dizinizi yapıştırın veya gen accession numarası girin.',
-        'en': 'PCR primer design (Primer3 engine). Paste your DNA sequence or enter a gene accession number.'},
+        'tr': 'PCR primer tasarımı (Primer3 motoru). DNA dizinizi yapıştırın veya gen accession numarası girin. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+        'en': 'PCR primer design (Primer3 engine). Paste your DNA sequence or enter a gene accession number. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'primer_seq_label': {'tr': 'DNA Dizisi (yapıştır)', 'en': 'DNA Sequence (paste)'},
     'primer_seq_placeholder': {
         'tr': "5'-ATGC... dizinizi buraya yapıştırın (FASTA da olur)",
@@ -99,8 +99,8 @@ TRANSLATIONS = {
 
     # ---- Sekans Analiz Aracı ----
     'sa_title': {'tr': 'Sekans Analiz Aracı', 'en': 'Sequence Analysis Tool'},
-    'sa_subtitle': {'tr': 'DNA, RNA veya Protein sekansınızı dosya yükleyerek veya yapıştırarak analiz edin.',
-                    'en': 'Analyze your DNA, RNA or Protein sequence by uploading a file or pasting it.'},
+    'sa_subtitle': {'tr': 'DNA, RNA veya Protein sekansınızı dosya yükleyerek veya yapıştırarak analiz edin. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+                    'en': 'Analyze your DNA, RNA or Protein sequence by uploading a file or pasting it. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'sa_control_panel': {'tr': 'Kontrol Paneli', 'en': 'Control Panel'},
     'sa_file_format': {'tr': 'Dosya Formatı:', 'en': 'File Format:'},
     'sa_seq_type': {'tr': 'Sekans Tipi:', 'en': 'Sequence Type:'},
@@ -148,7 +148,7 @@ TRANSLATIONS = {
     # --- Filogenetik Ağaç Aracı (ayrı uygulama) ---
     'ph_title': {'tr': 'Filogenetik Ağaç', 'en': 'Phylogenetic Tree'},
     'ph_subtitle': {'tr': 'Çoklu diziden evrimsel ağaç oluşturun', 'en': 'Build an evolutionary tree from multiple sequences'},
-    'ph_page_desc': {'tr': 'Birden fazla DNA/protein dizisinin evrimsel akrabalık ilişkilerini hesaplayıp ağaç olarak görselleştirir, yapay zeka ile yorumlar.', 'en': 'Computes evolutionary relationships among multiple DNA/protein sequences, visualizes them as a tree, and interprets with AI.'},
+    'ph_page_desc': {'tr': 'Birden fazla DNA/protein dizisinin evrimsel akrabalık ilişkilerini hesaplayıp ağaç olarak görselleştirir, yapay zeka ile yorumlar. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.', 'en': 'Computes evolutionary relationships among multiple DNA/protein sequences, visualizes them as a tree, and interprets with AI. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'ph_upload_label': {'tr': 'FASTA Dosyası Yükle', 'en': 'Upload FASTA File'},
     'ph_upload_hint': {'tr': 'Çoklu dizilik FASTA (.fasta/.txt) sürükle veya seç', 'en': 'Drag or select a multi-sequence FASTA (.fasta/.txt)'},
     'ph_or_paste': {'tr': 'veya FASTA Yapıştır', 'en': 'or Paste FASTA'},
@@ -256,8 +256,8 @@ TRANSLATIONS = {
     'sal_comment': {'tr': 'Yorum', 'en': 'Interpretation'},
     'sal_no_interaction': {'tr': 'Etkileşim verisi yok.', 'en': 'No interaction data.'},
     'sal_interaction_failed': {'tr': 'Etkileşim verisi alınamadı.', 'en': 'Could not retrieve interaction data.'},
-    'sal_subtitle': {'tr': 'Önceden hizalanmış sekansları yükleyin, görüntüleyin ve otomatik olarak yorumlayın.',
-                     'en': 'Upload, visualize and automatically interpret pre-aligned sequences.'},
+    'sal_subtitle': {'tr': 'Önceden hizalanmış sekansları yükleyin, görüntüleyin ve otomatik olarak yorumlayın. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+                     'en': 'Upload, visualize and automatically interpret pre-aligned sequences. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'sal_drag_drop': {'tr': 'Dosyayı Sürükle-Bırak veya ', 'en': 'Drag-Drop file or '},
     'sal_show': {'tr': 'Göster', 'en': 'Show'},
     'sal_hide': {'tr': 'Gizle', 'en': 'Hide'},
@@ -310,8 +310,8 @@ TRANSLATIONS = {
     # ---- Mutasyon Etki Tahmincisi ----
     'mp_title': {'tr': 'Makine Öğrenmesi ile Mutasyon Etki Tahmincisi',
                  'en': 'ML-Powered Mutation Effect Predictor'},
-    'mp_subtitle': {'tr': 'Bir molekül yükleyin, ardından bir mutasyon belirterek bu mutasyonun protein fonksiyonu üzerindeki potansiyel etkisini tahmin edin.',
-                    'en': 'Upload a molecule, then specify a mutation to predict its potential effect on protein function.'},
+    'mp_subtitle': {'tr': 'Bir molekül yükleyin, ardından bir mutasyon belirterek bu mutasyonun protein fonksiyonu üzerindeki potansiyel etkisini tahmin edin. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+                    'en': 'Upload a molecule, then specify a mutation to predict its potential effect on protein function. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'mp_menu': {'tr': 'Menü', 'en': 'Menu'},
     'mp_data_upload': {'tr': 'Veri Yükleme', 'en': 'Data Upload'},
     'mp_pdb_placeholder': {'tr': 'örn: 1CRN', 'en': 'e.g. 1CRN'},
@@ -531,8 +531,8 @@ TRANSLATIONS = {
 
     # ---- Plazmit Harita Görselleştirici ----
     'pm_title': {'tr': 'Plazmit Harita Görselleştirici', 'en': 'Plasmid Map Visualizer'},
-    'pm_subtitle': {'tr': 'DNA dizinizden interaktif dairesel plazmit haritası oluşturun (ORF + restriksiyon bölgeleri).',
-                    'en': 'Generate an interactive circular plasmid map from your DNA sequence (ORFs + restriction sites).'},
+    'pm_subtitle': {'tr': 'DNA dizinizden interaktif dairesel plazmit haritası oluşturun (ORF + restriksiyon bölgeleri). Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+                    'en': 'Generate an interactive circular plasmid map from your DNA sequence (ORFs + restriction sites). If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'pm_input': {'tr': 'Girdi', 'en': 'Input'},
     'pm_seq_label': {'tr': 'Plazmit DNA Dizisi', 'en': 'Plasmid DNA Sequence'},
     'pm_seq_placeholder': {'tr': 'DNA dizisini buraya yapıştırın (ATGC...)', 'en': 'Paste DNA sequence here (ATGC...)'},
@@ -568,8 +568,8 @@ TRANSLATIONS = {
     'nav_restriction': {'tr': 'Restriksiyon Analizi', 'en': 'Restriction Analysis'},
     'nav_plasmid': {'tr': 'Plazmit Haritası', 'en': 'Plasmid Map'},
     're_title': {'tr': 'Restriksiyon Enzim Analizi', 'en': 'Restriction Enzyme Analysis'},
-    're_subtitle': {'tr': 'Bir DNA dizisini restriksiyon enzimleriyle analiz edin; kesim bölgelerini ve fragmentleri görün.',
-                    'en': 'Analyze a DNA sequence with restriction enzymes; view cut sites and fragments.'},
+    're_subtitle': {'tr': 'Bir DNA dizisini restriksiyon enzimleriyle analiz edin; kesim bölgelerini ve fragmentleri görün. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.',
+                    'en': 'Analyze a DNA sequence with restriction enzymes; view cut sites and fragments. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     're_input': {'tr': 'Giriş', 'en': 'Input'},
     're_seq_label': {'tr': 'DNA Dizisi (FASTA veya düz metin):', 'en': 'DNA Sequence (FASTA or plain text):'},
     're_seq_placeholder': {'tr': 'GAATTCGGATCC... veya FASTA yapıştırın',
@@ -661,7 +661,7 @@ TRANSLATIONS = {
 
     # ==== Varyant Önceliklendirme arayüz çevirileri ====
     'vp_title': {'tr': 'Varyant Önceliklendirme', 'en': 'Variant Prioritization'},
-    'vp_desc': {'tr': 'WGS/WES çıktısından gelen varyantları ClinVar, CIViC ve PharmGKB bilgi tabanlarıyla karşılaştırarak klinik öneme göre sıralayın.', 'en': 'Rank variants from WGS/WES output by clinical significance by comparing them against the ClinVar, CIViC and PharmGKB knowledge bases.'},
+    'vp_desc': {'tr': 'WGS/WES çıktısından gelen varyantları ClinVar, CIViC ve PharmGKB bilgi tabanlarıyla karşılaştırarak klinik öneme göre sıralayın. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.', 'en': 'Rank variants from WGS/WES output by clinical significance by comparing them against the ClinVar, CIViC and PharmGKB knowledge bases. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'vp_input_card': {'tr': 'Varyant Girişi', 'en': 'Variant Input'},
     'vp_tab_manual': {'tr': 'Manuel Giriş', 'en': 'Manual Input'},
     'vp_manual_placeholder': {'tr': 'Her satıra bir varyant:\nGEN\tKROMOZOM\tPOZİSYON\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic', 'en': 'One variant per line:\nGENE\tCHROM\tPOSITION\tREF\tALT\tCONSEQUENCE\tCLINVAR\nBRCA1\tchr17\t43094464\tG\tA\tmissense\tPathogenic\nTP53\tchr17\t7674220\tC\tT\tstop_gained\tPathogenic'},
@@ -698,7 +698,7 @@ TRANSLATIONS = {
 
     # ==== Farmakogenomik arayüz çevirileri ====
     'pgx_title': {'tr': 'Farmakogenomik Araştırma', 'en': 'Pharmacogenomics Research'},
-    'pgx_desc': {'tr': 'Bir enzim, gen veya ilaç adı girin. Yapay zeka, farmakogenomik veritabanlarındaki (PharmGKB, CPIC, ClinVar) bilgileri sentezleyerek metabolizma, varyantlar, etkilenen ilaçlar ve klinik önerileri getirir.', 'en': 'Enter an enzyme, gene or drug name. The AI synthesizes information from pharmacogenomic databases (PharmGKB, CPIC, ClinVar) to return metabolism, variants, affected drugs and clinical recommendations.'},
+    'pgx_desc': {'tr': 'Bir enzim, gen veya ilaç adı girin. Yapay zeka, farmakogenomik veritabanlarındaki (PharmGKB, CPIC, ClinVar) bilgileri sentezleyerek metabolizma, varyantlar, etkilenen ilaçlar ve klinik önerileri getirir. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.', 'en': 'Enter an enzyme, gene or drug name. The AI synthesizes information from pharmacogenomic databases (PharmGKB, CPIC, ClinVar) to return metabolism, variants, affected drugs and clinical recommendations. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'pgx_card_research': {'tr': 'Araştırma', 'en': 'Research'},
     'pgx_placeholder': {'tr': 'Örn: CYP2D6, TPMT, Warfarin, Klopidogrel…', 'en': 'e.g. CYP2D6, TPMT, Warfarin, Clopidogrel…'},
     'pgx_search_btn': {'tr': 'Araştır (5 Kredi)', 'en': 'Research (5 Credits)'},
@@ -721,7 +721,7 @@ TRANSLATIONS = {
 
     # ==== Federated Learning arayüz çevirileri ====
     'fl_title': {'tr': 'Birleşik Öğrenme (Federated Learning) Simülatörü', 'en': 'Federated Learning Simulator'},
-    'fl_desc': {'tr': 'Farklı hastanelerdeki hasta verilerini merkeze göndermeden, yalnızca model ağırlıklarını paylaşarak ortak bir AI modeli nasıl eğitilir? Bu simülatör ile federated öğrenme sürecini interaktif olarak keşfedin.', 'en': 'How can a shared AI model be trained across hospitals without sending patient data to a central server, by sharing only model weights? Explore the federated learning process interactively with this simulator.'},
+    'fl_desc': {'tr': 'Farklı hastanelerdeki hasta verilerini merkeze göndermeden, yalnızca model ağırlıklarını paylaşarak ortak bir AI modeli nasıl eğitilir? Bu simülatör ile federated öğrenme sürecini interaktif olarak keşfedin. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.', 'en': 'How can a shared AI model be trained across hospitals without sending patient data to a central server, by sharing only model weights? Explore the federated learning process interactively with this simulator. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'fl_arch_card': {'tr': 'FL Mimarisi', 'en': 'FL Architecture'},
     'fl_hospital': {'tr': 'Hastane', 'en': 'Hospital'},
     'fl_train_local': {'tr': 'Lokal model eğit', 'en': 'Train local model'},
@@ -768,7 +768,7 @@ TRANSLATIONS = {
     'gen_h1': {'tr': 'Yeni Makale Fikri', 'en': 'New Article Idea'},
     'gen_lead': {'tr': 'AI Asistanınız için yeni bir görev oluşturun.', 'en': 'Create a new task for your AI assistant.'},
     'gen_service_label': {'tr': 'Kullanılacak Yapay Zeka Servisi:', 'en': 'AI Service to Use:'},
-    'gen_topic_prompt': {'tr': 'Lütfen hakkında akademik bir makale üretilmesini istediğiniz konuyu, spesifik bir soruyu veya anahtar kelimeleri aşağıya detaylı bir şekilde girin.', 'en': 'Please enter in detail below the topic, a specific question, or keywords for the academic article you want generated.'},
+    'gen_topic_prompt': {'tr': 'Lütfen hakkında akademik bir makale üretilmesini istediğiniz konuyu, spesifik bir soruyu veya anahtar kelimeleri aşağıya detaylı bir şekilde girin. İşlemde bir hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin.', 'en': 'Please enter in detail below the topic, a specific question, or keywords for the academic article you want generated. If you think something went wrong, refresh the page and try again.'},
     'gen_topic_placeholder': {'tr': "Örn: 'Kuantum bilgisayarların kriptografi üzerine etkileri'", 'en': "e.g. 'The impact of quantum computers on cryptography'"},
     'gen_length_label': {'tr': 'Makale Uzunluğu:', 'en': 'Article Length:'},
     'gen_len_short': {'tr': 'Kısa (~1 sayfa, ~500 kelime)', 'en': 'Short (~1 page, ~500 words)'},
@@ -806,7 +806,7 @@ TRANSLATIONS = {
 
     # ==== CRISPR sgRNA Tasarımcısı arayüz çevirileri ====
     'crispr_title': {'tr': 'CRISPR sgRNA Tasarımcısı', 'en': 'CRISPR sgRNA Designer'},
-    'crispr_subtitle': {'tr': 'Hedef DNA dizinizdeki PAM bölgelerini bulup aday kılavuz RNA (sgRNA) dizilerini tasarlayın, verim skoruna göre sıralayın.', 'en': 'Find PAM sites in your target DNA and design candidate guide RNA (sgRNA) sequences, ranked by an efficiency score.'},
+    'crispr_subtitle': {'tr': 'Hedef DNA dizinizdeki PAM bölgelerini bulup aday kılavuz RNA (sgRNA) dizilerini tasarlayın, verim skoruna göre sıralayın. Hata olduğunu düşünüyorsanız sayfayı yenileyip tekrar deneyin; sayfa yenilenince yüklediğiniz veriler silinir.', 'en': 'Find PAM sites in your target DNA and design candidate guide RNA (sgRNA) sequences, ranked by an efficiency score. If something seems wrong, refresh the page and try again; refreshing clears uploaded data.'},
     'crispr_input': {'tr': 'Giriş', 'en': 'Input'},
     'crispr_seq_label': {'tr': 'Hedef DNA Dizisi', 'en': 'Target DNA Sequence'},
     'crispr_seq_placeholder': {'tr': 'DNA dizisini yapıştırın (FASTA başlığı kabul edilir)...', 'en': 'Paste DNA sequence (FASTA header accepted)...'},
