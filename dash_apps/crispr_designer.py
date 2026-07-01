@@ -14,6 +14,7 @@ from billing.dash_helpers import build_confirm_modal
 from dash_apps.crispr_engine import (
     find_guides, summarize, clean_sequence, ENZYMES, EXAMPLE_SEQUENCE,
 )
+from dash_apps.ensembl_fetch import SPECIES, BLAST_ORGANISM, fetch_gene_sequence
 
 app = DjangoDash('CrisprApp',
                  external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
@@ -70,15 +71,53 @@ def create_pam_map_figure(guides, seq_len, lang='en'):
 def create_crispr_layout(lang='en'):
     from dash_apps.i18n_helper import t, credit_label
 
+    def L(tr, en):
+        return tr if lang == 'tr' else en
+
     enzyme_options = [
         {'label': ENZYMES[k]['label_tr'] if lang == 'tr' else ENZYMES[k]['label_en'],
          'value': k}
         for k in ENZYMES
     ]
 
+    species_options = [
+        {'label': (row[2] if lang == 'tr' else row[3]), 'value': row[0]}
+        for row in SPECIES
+    ]
+
+    # --- Ensembl'den gen adıyla dizi getirme bloğu ---
+    gene_fetch_block = html.Div([
+        dbc.Label(L("Gen adından dizi getir (Ensembl)",
+                    "Fetch sequence from gene name (Ensembl)"), className="fw-bold"),
+        dbc.Row([
+            dbc.Col(dcc.Dropdown(
+                id='crispr-species', options=species_options,
+                value='homo_sapiens', clearable=False,
+            ), width=5),
+            dbc.Col(dbc.Input(
+                id='crispr-gene-input', type='text',
+                placeholder=L("ör. TP53", "e.g. TP53"),
+            ), width=7),
+        ], className="g-2 mb-2"),
+        dbc.Button(
+            [html.I(className="fas fa-cloud-download-alt me-2"),
+             L("Ensembl'den çek", "Fetch from Ensembl")],
+            id='crispr-gene-btn', color="info", outline=True, className="w-100 mb-1",
+        ),
+        dcc.Loading(html.Div(id='crispr-gene-status', className="small")),
+        html.Small(
+            L("Not: Genomik dizi (intronlar dahil) getirilir; çok uzunsa kırpılır. "
+              "Gen çekmek off-target'ı çözmez.",
+              "Note: fetches the genomic sequence (introns included); long genes are "
+              "truncated. Fetching a gene does not solve off-target."),
+            className="text-muted"),
+        html.Hr(),
+    ])
+
     control_panel = dbc.Card([
         dbc.CardHeader(t('crispr_input', lang)),
         dbc.CardBody([
+            gene_fetch_block,
             dbc.Label(t('crispr_seq_label', lang), className="fw-bold"),
             dcc.Textarea(
                 id='crispr-sequence-input',
@@ -158,6 +197,121 @@ def load_example(n_clicks):
 
 
 @app.callback(
+    Output('crispr-sequence-input', 'value', allow_duplicate=True),
+    Output('crispr-gene-status', 'children'),
+    Input('crispr-gene-btn', 'n_clicks'),
+    State('crispr-gene-input', 'value'),
+    State('crispr-species', 'value'),
+    State('crispr-lang-store', 'data'),
+    prevent_initial_call=True,
+)
+def fetch_gene(n_clicks, gene, species, lang):
+    lang = lang or 'en'
+
+    def L(tr, en):
+        return tr if lang == 'tr' else en
+
+    if not n_clicks:
+        return no_update, no_update
+    gene = (gene or '').strip()
+    if not gene:
+        return no_update, dbc.Alert(L("Gen adı girin.", "Enter a gene name."),
+                                    color="warning", className="py-1 my-1 small")
+
+    seq, meta, err = fetch_gene_sequence(gene, species or 'homo_sapiens')
+    if err or not seq:
+        msgs = {
+            'not_found': L("Gen bulunamadı. Adı/türü kontrol edin.",
+                           "Gene not found. Check the name/species."),
+            'network': L("Ensembl'e ulaşılamadı. Biraz sonra tekrar deneyin.",
+                         "Could not reach Ensembl. Please try again shortly."),
+            'no_seq': L("Bu gen için dizi bulunamadı.",
+                        "No sequence found for this gene."),
+        }
+        return no_update, dbc.Alert(
+            msgs.get(err, L("Dizi getirilemedi.", "Could not fetch the sequence.")),
+            color="danger", className="py-1 my-1 small")
+
+    note = L(
+        f"{meta['symbol']} ({meta['id']}) — kromozom {meta['chr']}, "
+        f"{meta['length']} bp getirildi" + (" (kırpıldı)" if meta['truncated'] else "") + ".",
+        f"{meta['symbol']} ({meta['id']}) — chr {meta['chr']}, "
+        f"fetched {meta['length']} bp" + (" (truncated)" if meta['truncated'] else "") + ".",
+    )
+    return seq, dbc.Alert(note, color="success", className="py-1 my-1 small")
+
+
+@app.callback(
+    Output('crispr-offtarget-output', 'children'),
+    Input('crispr-offtarget-btn', 'n_clicks'),
+    State('crispr-results-store', 'data'),
+    State('crispr-lang-store', 'data'),
+    prevent_initial_call=True,
+)
+def run_offtarget(n_clicks, store_data, lang):
+    lang = lang or 'en'
+
+    def L(tr, en):
+        return tr if lang == 'tr' else en
+
+    if not n_clicks or not store_data:
+        return no_update
+
+    from dash_apps.offtarget import blast_offtarget, risk_label
+    species = store_data.get('species', 'homo_sapiens')
+    organism = BLAST_ORGANISM.get(species, 'Homo sapiens')
+    guides = (store_data.get('guides') or [])[:3]
+    if not guides:
+        return dbc.Alert(L("Taranacak guide yok.", "No guides to scan."), color="info")
+
+    rows = []
+    any_ok = False
+    for g in guides:
+        res = blast_offtarget(g['guide'], organism=organism)
+        if res.get('ok'):
+            any_ok = True
+            label, _c = risk_label(res['perfect'], res['near'], lang)
+            rows.append({
+                '#': g['rank'], 'Guide': g['guide'],
+                L('Mükemmel', 'Perfect'): res['perfect'],
+                L('Yakın (≤3)', 'Near (≤3)'): res['near'],
+                L('Toplam', 'Total'): res['total'],
+                L('Risk', 'Risk'): label,
+            })
+        else:
+            rows.append({
+                '#': g['rank'], 'Guide': g['guide'],
+                L('Mükemmel', 'Perfect'): '-',
+                L('Yakın (≤3)', 'Near (≤3)'): '-',
+                L('Toplam', 'Total'): '-',
+                L('Risk', 'Risk'): L('doğrulanamadı', 'unverified'),
+            })
+
+    table = dash_table.DataTable(
+        data=rows, columns=[{'name': c, 'id': c} for c in rows[0].keys()],
+        style_cell={'textAlign': 'left', 'fontFamily': 'monospace', 'fontSize': '13px'},
+        style_header={'fontWeight': 'bold', 'backgroundColor': '#f1f3f5'},
+        style_table={'overflowX': 'auto'},
+    )
+    caveat = dbc.Alert(
+        L("Yaklaşık sonuç: BLAST tabanlıdır, CFD/MIT özgüllük skoru değildir. "
+          "Klinik/deneysel kullanım öncesi CHOPCHOP/CRISPOR/Cas-OFFinder ile doğrulayın.",
+          "Approximate: BLAST-based, not a CFD/MIT specificity score. Validate with "
+          "CHOPCHOP/CRISPOR/Cas-OFFinder before experimental/clinical use."),
+        color="warning", className="small mt-2")
+    if not any_ok:
+        return html.Div([
+            dbc.Alert(L("Off-target servisi şu an yanıt vermedi (BLAST kuyruğu/erişim). "
+                        "Biraz sonra tekrar deneyin.",
+                        "Off-target service did not respond (BLAST queue/access). "
+                        "Try again later."),
+                      color="danger", className="small"),
+            caveat,
+        ])
+    return html.Div([table, caveat])
+
+
+@app.callback(
     [
         Output('crispr-results-area', 'children'),
         Output('crispr-results-store', 'data'),
@@ -167,11 +321,12 @@ def load_example(n_clicks):
     [
         State('crispr-sequence-input', 'value'),
         State('crispr-enzyme', 'value'),
+        State('crispr-species', 'value'),
         State('crispr-lang-store', 'data'),
     ],
     prevent_initial_call=True,
 )
-def run_design(n_clicks, sequence, enzyme, lang, **kwargs):
+def run_design(n_clicks, sequence, enzyme, species, lang, **kwargs):
     from dash_apps.i18n_helper import t
     lang = lang or 'en'
 
@@ -251,17 +406,45 @@ def run_design(n_clicks, sequence, enzyme, lang, **kwargs):
         t('crispr_disclaimer', lang),
     ], color="warning", className="small mt-3")
 
+    # --- Off-target (yaklaşık, NCBI BLAST) bölümü ---
+    def _L(tr, en):
+        return tr if lang == 'tr' else en
+
+    offtarget_section = html.Div([
+        html.Hr(),
+        html.H5([html.I(className="fas fa-crosshairs me-2"),
+                 _L("Off-target taraması (yaklaşık)", "Off-target scan (approximate)")],
+                className="mt-2"),
+        dbc.Button(
+            [html.I(className="fas fa-crosshairs me-2"),
+             _L("En iyi 3 guide için off-target tara",
+                "Scan off-targets for top 3 guides")],
+            id='crispr-offtarget-btn', color="warning", outline=True, className="w-100",
+        ),
+        html.Small(
+            _L("NCBI BLAST ile genom çapında kaba taramadır; guide başına ~30-90 sn "
+               "sürebilir ve CHOPCHOP kadar hassas değildir. 'Mükemmel eşleşme'de "
+               "hedefin kendisi de sayılır (beklenen ≥1).",
+               "A rough genome-wide scan via NCBI BLAST; may take ~30-90 s per guide "
+               "and is less precise than CHOPCHOP. 'Perfect match' includes the intended "
+               "target itself (≥1 expected)."),
+            className="text-muted d-block mt-1"),
+        dcc.Loading(html.Div(id='crispr-offtarget-output', className="mt-2")),
+    ])
+
     content = html.Div([
         summary,
         dcc.Graph(figure=fig),
         html.H5(t('crispr_detail_table', lang), className="mt-3"),
         table,
         disclaimer,
+        offtarget_section,
     ])
 
     # AI için sakla (en iyi 8 aday)
     store_data = {
         'seq_len': seq_len, 'enzyme': enzyme,
+        'species': species or 'homo_sapiens',
         'guides': [{'rank': g['rank'], 'guide': g['guide'], 'pam': g['pam'],
                     'strand': g['strand'], 'gc': g['gc'], 'score': g['score'],
                     'score_type': g.get('score_type', 'heuristic'),
