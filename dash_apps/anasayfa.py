@@ -311,18 +311,39 @@ def create_anasayfa_content_layout(lang='en'):
                                 ],
                                 className="text-muted",
                             ),
+                            html.P(
+                                L(["Makale kaynakları ",
+                                   html.A("PubMed", href="https://pubmed.ncbi.nlm.nih.gov/",
+                                          target="_blank", rel="noopener"),
+                                   " veritabanından çekilir ve her atıf ",
+                                   html.A("CrossRef", href="https://www.crossref.org/",
+                                          target="_blank", rel="noopener"),
+                                   " ile doğrulanır."],
+                                  ["Article references are pulled from the ",
+                                   html.A("PubMed", href="https://pubmed.ncbi.nlm.nih.gov/",
+                                          target="_blank", rel="noopener"),
+                                   " database and every citation is verified against ",
+                                   html.A("CrossRef", href="https://www.crossref.org/",
+                                          target="_blank", rel="noopener"),
+                                   "."]),
+                                className="text-muted small mb-3",
+                            ),
                             html.Div(
                                 [
                                     html.Span(L("Kaynak altyapısı:", "Powered by:"),
                                               className="text-muted small me-1"),
-                                    html.Span(
+                                    html.A(
                                         [html.I(className="fas fa-book-medical me-1"), "PubMed"],
-                                        className="badge rounded-pill",
+                                        href="https://pubmed.ncbi.nlm.nih.gov/",
+                                        target="_blank", rel="noopener",
+                                        className="badge rounded-pill text-decoration-none",
                                         style={"background": "#e0edff", "color": "#1d4ed8",
                                                "fontSize": ".8rem", "padding": ".45em .8em"}),
-                                    html.Span(
+                                    html.A(
                                         [html.I(className="fas fa-link me-1"), "CrossRef"],
-                                        className="badge rounded-pill",
+                                        href="https://www.crossref.org/",
+                                        target="_blank", rel="noopener",
+                                        className="badge rounded-pill text-decoration-none",
                                         style={"background": "#dcfce7", "color": "#15803d",
                                                "fontSize": ".8rem", "padding": ".45em .8em"}),
                                 ],
