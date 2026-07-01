@@ -1,6 +1,4 @@
 import logging
-import threading
-from datetime import date
 import re
 import json
 

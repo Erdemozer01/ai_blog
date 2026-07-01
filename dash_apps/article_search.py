@@ -1,5 +1,5 @@
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output, State, no_update, dash_table
+from dash import dcc, html, Input, Output, State, dash_table
 from django_plotly_dash import DjangoDash
 from Bio import Entrez
 

@@ -1,12 +1,9 @@
 import json
-from io import BytesIO
-from pathlib import Path
 from urllib.parse import quote_plus
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from billing.decorators import require_credits, check_credits
+from billing.decorators import check_credits
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie

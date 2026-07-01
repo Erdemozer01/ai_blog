@@ -9,13 +9,11 @@ import pathlib
 from collections import deque
 import uuid
 
-import dash
-from dash import dcc, html, Input, Output, State, no_update, ALL
+from dash import dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from django.conf import settings
 
 try:

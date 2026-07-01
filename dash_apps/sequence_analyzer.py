@@ -7,7 +7,7 @@ from django.shortcuts import reverse
 
 # Biopython kütüphanesini import ediyoruz
 from Bio.Seq import Seq
-from Bio.SeqUtils import gc_fraction, molecular_weight
+from Bio.SeqUtils import gc_fraction
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from Bio import SeqIO
 from billing.dash_helpers import build_confirm_modal
@@ -291,7 +291,7 @@ def _render_record_detail(r, lang='en'):
 
 def create_sequence_analyzer_layout(lang='en'):
     """Sekans Analiz Aracı sayfasının iki sütunlu ve dosya yüklemeli içeriğini oluşturur."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     sidebar = dbc.Col(
         [
@@ -416,7 +416,7 @@ def update_file_content(contents, filename):
     prevent_initial_call=True
 )
 def update_analysis_results(n_clicks, sequence_content, file_type, seq_type, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not sequence_content:
         return dbc.Alert(t('sa_no_input', lang), color="warning"), no_update

@@ -2,7 +2,6 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from django.shortcuts import get_object_or_404
 from ..models import FastqUpload, AnalysisJob
 from .serializers import FastqUploadSerializer, AnalysisJobSerializer
 from ..tasks import analyze_single_file, parallel_fastq_analysis  # Düzeltildi

@@ -20,9 +20,6 @@ from django.conf import settings
 from django.shortcuts import reverse
 from django_plotly_dash import DjangoDash
 
-# Django modelini ve veritabanı hatalarını import ediyoruz
-from django.core.exceptions import ObjectDoesNotExist
-
 # Biyoinformatik ve Makine Öğrenmesi Kütüphaneleri
 from Bio.PDB import PDBParser, PDBIO, Select
 
@@ -197,7 +194,7 @@ def train_and_predict_mutation_effect(features):
 
 
 def mutation_create_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     control_panel = dbc.Card([
         dbc.CardHeader(t('mp_menu', lang)),
         dbc.CardBody([
@@ -356,7 +353,7 @@ def update_molecule_selector(all_mols):
     prevent_initial_call=True
 )
 def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_str, all_mols, prev_clicks, lang=None, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     calc_clicks = calc_clicks or 0
     ai_clicks = ai_clicks or 0

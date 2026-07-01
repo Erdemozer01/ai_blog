@@ -124,7 +124,7 @@ def _polar(angle_deg, radius):
 
 def create_plasmid_figure(total_length, orfs, cutters, lang='en'):
     """İnteraktif dairesel plazmit haritası (Plotly)."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     fig = go.Figure()
 
@@ -202,7 +202,7 @@ def create_plasmid_figure(total_length, orfs, cutters, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_plasmid_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('pm_input', lang)),
@@ -288,7 +288,7 @@ def load_example(n_clicks):
     prevent_initial_call=True
 )
 def draw_map(n_clicks, sequence, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
 
     if not n_clicks:
@@ -385,7 +385,7 @@ def draw_map(n_clicks, sequence, lang, **kwargs):
     prevent_initial_call=True
 )
 def ai_comment(n_clicks, store_data, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
 
     if not n_clicks or not store_data:

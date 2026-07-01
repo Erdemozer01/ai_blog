@@ -2,9 +2,8 @@ import warnings
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output, State, no_update
+from dash import dcc, html, Input, Output, State
 from django_plotly_dash import DjangoDash
 from billing.dash_helpers import build_confirm_modal
 from dash_apps.i18n_helper import t
@@ -282,8 +281,6 @@ def run_simulation(n_clicks, n_clients, n_rounds, heterogeneity, lr, local_epoch
         if not _ok:
             # Yetersiz kredi: simülasyonu çalıştırma, uyarıyı göster
             import plotly.graph_objects as _go
-            from billing.dash_helpers import insufficient_alert
-            from billing.services import get_balance
             _empty = _go.Figure()
             _alert_fig = _go.Figure()
             _alert_fig.add_annotation(text=t('fl_insufficient', lang), showarrow=False,

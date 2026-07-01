@@ -10,7 +10,7 @@ Layout view tarafından makaleye özel kurulur (build_edit_layout).
 """
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
-from dash import html, dcc, Input, Output, State, ALL, no_update, ctx
+from dash import html, dcc, Input, Output, State, ALL, no_update
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 app = DjangoDash('ArticleEditApp', external_stylesheets=external_stylesheets,
@@ -304,8 +304,6 @@ def upload_cover_image(contents, filename, article_id, **kwargs):
         return dbc.Alert("Giriş yapmalısınız.", color="warning"), no_update
 
     import base64
-    import os
-    from django.conf import settings
     from blog.models import GeneratedArticle
     from django.core.files.base import ContentFile
 

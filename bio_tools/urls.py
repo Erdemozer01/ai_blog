@@ -1,6 +1,6 @@
 # bio_tools/urls.py
 
-from django.urls import path, re_path, include
+from django.urls import path, include
 from . import views
 from dash_apps.fastq_app import app as dash_app
 

@@ -4,7 +4,6 @@ import io
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
-from django.shortcuts import reverse
 
 from Bio import SeqIO
 

@@ -7,7 +7,6 @@ Kullanım:
 from django.core.management.base import BaseCommand
 from django.core.cache import cache
 from bio_tools.models import FastqUpload
-from django.db.models import Count
 
 
 class Command(BaseCommand):

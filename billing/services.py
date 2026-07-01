@@ -12,7 +12,7 @@ Kural:
   - superuser her zaman kullanabilir, kredi düşmez (sınırsız)
   - diğer kullanıcılar: yeterli kredisi varsa kullanır, işlem kredisini düşer
 """
-from .models import UserCredit, ServicePrice, AIServicePrice, CreditTransaction
+from .models import UserCredit, ServicePrice, AIServicePrice
 
 
 # AI servis anahtarları — bunlar AIServicePrice'tan, diğerleri ServicePrice'tan okunur

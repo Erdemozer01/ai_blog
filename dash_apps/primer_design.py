@@ -30,7 +30,7 @@ def clean_sequence(sequence):
 def design_primers_core(sequence, product_min=100, product_max=300,
                         len_min=18, len_max=25, num_return=5, lang='en'):
     """Primer3 ile primer çiftleri tasarlar. Hata durumunda {'error': ...} döner."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     try:
         import primer3
     except ImportError:
@@ -104,7 +104,7 @@ def fetch_sequence_from_ebi(accession):
 # ----------------------------- Layout -----------------------------
 
 def create_primer_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     return dbc.Container([
         dcc.Location(id='url', refresh=False),
         build_confirm_modal('primer-design-modal', lang=lang),
@@ -198,7 +198,7 @@ def create_primer_layout(lang='en'):
     prevent_initial_call=True,
 )
 def fetch_sequence(n_clicks, accession, lang):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not accession:
         return "", dbc.Alert(t('primer_acc_empty', lang), color="warning")
@@ -224,7 +224,7 @@ def fetch_sequence(n_clicks, accession, lang):
     prevent_initial_call=True,
 )
 def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not sequence:
         return dbc.Alert(t('primer_no_seq', lang), color="warning"), None, None, ""
@@ -309,7 +309,7 @@ def run_design(n_clicks, sequence, pmin, pmax, lmin, lmax, lang, **kwargs):
     prevent_initial_call=True,
 )
 def ai_comment(n_clicks, pairs, seq, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not n_clicks or not pairs:
         return ""

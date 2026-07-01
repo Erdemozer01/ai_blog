@@ -3,7 +3,6 @@ from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
 import json
 import base64
-import io
 
 # Sadece Dash-Bio'yu kullanacağız
 import dash_bio
@@ -42,7 +41,7 @@ def parse_upload_content(contents):
 
 def get_alignment_interpretation(fasta_data, lang='en'):
     """Hizalama verisini alıp Gemini'ye yorumlatır."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     if not fasta_data:
         return t('sal_no_interaction', lang)
 
@@ -92,7 +91,7 @@ def get_alignment_interpretation(fasta_data, lang='en'):
 # --- Ön Yüz: Dash Layout Fonksiyonu ---
 def create_sequence_alignment_layout(lang='en'):
     """Gelişmiş Sekans Hizalama Görüntüleyicisi'nin layout'unu oluşturur."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     sidebar = dbc.Col([
         dcc.Tabs(id='alignment-control-tabs', value='data-tab', children=[
@@ -215,7 +214,7 @@ def update_textarea_from_upload(contents):
 )
 def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, showconservation, showgap, lang):
     """Veri girildiğinde veya grafik ayarları değiştiğinde hizalama grafiğini oluşturur."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not data:
         return html.P(t('sal_enter_data', lang), className="text-muted")
@@ -248,7 +247,7 @@ def render_alignment_chart(data, colorscale, overview, textsize, showconsensus, 
 )
 def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs):
     """AI butonuna basıldığında hizalamayı yorumlar."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not n_clicks or not alignment_data:
         return None
@@ -274,7 +273,7 @@ def update_alignment_ai_interpretation(n_clicks, alignment_data, lang, **kwargs)
     prevent_initial_call=True
 )
 def event_data_select(data, lang):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if data is None:
         return t('sal_no_interaction', lang)

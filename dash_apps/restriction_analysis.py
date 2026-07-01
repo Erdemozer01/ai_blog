@@ -100,7 +100,7 @@ def analyze_restriction(sequence, is_linear=True, enzyme_names=None):
 
 def create_cut_map_figure(results, seq_length, lang='en'):
     """Kesim haritası grafiği (her enzimin kesim noktaları dizi üzerinde)."""
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     # Sadece az kesen enzimleri haritada göster (kalabalık olmasın) — ilk 15
     show = [r for r in results if r['cuts'] <= 5][:15]
@@ -151,7 +151,7 @@ def create_cut_map_figure(results, seq_length, lang='en'):
 # ----------------------------- Layout -----------------------------
 
 def create_restriction_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
 
     control_panel = dbc.Card([
         dbc.CardHeader(t('re_input', lang)),
@@ -258,7 +258,7 @@ def load_example(n_clicks):
     prevent_initial_call=True
 )
 def run_analysis(n_clicks, sequence, dna_type, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
 
     if not sequence:
@@ -341,7 +341,7 @@ def run_analysis(n_clicks, sequence, dna_type, lang, **kwargs):
     prevent_initial_call=True
 )
 def ai_comment(n_clicks, store_data, lang, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
 
     if not n_clicks or not store_data:

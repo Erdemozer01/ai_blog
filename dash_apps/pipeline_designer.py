@@ -3,13 +3,11 @@ import re
 from io import StringIO
 import pandas as pd
 
-import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 
 # Django Entegrasyonu
 from django_plotly_dash import DjangoDash
-from django.shortcuts import reverse
 from billing.dash_helpers import build_confirm_modal
 
 # --- UYGULAMA BAŞLATMA ---
@@ -136,7 +134,7 @@ def get_about_text():
     """)
 
 def create_pipeline_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     control_panel = dbc.Card(dbc.CardBody(dbc.Tabs(id="control-tabs", active_tab="tab-input", children=[
         dbc.Tab(label=t('pd_about', lang), tab_id="tab-about", children=html.Div(get_about_text(), className="p-3")),
         dbc.Tab(label=t('pd_design_input', lang), tab_id="tab-input", children=html.Div(className="p-3", children=[
@@ -185,7 +183,7 @@ app.layout = create_pipeline_layout()
     prevent_initial_call=True
 )
 def handle_pipeline_generation(n_clicks, pipeline_goal, lang=None, **kwargs):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     lang = lang or 'en'
     if not pipeline_goal:
         return dbc.Alert(t('pd_enter_goal', lang), color="warning")

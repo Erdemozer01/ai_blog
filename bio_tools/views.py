@@ -1,20 +1,13 @@
 import os
 import json
 import uuid
-import sys
 import pathlib
-from io import BytesIO
 import logging
 
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpRequest, HttpResponse
-from billing.decorators import require_credits
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from django.views import View
-from django.utils.decorators import method_decorator
 from dash import html
 
 # Werkzeug exception import for specific error handling
@@ -24,7 +17,6 @@ except ImportError:
     BadRequestKeyError = None
 
 # Application imports
-from .tasks import process_fastq_file
 from .models import AnalysisJob
 from blog.views import create_main_navbar
 from dash_apps.sequence_analyzer import app as sequence_analyzer_app, create_sequence_analyzer_layout

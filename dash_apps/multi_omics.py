@@ -7,11 +7,10 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import dcc, html, Input, Output, State, no_update
+from dash import dcc, html, Input, Output, State
 from django_plotly_dash import DjangoDash
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.cross_decomposition import CCA
 
 warnings.filterwarnings("ignore")
 

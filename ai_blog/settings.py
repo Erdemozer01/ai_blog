@@ -10,7 +10,6 @@ import os
 os.environ.setdefault('NUMEXPR_MAX_THREADS', '4')
 os.environ.setdefault('NUMEXPR_NUM_THREADS', '4')
 
-import platform  # Bu hala veritabanı ayrımı için kullanılabilir, ancak ENV daha iyidir
 from pathlib import Path
 from dotenv import load_dotenv
 import logging

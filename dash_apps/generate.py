@@ -1,7 +1,7 @@
 import re, json
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
-from dash import Input, Output, State, no_update, html
+from dash import Input, Output, State, no_update
 from dash_apps.i18n_helper import t
 from datetime import date
 
@@ -93,8 +93,6 @@ def screen_and_interpret_topic(text, lang='en'):
         prompt = (
             "Bir kullanici, otomatik akademik makale ureten bir sisteme su KONUYU girdi:\n"
             f'"""{text}"""\n\n'
-            "Karar vermeden ONCE kisaca adim adim DUSUN: (a) premise harfi anlamda mumkun mu? "
-            "(b) kullanicinin niyeti ciddi mi yoksa troll/alay/absurd mu? Sonra hukmunu ver.\n"
             "Konuyu HARFI (literal) anlamiyla degerlendir. Deyim, argo, hakaret ya da mecaz "
             "iceriyorsa onu ciddi bir konuya CEVIRME/KURTARMA (orn. 'esek' kelimesini 'aptal "
             "insanlar' diye yorumlama).\n"
@@ -124,7 +122,7 @@ def screen_and_interpret_topic(text, lang='en'):
             try:
                 result, _k = generate_with_pool(
                     prompt, service_name=svc, model_name=mdl,
-                    max_tokens=512, temperature=0.0, thinking_level="high")
+                    max_tokens=1024, temperature=0.0, thinking_level="medium")
                 if result:
                     break
             except Exception:
@@ -779,7 +777,6 @@ def resolve_category(ai_category_name, title="", abstract=""):
     prevent_initial_call=True
 )
 def handle_form_submission(n_clicks, request_text, user_data, selected_value, article_length, lang):
-    from blog.models import GeneratedArticle, Category
     from django.contrib.auth.models import User
     lang = lang or 'en'
     if not user_data or 'user_id' not in user_data:

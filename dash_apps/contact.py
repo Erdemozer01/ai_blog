@@ -1,6 +1,6 @@
 import dash_bootstrap_components as dbc
 from django_plotly_dash import DjangoDash
-from dash import html, dcc, Input, Output, State, no_update
+from dash import Input, Output, State
 from django.core.mail import send_mail, BadHeaderError
 from django.conf import settings
 from django.urls import reverse

@@ -3,7 +3,6 @@ import base64
 import io
 import os
 import shlex
-import json
 import zlib
 from io import StringIO
 
@@ -175,7 +174,7 @@ def parse_cif_for_table(cif_content):
 
 
 def get_ai_report(protein_name, organism, lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     if not protein_name or protein_name == "N/A":
         return None, t('mv_no_protein', lang)
     if lang == 'tr':
@@ -357,7 +356,7 @@ def get_unique_chains_from_content(content, ext):
 
 # --- UYGULAMA YERLEŞİMİ (LAYOUT) ---
 def create_molecule_viewer_layout(lang='en'):
-    from dash_apps.i18n_helper import t, credit_label
+    from dash_apps.i18n_helper import t
     data_tab = dbc.CardBody([
         dbc.Label(t('mv_pdb_label', lang), html_for="pdb-id-input", className="fw-bold"),
         dbc.InputGroup([dbc.Input(id="pdb-id-input", placeholder=t('mv_pdb_placeholder', lang), type="text"),

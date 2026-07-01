@@ -1,12 +1,10 @@
 import base64
-import io
 import warnings
 
 import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from dash import dcc, html, Input, Output, State, no_update
 from django_plotly_dash import DjangoDash
 from dash_apps.i18n_helper import t
