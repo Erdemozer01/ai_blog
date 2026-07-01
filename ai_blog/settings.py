@@ -67,7 +67,6 @@ INSTALLED_APPS = [
     'ai_engine.apps.AiEngineConfig',
 
     'django_plotly_dash',
-    'dash_uploader',
     'dash_apps',
     'autoslug',
     'rest_framework',
