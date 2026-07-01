@@ -1,34 +1,35 @@
 """
-dash_apps.offtarget — Kaba (yaklaşık) genom çapında off-target taraması.
+dash_apps.offtarget — Genom çapında off-target taraması (NCBI BLAST).
 
-CHOPCHOP gibi araçlar off-target'ı kendi barındırdıkları indeksli genoma
-Bowtie/BWA ile hizalayarak bulur. Biz genom BARINDIRMADAN, NCBI BLAST'ın
-uzak servisine guide'ı gönderip hizalamayı ONLARA yaptırıyoruz (Biopython).
+CHOPCHOP gibi: guide'ı REFERANS GENOMA hizalar ve off-target'ları uyumsuzluk
+sayısına göre MM0/MM1/MM2/MM3 olarak raporlar. Genom barındırmadan, hizalamayı
+NCBI'nin uzak BLAST servisine yaptırırız (Biopython).
 
-Dürüstlük / sınırlar:
-  - Bu YAKLAŞIK bir taramadır. BLAST kısa diziler için ayarlanır (word_size=7)
-    ama CHOPCHOP'un CFD/MIT özgüllük skoru kadar hassas DEĞİLDİR.
-  - Yavaştır (NCBI kuyruğu): guide başına ~30-90 sn sürebilir; bu yüzden yalnız
-    en iyi birkaç guide için çalıştırılır.
-  - 'Mükemmel eşleşme' sayısında hedefin KENDİSİ de görünür (beklenen ≥1).
-  - Ağ/servis erişilemezse nazikçe 'doğrulanamadı' döner, çökmemez.
+Önemli:
+  - Veritabanı 'refseq_genomic' (RefSeq referans genomları) + organizma filtresi.
+    'nt'nin aksine mRNA/EST/patent/çoklu assembly tekrarı YOKtur; sayılar temizdir.
+  - Uyumsuzluk, guide'ın 20 bp'lik hedef bölgesi üzerinden sayılır (Hsu 2013 yöntemi).
+  - MM0 (tam eşleşme) hedefin KENDİSİNİ de içerir (beklenen ≥1).
+  - Yavaştır (NCBI kuyruğu): guide başına ~30-90 sn; bu yüzden yalnız birkaç guide.
+  - Ağ/servis erişilemezse nazikçe hata döner, çökmemez.
 """
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Guide üzerinde bu kadar veya daha az uyumsuzluk 'yakın off-target' sayılır.
-NEAR_MISMATCH = 3
 # BLAST'tan en çok bu kadar hizalama iste.
-HITLIST = 50
+HITLIST = 100
+# Guide'ın en az bu kadarı hizalanmış olsun (uçlarda küçük tolerans).
+MIN_COVER_SLACK = 3
 
 
 def blast_offtarget(guide, organism="Homo sapiens", hitlist=HITLIST):
-    """Bir guide için kaba off-target taraması.
+    """Bir guide için genom çapında off-target taraması.
 
     Döner: dict
-      {'ok': True, 'perfect': int, 'near': int, 'total': int}
-      {'ok': False, 'error': '<kod>'}   ('biopython_missing' | 'blast_error')
+      {'ok': True, 'mm': {0:int, 1:int, 2:int, 3:int}}
+      {'ok': False, 'error': '<kod>'}   ('biopython_missing' | 'blast_error' |
+                                         'guide_too_short')
     """
     guide = (guide or "").strip().upper()
     if len(guide) < 15:
@@ -42,10 +43,10 @@ def blast_offtarget(guide, organism="Homo sapiens", hitlist=HITLIST):
     try:
         handle = NCBIWWW.qblast(
             program="blastn",
-            database="nt",
+            database="refseq_genomic",          # referans genomlar (nt DEĞİL)
             sequence=guide,
             expect=1000,
-            word_size=7,
+            word_size=7,                          # kısa dizi için
             hitlist_size=hitlist,
             megablast=False,
             entrez_query=f"{organism}[Organism]",
@@ -57,33 +58,37 @@ def blast_offtarget(guide, organism="Homo sapiens", hitlist=HITLIST):
             pass
 
         glen = len(guide)
-        perfect = near = total = 0
+        mm = {0: 0, 1: 0, 2: 0, 3: 0}
         for aln in record.alignments:
             for hsp in aln.hsps:
-                # guide'ın büyük kısmını kaplamayan hizalamaları at
-                if hsp.align_length < glen - 4:
+                # guide'ın büyük kısmını kaplamayan kısa hizalamaları at
+                if hsp.align_length < glen - MIN_COVER_SLACK:
                     continue
-                # toplam uyumsuzluk ~ (hizada uymayan) + (hizalanmayan uçlar)
-                mism = (hsp.align_length - hsp.identities) + (glen - hsp.align_length)
-                total += 1
-                if mism == 0:
-                    perfect += 1
-                elif mism <= NEAR_MISMATCH:
-                    near += 1
-        return {"ok": True, "perfect": perfect, "near": near, "total": total}
+                # uyumsuzluk ~ (hizada uymayan + boşluk) + (hizalanmayan uçlar)
+                mismatches = (hsp.align_length - hsp.identities) + (glen - hsp.align_length)
+                if 0 <= mismatches <= 3:
+                    mm[mismatches] += 1
+        return {"ok": True, "mm": mm}
 
     except Exception as e:
         logger.warning(f"BLAST off-target failed: {e}")
         return {"ok": False, "error": "blast_error"}
 
 
-def risk_label(perfect, near, lang="en"):
-    """Kaba risk etiketi. Hedefin kendisi 1 mükemmel eşleşme sayılır."""
-    extra_perfect = max(0, perfect - 1)   # hedef dışı mükemmel eşleşmeler
-    if extra_perfect > 0:
+def risk_label(mm, lang="en"):
+    """MM0-3 dağılımından kaba risk etiketi.
+
+    Hedefin kendisi 1 adet MM0 sayılır; hedef DIŞI MM0 varsa yüksek risk.
+    """
+    mm = mm or {}
+    extra0 = max(0, int(mm.get(0, 0)) - 1)        # hedef dışı tam eşleşme
+    mm1 = int(mm.get(1, 0))
+    mm23 = int(mm.get(2, 0)) + int(mm.get(3, 0))
+
+    if extra0 > 0:
         return ("Yüksek risk" if lang == "tr" else "High risk", "danger")
-    if near >= 5:
+    if mm1 > 0:
         return ("Orta risk" if lang == "tr" else "Moderate risk", "warning")
-    if near >= 1:
+    if mm23 >= 5:
         return ("Düşük-orta risk" if lang == "tr" else "Low-moderate risk", "warning")
     return ("Düşük risk" if lang == "tr" else "Low risk", "success")

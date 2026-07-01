@@ -159,6 +159,29 @@ def create_crispr_layout(lang='en'):
                     id='crispr-ai-btn', color="success", className="w-100",
                 ),
                 dcc.Loading(html.Div(id='crispr-ai-output', className="mt-3")),
+
+                # --- Off-target (yaklaşık, NCBI BLAST) — dış Loading'in DIŞINDA ---
+                html.Hr(),
+                html.H6([html.I(className="fas fa-crosshairs me-2"),
+                         L("Off-target taraması", "Off-target scan")]),
+                dbc.Button(
+                    [html.I(className="fas fa-crosshairs me-2"),
+                     L("En iyi 3 guide için off-target tara",
+                       "Scan off-targets for top 3 guides")],
+                    id='crispr-offtarget-btn', color="warning", outline=True,
+                    className="w-100",
+                ),
+                html.Small(
+                    L("Referans genoma NCBI BLAST hizalaması; guide başına ~30-90 sn sürebilir. "
+                      "MM0/MM1/MM2/MM3 = genomda 0/1/2/3 uyumsuzlukla eşleşen bölge sayısı. "
+                      "MM0 hedefin kendisini de içerir (beklenen ≥1). Tarama sürerken üstteki "
+                      "tablo ve grafik yerinde kalır.",
+                      "NCBI BLAST alignment to the reference genome; may take ~30-90 s per guide. "
+                      "MM0/MM1/MM2/MM3 = number of genomic sites matching with 0/1/2/3 mismatches. "
+                      "MM0 includes the intended target itself (≥1 expected). The table and chart "
+                      "above stay in place while scanning."),
+                    className="text-muted d-block mt-1"),
+                dcc.Loading(html.Div(id='crispr-offtarget-output', className="mt-2")),
             ]),
         ])
     ])
@@ -273,20 +296,18 @@ def run_offtarget(n_clicks, store_data, lang):
         res = blast_offtarget(g['guide'], organism=organism)
         if res.get('ok'):
             any_ok = True
-            label, _c = risk_label(res['perfect'], res['near'], lang)
+            mm = res['mm']
+            label, _c = risk_label(mm, lang)
             rows.append({
                 '#': g['rank'], 'Guide': g['guide'],
-                L('Mükemmel', 'Perfect'): res['perfect'],
-                L('Yakın (≤3)', 'Near (≤3)'): res['near'],
-                L('Toplam', 'Total'): res['total'],
+                'MM0': mm.get(0, 0), 'MM1': mm.get(1, 0),
+                'MM2': mm.get(2, 0), 'MM3': mm.get(3, 0),
                 L('Risk', 'Risk'): label,
             })
         else:
             rows.append({
                 '#': g['rank'], 'Guide': g['guide'],
-                L('Mükemmel', 'Perfect'): '-',
-                L('Yakın (≤3)', 'Near (≤3)'): '-',
-                L('Toplam', 'Total'): '-',
+                'MM0': '-', 'MM1': '-', 'MM2': '-', 'MM3': '-',
                 L('Risk', 'Risk'): L('doğrulanamadı', 'unverified'),
             })
 
@@ -296,22 +317,12 @@ def run_offtarget(n_clicks, store_data, lang):
         style_header={'fontWeight': 'bold', 'backgroundColor': '#f1f3f5'},
         style_table={'overflowX': 'auto'},
     )
-    caveat = dbc.Alert(
-        L("Yaklaşık sonuç: BLAST tabanlıdır, CFD/MIT özgüllük skoru değildir. "
-          "Klinik/deneysel kullanım öncesi CHOPCHOP/CRISPOR/Cas-OFFinder ile doğrulayın.",
-          "Approximate: BLAST-based, not a CFD/MIT specificity score. Validate with "
-          "CHOPCHOP/CRISPOR/Cas-OFFinder before experimental/clinical use."),
-        color="warning", className="small mt-2")
     if not any_ok:
-        return html.Div([
-            dbc.Alert(L("Off-target servisi şu an yanıt vermedi (BLAST kuyruğu/erişim). "
-                        "Biraz sonra tekrar deneyin.",
-                        "Off-target service did not respond (BLAST queue/access). "
-                        "Try again later."),
-                      color="danger", className="small"),
-            caveat,
-        ])
-    return html.Div([table, caveat])
+        return dbc.Alert(
+            L("Off-target servisi şu an yanıt vermedi. Biraz sonra tekrar deneyin.",
+              "Off-target service did not respond. Please try again shortly."),
+            color="danger", className="small")
+    return html.Div([table])
 
 
 @app.callback(
@@ -409,39 +420,14 @@ def run_design(n_clicks, sequence, enzyme, species, lang, **kwargs):
         t('crispr_disclaimer', lang),
     ], color="warning", className="small mt-3")
 
-    # --- Off-target (yaklaşık, NCBI BLAST) bölümü ---
-    def _L(tr, en):
-        return tr if lang == 'tr' else en
-
-    offtarget_section = html.Div([
-        html.Hr(),
-        html.H5([html.I(className="fas fa-crosshairs me-2"),
-                 _L("Off-target taraması (yaklaşık)", "Off-target scan (approximate)")],
-                className="mt-2"),
-        dbc.Button(
-            [html.I(className="fas fa-crosshairs me-2"),
-             _L("En iyi 3 guide için off-target tara",
-                "Scan off-targets for top 3 guides")],
-            id='crispr-offtarget-btn', color="warning", outline=True, className="w-100",
-        ),
-        html.Small(
-            _L("NCBI BLAST ile genom çapında kaba taramadır; guide başına ~30-90 sn "
-               "sürebilir ve CHOPCHOP kadar hassas değildir. 'Mükemmel eşleşme'de "
-               "hedefin kendisi de sayılır (beklenen ≥1).",
-               "A rough genome-wide scan via NCBI BLAST; may take ~30-90 s per guide "
-               "and is less precise than CHOPCHOP. 'Perfect match' includes the intended "
-               "target itself (≥1 expected)."),
-            className="text-muted d-block mt-1"),
-        dcc.Loading(html.Div(id='crispr-offtarget-output', className="mt-2")),
-    ])
-
+    # Not: Off-target butonu/çıktısı, dış Loading'in DIŞINDA (ai-container içinde)
+    # durur; böylece BLAST sürerken üstteki tablo/grafik kaybolmaz.
     content = html.Div([
         summary,
         dcc.Graph(figure=fig),
         html.H5(t('crispr_detail_table', lang), className="mt-3"),
         table,
         disclaimer,
-        offtarget_section,
     ])
 
     # AI için sakla (en iyi 8 aday)
