@@ -13,6 +13,7 @@
 {% endblock %}
 
 {% block content %}
+    {% include 'includes/tool_warning.html' with data_loss=1 %}
     <div class="plotly-app-container">
         {% plotly_direct name='SequenceAnalyzerApp' %}
     </div>

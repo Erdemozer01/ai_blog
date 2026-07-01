@@ -1,0 +1,21 @@
+{% comment %}
+Ortak araç uyarısı.
+- Her zaman: "hata olduğunu düşünüyorsanız sayfayı yenile" uyarısı.
+- data_loss verilirse: sayfa yenilenince veri/dosya kaybı uyarısı da gösterilir.
+Kullanım: {% include 'includes/tool_warning.html' %}  (yalnız A)
+          {% include 'includes/tool_warning.html' with data_loss=1 %}  (A + B)
+{% endcomment %}
+<div class="container mt-3">
+    <div class="alert alert-warning d-flex align-items-start gap-2 mb-0 py-2" role="alert">
+        <i class="fas fa-triangle-exclamation mt-1"></i>
+        <div>
+            <div>İşlemde bir hata olduğunu düşünüyorsanız <strong>sayfayı yenileyip tekrar deneyin</strong>.</div>
+            {% if data_loss %}
+            <div class="small text-muted mt-1">
+                Not: Sayfayı yenilerseniz yüklediğiniz veriler ve analiz sonuçları kaybolur;
+                dosyayı <strong>tekrar yüklemeniz</strong> ve işlemi yeniden çalıştırmanız gerekir.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

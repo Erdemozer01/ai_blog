@@ -25,6 +25,10 @@
                         Maksimum dosya boyutu: <strong>{{ max_size_str }}</strong>
                     </p>
 
+                    <div class="alert alert-warning py-2 small">
+                        İşlemde bir hata olduğunu düşünüyorsanız <strong>sayfayı yenileyip tekrar deneyin</strong>.
+                    </div>
+
                     {% if error %}
                         <div class="alert alert-danger">{{ error }}</div>
                     {% endif %}
