@@ -199,10 +199,222 @@ def _ai_supported(claim, source_text):
         return None, f"AI hatasi: {e}"
 
 
+def _norm_doi(doi):
+    return (doi or "").strip().lower().rstrip('.')
+
+
+# --------------------------------------------------------------------------- #
+# OTOMATİK DÜZELTME: desteklenmeyen cümleyi kaynağa SADIK şekilde yeniden yaz
+# --------------------------------------------------------------------------- #
+def _norm_txt(s):
+    return re.sub(r'\s+', ' ', (s or '')).strip().lower()
+
+
+def _ai_rewrite(claim, source_text):
+    """Desteklenmeyen bir cümleyi, KAYNAK METNİ'ne sadık kalacak şekilde yeniden
+    yazar. Yalnız düzeltilmiş cümleyi (atıf işareti olmadan) döndürür; başarısızsa None.
+    """
+    if not source_text:
+        return None
+    try:
+        from ai_engine.services import generate_with_fallback
+        prompt = (
+            "Bir CUMLE, atif yaptigi KAYNAK METNI tarafindan desteklenmiyor. "
+            "Gorevin: cumleyi, SADECE kaynak metninde gercekten yer alan bilgiye "
+            "sadik kalacak sekilde yeniden yazmak. Kaynakta olmayan bir iddiayi "
+            "cikar ya da kaynagin soyledigiyle sinirli, olculu bir ifadeye cevir. "
+            "Kendi genel bilgini EKLEME. Ayni dilde yaz. Koseli parantezli atif "
+            "numarasi (ornegin [1]) EKLEME. SADECE duzeltilmis tek cumleyi dondur, "
+            "baska aciklama yazma.\n\n"
+            f'CUMLE: "{claim}"\n\n'
+            f"KAYNAK METNI:\n{source_text[:SOURCE_TEXT_LIMIT]}\n"
+        )
+        text, _k = generate_with_fallback(
+            prompt, service_name="Google Gemini", model_name="gemini-3.5-flash",
+            max_tokens=400, temperature=0.2)
+        if not text:
+            return None
+        out = text.strip().strip('"').strip()
+        out = out.split('\n')[0].strip().strip('"').strip()
+        out = re.sub(r'\s*\[[\d\s,]+\]', '', out).strip()   # atıf işaretlerini at
+        return out or None
+    except Exception:
+        return None
+
+
+def _rewrite_in_content(content, claim, nums, new_sentence):
+    """full_content içinde 'claim' cümlesini bulup 'new_sentence' + atıf ile değiştirir.
+
+    Atıf işaretleri korunur (cümlenin sonuna [n1, n2] olarak yeniden eklenir).
+    Bulunamazsa (content, False) döner; asla bozmaz.
+    """
+    core = (claim or '').strip().rstrip(' .!?;:')
+    words = re.findall(r'\S+', core)
+    if not words:
+        return content, False
+    sep = r'(?:\s|\[[\d\s,]+\])+'                 # kelimeler arası boşluk/atıf
+    pattern = sep.join(re.escape(w) for w in words)
+    tail = r'(?:\s|\[[\d\s,]+\])*[.!?]?'          # sondaki atıf + noktalama
+    try:
+        rx = re.compile(pattern + tail)
+    except re.error:
+        return content, False
+    cite = '[' + ', '.join(str(n) for n in nums) + ']'
+    new_clean = (new_sentence or '').strip().rstrip('.!?').strip()
+    if not new_clean:
+        return content, False
+    replacement = f"{new_clean} {cite}."
+    new_content, n = rx.subn(lambda m: replacement, content, count=1)
+    return new_content, (n > 0)
+
+
+def _apply_corrections(article, candidates):
+    """candidates: [(claim, nums, source_text), ...].
+
+    Her aday için AI'dan sadık bir yeniden-yazım alır, full_content içinde yerine
+    koyar ve makaleyi kaydeder. Düzeltilenlerin listesini döndürür:
+      [{'nums','before','after'}, ...]
+    """
+    content = article.full_content or ""
+    if not content or not candidates:
+        return []
+    fixed = []
+    for claim, nums, src in candidates:
+        new_sentence = _ai_rewrite(claim, src)
+        if not new_sentence or _norm_txt(new_sentence) == _norm_txt(claim):
+            continue
+        new_content, ok = _rewrite_in_content(content, claim, nums, new_sentence)
+        if ok:
+            content = new_content
+            fixed.append({
+                'nums': nums,
+                'before': claim[:300],
+                'after': new_sentence[:300],
+            })
+    if fixed:
+        try:
+            article.full_content = content
+            article.save(update_fields=['full_content'])
+        except Exception as e:
+            logger.warning(
+                f"Otomatik düzeltme kaydedilemedi (article {getattr(article,'id','?')}): {e}")
+            return []
+    return fixed
+
+
+# --------------------------------------------------------------------------- #
+# Üretim anında: ELDEKİ kaynak JSON'u ile doğrulama (yeniden çekmeden)
+# --------------------------------------------------------------------------- #
+def verify_with_sources(article, real_sources, max_claims=MAX_CLAIMS,
+                        send_email=False, auto_fix=True):
+    """Makale üretimi biter bitmez, ZATEN toplanmış real_sources (JSON) ile
+    atıf sadakatini doğrular. Kaynak metnini yeniden ÇEKMEZ.
+
+    real_sources: [{'citation','doi','pmid','abstract','fulltext',...}, ...]
+    Sonucu article.reference_check_result['faithfulness'] altına yazar (CrossRef
+    varlık doğrulaması ayrı; onu ezmez). Döner: (ok, mesaj).
+    """
+    from django.utils import timezone
+    if not real_sources:
+        return False, "kaynak JSON'u yok"
+
+    # DOI/PMID -> kaynak metni (tam metin + özet); ayrıca sıra (1-based) yedeği
+    by_doi, by_pmid, ordered = {}, {}, []
+    for s in real_sources:
+        txt = "\n\n".join(t for t in (s.get('fulltext'), s.get('abstract')) if t)
+        ordered.append(txt)
+        d = _norm_doi(s.get('doi'))
+        if d:
+            by_doi[d] = txt
+        p = str(s.get('pmid') or '').strip()
+        if p:
+            by_pmid[p] = txt
+
+    biblio = _parse_bibliography(article.bibliography)   # num -> {'text','doi'}
+    claims = _collect_claims(article.full_content)
+    if max_claims:
+        claims = claims[:max_claims]
+
+    def _src_for(num):
+        entry = biblio.get(num) or {}
+        d = _norm_doi(entry.get('doi'))
+        if d and d in by_doi:
+            return by_doi[d]
+        if 1 <= num <= len(ordered):     # numaralama korunduysa sıra yedeği
+            return ordered[num - 1]
+        return None
+
+    checked = supported = unverifiable = 0
+    unsupported_items = []
+    fix_candidates = []
+    for claim, nums in claims:
+        verdicts, note_any, src_parts = [], "", []
+        for n in nums:
+            src_text = _src_for(n)
+            if src_text:
+                src_parts.append(src_text)
+            sup, note = _ai_supported(claim, src_text)
+            verdicts.append(sup)
+            if note and not note_any:
+                note_any = note
+        if all(v is None for v in verdicts):
+            unverifiable += 1
+            continue
+        checked += 1
+        if any(v is True for v in verdicts):
+            supported += 1
+        else:
+            unsupported_items.append({
+                'claim': claim[:300], 'nums': nums,
+                'note': note_any or "Kaynakta bu iddia açıkça bulunamadı.",
+            })
+            combined = "\n\n".join(src_parts)
+            if combined:
+                fix_candidates.append((claim, nums, combined))
+
+    # OTOMATİK DÜZELTME: desteklenmeyen cümleleri kaynağa sadık şekilde yeniden yaz
+    fixed = _apply_corrections(article, fix_candidates) if auto_fix else []
+    fixed_by_claim = {f['before']: f for f in fixed}
+    for it in unsupported_items:
+        f = fixed_by_claim.get(it['claim'])
+        if f:
+            it['fixed'] = True
+            it['after'] = f['after']
+
+    total = checked
+    score = int(round(100 * supported / total)) if total else None
+    faithfulness = {
+        'checked': checked, 'supported': supported, 'unverifiable': unverifiable,
+        'score': score, 'unsupported': unsupported_items,
+        'auto_fixed_count': len(fixed),
+        'auto_fixed': fixed,
+        'note': ("Üretim anında, toplanan kaynak JSON'una göre doğrulandı."
+                 + (f" {len(fixed)} cümle kaynağa sadık şekilde otomatik düzeltildi."
+                    if fixed else "")),
+    }
+    try:
+        existing = article.reference_check_result
+        merged = dict(existing) if isinstance(existing, dict) else {}
+        merged['faithfulness'] = faithfulness
+        article.reference_check_result = merged
+        article.reference_checked_at = timezone.now()
+        article.save(update_fields=['reference_check_result', 'reference_checked_at'])
+    except Exception as e:
+        logger.warning(f"Sadakat sonucu kaydedilemedi (article {getattr(article,'id','?')}): {e}")
+
+    if send_email:
+        _send_citation_email(article, faithfulness)
+
+    if total == 0:
+        return True, f"Doğrulanabilir atıf yok (doğrulanamayan: {unverifiable})."
+    return True, (f"Sadakat: {supported}/{total} (skor {score}); "
+                  f"sorunlu: {len(unsupported_items)}, doğrulanamayan: {unverifiable}.")
+
+
 # --------------------------------------------------------------------------- #
 # Ana giriş noktası
 # --------------------------------------------------------------------------- #
-def verify_article_citations(article, max_claims=MAX_CLAIMS):
+def verify_article_citations(article, max_claims=MAX_CLAIMS, auto_fix=True):
     """Makaleyi doğrular, sonucu kaydeder, sahibine e-posta atar.
 
     Döner: (ok: bool, mesaj: str)
@@ -230,14 +442,18 @@ def verify_article_citations(article, max_claims=MAX_CLAIMS):
     supported = 0
     unsupported_items = []   # {'claim','nums','note'}
     unverifiable = 0
+    fix_candidates = []
 
     for claim, nums in claims:
         # Bir cümle birden çok kaynağa atıf yapabilir; HERHANGI biri destekliyorsa OK.
         verdicts = []
         note_any = ""
+        src_parts = []
         for n in nums:
             abstract, fulltext = _src(n)
             src_text = "\n\n".join(t for t in (fulltext, abstract) if t)
+            if src_text:
+                src_parts.append(src_text)
             sup, note = _ai_supported(claim, src_text)
             verdicts.append(sup)
             if note and not note_any:
@@ -254,6 +470,9 @@ def verify_article_citations(article, max_claims=MAX_CLAIMS):
                 'nums': nums,
                 'note': note_any or "Kaynakta bu iddia açıkça bulunamadı.",
             })
+            combined = "\n\n".join(src_parts)
+            if combined:
+                fix_candidates.append((claim, nums, combined))
 
     # CrossRef varlık doğrulaması (kaynak gerçekten var mı) — mevcut altyapı
     crossref_summary = None
@@ -264,6 +483,15 @@ def verify_article_citations(article, max_claims=MAX_CLAIMS):
         article.refresh_from_db()
     except Exception as e:
         crossref_summary = {'ok': None, 'message': f"CrossRef çalıştırılamadı: {e}"}
+
+    # OTOMATİK DÜZELTME — CrossRef refresh_from_db'DEN SONRA (içeriği ezmesin diye)
+    fixed = _apply_corrections(article, fix_candidates) if auto_fix else []
+    fixed_by_claim = {f['before']: f for f in fixed}
+    for it in unsupported_items:
+        f = fixed_by_claim.get(it['claim'])
+        if f:
+            it['fixed'] = True
+            it['after'] = f['after']
 
     total = checked
     score = int(round(100 * supported / total)) if total else None
@@ -276,10 +504,14 @@ def verify_article_citations(article, max_claims=MAX_CLAIMS):
         'unverifiable': unverifiable,
         'score': score,
         'unsupported': unsupported_items,
+        'auto_fixed_count': len(fixed),
+        'auto_fixed': fixed,
         'crossref': crossref_summary,
         'note': (
             "Kaynak metni alınamayan atıflar 'doğrulanamadı' sayıldı (paralı makale / "
             "PMID yok / NCBI erişimi yok olabilir)."
+            + (f" {len(fixed)} cümle kaynağa sadık şekilde otomatik düzeltildi."
+               if fixed else "")
         ),
     }
     result = faithfulness  # e-posta / dönüş için
@@ -321,11 +553,19 @@ def _send_citation_email(article, result):
             f"Desteklenen atıf: {supported}/{checked}"
             + (f" (skor {score}/100)" if score is not None else "") + "\n",
         ]
+        auto_fixed = result.get('auto_fixed_count') or 0
+        if auto_fixed:
+            lines.append(
+                f"Otomatik düzeltme: {auto_fixed} cümle, kaynağına sadık kalacak "
+                "şekilde AI tarafından yeniden yazıldı.\n")
         if unsupported:
             lines.append("Kaynakta AÇIKÇA bulunamayan iddialar (gözden geçirin):\n")
             for i, it in enumerate(unsupported[:15], 1):
                 nums = ", ".join(str(n) for n in it['nums'])
-                lines.append(f"{i}. [{nums}] {it['claim']}\n   → {it['note']}\n")
+                tag = " [düzeltildi]" if it.get('fixed') else ""
+                lines.append(f"{i}.{tag} [{nums}] {it['claim']}\n   → {it['note']}\n")
+                if it.get('fixed') and it.get('after'):
+                    lines.append(f"   ✓ Yeni: {it['after']}\n")
         else:
             lines.append("Tüm doğrulanabilir atıflar kaynaklarca destekleniyor görünüyor.\n")
         cr = result.get('crossref') or {}

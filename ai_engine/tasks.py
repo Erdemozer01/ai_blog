@@ -332,6 +332,17 @@ def generate_article_task(
 
         logger.info(f"Makale başarıyla üretildi: {new_article.title} (ID: {new_article.id})")
 
+        # --- 3) OTOMATİK ATIF SADAKAT DOĞRULAMASI ---
+        # Elde ZATEN olan real_sources JSON'u ile (yeniden çekmeden): her atıf
+        # cümlesinin kaynağınca desteklenip desteklenmediğini AI ile kontrol eder.
+        # Sonuç reference_check_result['faithfulness']'a yazılır (yayını engellemez).
+        try:
+            if real_sources:
+                from blog.citation_check import verify_with_sources
+                verify_with_sources(new_article, real_sources)
+        except Exception as e:
+            logger.warning(f"Atıf sadakat doğrulaması hatası (article {new_article.id}): {e}")
+
         # Kullaniciya basari bildirimi (makale hazir + link)
         try:
             create_notification(

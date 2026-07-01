@@ -569,6 +569,11 @@ def _build_reference_check_badge(article):
             fkids.append(html.Span(
                 f" {faith_unsupported} atıf kaynakta açıkça bulunamadı (şüpheli).",
                 className="fw-bold text-danger ms-1"))
+        auto_fixed = faith.get('auto_fixed_count') or 0
+        if auto_fixed:
+            fkids.append(html.Span(
+                f" {auto_fixed} cümle kaynağa sadık şekilde otomatik düzeltildi.",
+                className="text-success ms-1"))
         faith_line = html.Div(fkids, className="mb-1 mt-1")
 
     return dbc.Alert([
