@@ -5,4 +5,4 @@ Disallow: /admin/
 Disallow: /accounts/
 Disallow: /generate-article/
 
-Sitemap: https://aiblog.pythonanywhere.com/sitemap.xml
+Sitemap: {{ base_url }}/sitemap.xml

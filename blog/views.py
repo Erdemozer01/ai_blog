@@ -286,9 +286,36 @@ def anasayfa_view(request):
         meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
                             "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
                             "yapay zeka destekli akademik makaleler.")
+    # --- Anasayfa JSON-LD: Organization + WebSite (marka/site kimliği) ---
+    site_url = f"{request.scheme}://{request.get_host()}"
+    home_ld = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": f"{site_url}/#organization",
+                "name": "AI Blog",
+                "url": site_url,
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": request.build_absolute_uri('/static/images/logo.png'),
+                },
+            },
+            {
+                "@type": "WebSite",
+                "@id": f"{site_url}/#website",
+                "url": site_url,
+                "name": "AI Blog",
+                "description": meta_description,
+                "publisher": {"@id": f"{site_url}/#organization"},
+                "inLanguage": "en" if lang == 'en' else "tr",
+            },
+        ],
+    }
     return render(request, 'blog/anasayfa.html', {
         'meta_title': meta_title,
         'meta_description': meta_description,
+        'structured_data_json': json.dumps(home_ld, ensure_ascii=False, indent=2),
     })
 
 
@@ -870,10 +897,22 @@ def article_detail_view(request, article_id, slug):
 
     article_detail_app.layout = serve_article_detail_layout
 
+    # Arama sonucu snippet'i: HTML/markdown temizle, tek satıra indir, ~160 karakter
+    from django.utils.html import strip_tags
+    _raw_desc = article.turkish_abstract or article.english_abstract or ""
+    _clean_desc = re.sub(r'[#*_`>\[\]]', ' ', strip_tags(_raw_desc))
+    _clean_desc = re.sub(r'\s+', ' ', _clean_desc).strip()
+    if len(_clean_desc) > 160:
+        _clean_desc = _clean_desc[:157].rstrip() + "…"
+
+    _meta_title = article.title or "Makale"
+    if len(_meta_title) <= 55:
+        _meta_title = f"{_meta_title} — AI Blog"
+
     return render(request, 'blog/article_detail.html', {
         'article': article,
-        'meta_title': article.title,
-        'meta_description': article.turkish_abstract or "",
+        'meta_title': _meta_title,
+        'meta_description': _clean_desc,
         'meta_keywords': article.keywords or "",
         'structured_data_json': json.dumps(structured_data, indent=4),
         'meta_image_url': meta_image_url,
