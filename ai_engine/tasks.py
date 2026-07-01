@@ -56,10 +56,91 @@ def _normalize_json_article(data, real_sources=None):
         "turkish_abstract": _s(data.get('turkish_abstract')),
         "category_name": _s(data.get('category_name')) or "Genel",
         "keywords": _s(data.get('keywords')),
-        "content": _s(data.get('content')),
+        "content": _strip_trailing_bibliography(_s(data.get('content'))),
         "bibliography": biblio,
         "structured_data": cleaned_sd,
     }
+
+
+def _strip_trailing_bibliography(content):
+    """İçeriğin SONUNDAKİ 'Kaynakça/References' bölümünü kaldırır.
+
+    Kaynakça ayrı alanda (article.bibliography) tutulur; makale gövdesinde tekrar
+    görünmesin diye buradan kesilir. İçerikte hiç yoksa dokunmaz.
+    """
+    if not content:
+        return content
+    pattern = re.compile(
+        r'(?im)^[ \t]*#{0,6}[ \t]*\**[ \t]*'
+        r'(kaynak(?:ça|lar)|references|bibliography|reference list)'
+        r'\b[ \t]*\**[ \t]*:?[ \t]*$'
+    )
+    matches = list(pattern.finditer(content))
+    if not matches:
+        return content
+    return content[:matches[-1].start()].rstrip()
+
+
+def _ai_related_subtopics(topic, n=2):
+    """PubMed doğrudan sonuç vermezse: konuya yönelik n (1-2) adet daha aranabilir
+    İngilizce alt-başlık/anahtar-terim üretir. Liste döndürür; hata olursa []."""
+    try:
+        from ai_engine.services import generate_with_fallback
+        prompt = (
+            "A PubMed search for the topic below returned no results. Suggest "
+            f"{n} closely related, more searchable biomedical subtopics or keyword "
+            "phrases in English that likely have PubMed articles. Return ONLY a JSON "
+            'array of strings, e.g. ["...", "..."]. No other text.\n\n'
+            f"TOPIC: {topic}"
+        )
+        text, _k = generate_with_fallback(
+            prompt, service_name="Google Gemini", model_name="gemini-3.5-flash",
+            max_tokens=200, temperature=0.3)
+        if not text:
+            return []
+        m = re.search(r'\[.*\]', text, re.DOTALL)
+        if not m:
+            return []
+        arr = json.loads(m.group())
+        out = [str(x).strip() for x in arr if str(x).strip()]
+        return out[:n]
+    except Exception as e:
+        logger.warning(f"Alt-başlık üretimi hatası: {e}")
+        return []
+
+
+def _filter_sources_by_crossref(real_sources, timeout=10):
+    """Kaynakları üretimden ÖNCE CrossRef'ten geçirir.
+
+    - CrossRef'te BULUNMAYAN (not_found) kaynağı ATAR → JSON'a hiç girmez, böylece
+      AI onu alıntılayamaz ve sonradan CrossRef 'başa bela' olmaz.
+    - 'verified' olanları tutar.
+    - CrossRef'e ERİŞİLEMİYORSA (unreachable) kaynağı ATMAZ (API hıçkırığında tüm
+      kaynakları kaybetmemek için); haksız eleme yapmaz.
+    - Her şey elenirse orijinali korur (makale kaynaksız kalmasın).
+    """
+    if not real_sources:
+        return real_sources
+    try:
+        from blog.reference_check import verify_single_reference
+    except Exception:
+        return real_sources
+    kept = []
+    for s in real_sources:
+        ref_text = (str(s.get('doi') or '').strip()
+                    or str(s.get('citation') or '').strip())
+        if not ref_text:
+            kept.append(s)          # doğrulanacak bir şey yok → tut
+            continue
+        try:
+            status = verify_single_reference(ref_text, timeout=timeout).get('status')
+        except Exception:
+            status = 'unreachable'
+        if status == 'not_found':
+            logger.info(f"CrossRef'te bulunamadı, kaynak atıldı: {ref_text[:80]}")
+            continue
+        kept.append(s)
+    return kept if kept else real_sources
 
 
 def _parse_article_response(response_text):
@@ -99,6 +180,7 @@ def _parse_article_response(response_text):
     ai_data['turkish_abstract'] = tr_abstract_clean.strip()
     content_raw = ai_data.get('content', '')
     content_clean = re.sub(r'^\s*giriş:\s*', '', content_raw, flags=re.IGNORECASE)
+    content_clean = _strip_trailing_bibliography(content_clean)
     ai_data['content'] = content_clean.strip()
     biblio_raw = ai_data.get('bibliography', '')
     biblio_clean = re.sub(r'^\s*(\d+\.\s*)?kaynakça:\s*', '', biblio_raw, flags=re.IGNORECASE)
@@ -210,6 +292,24 @@ def generate_article_task(
             logger.warning(f"PubMed kaynak toplama hatası: {e}")
             real_sources = None
 
+        # PubMed doğrudan konuda boş döndüyse: AI'dan konuya yönelik 1-2 alt-başlık
+        # al, onlarla TEKRAR PubMed'de ara (ilk sonuç veren alt-başlığı kullan).
+        if not real_sources:
+            try:
+                for sub in _ai_related_subtopics(interpreted_topic, n=2):
+                    try:
+                        more = collect_pubmed_sources_for_topic(
+                            sub, target_count=src_count, fulltext_limit=ft_limit)
+                    except Exception:
+                        more = None
+                    if more:
+                        real_sources = more
+                        logger.info(f"PubMed alt-başlıkla bulundu: '{sub}'")
+                        break
+            except Exception as e:
+                logger.warning(f"Alt-başlık PubMed fallback hatası: {e}")
+                real_sources = real_sources or None
+
         if not real_sources:
             try:
                 real_sources = collect_real_sources_for_topic(interpreted_topic, target_count=src_count)
@@ -219,8 +319,16 @@ def generate_article_task(
                 logger.warning(f"CrossRef kaynak toplama hatası: {e}")
                 real_sources = None
 
+        # Üretimden ÖNCE CrossRef ön-doğrulaması: CrossRef'te bulunmayan kaynakları
+        # JSON'a hiç alma (AI onları alıntılayamasın; sonradan CrossRef sorun olmasın).
+        if real_sources:
+            try:
+                real_sources = _filter_sources_by_crossref(real_sources) or None
+            except Exception as e:
+                logger.warning(f"CrossRef ön-doğrulama hatası: {e}")
+
         # 2. AI ile makale üretimi
-        bio_context = None 
+        bio_context = None
 
         json_prompt = get_base_prompt(
             interpreted_topic, word_count, real_sources=real_sources, output_format='json')
