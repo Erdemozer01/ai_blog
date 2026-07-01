@@ -280,12 +280,14 @@ def anasayfa_view(request):
         meta_title = "AI Blog — AI-Powered Bioinformatics Tools & Articles"
         meta_description = ("Free online bioinformatics tools — CRISPR sgRNA design, "
                             "sequence analysis, primer design and more — plus AI-generated "
-                            "academic articles.")
+                            "academic articles with references pulled from PubMed and "
+                            "verified against CrossRef.")
     else:
         meta_title = "AI Blog — Yapay Zeka Destekli Biyoinformatik Araçları ve Makaleler"
         meta_description = ("Ücretsiz çevrimiçi biyoinformatik araçları — CRISPR sgRNA "
                             "tasarımı, sekans analizi, primer tasarımı ve daha fazlası — ve "
-                            "yapay zeka destekli akademik makaleler.")
+                            "kaynakları PubMed'den çekilip CrossRef ile doğrulanan yapay zeka "
+                            "destekli akademik makaleler.")
     # --- Anasayfa JSON-LD: Organization + WebSite (marka/site kimliği) ---
     site_url = f"{request.scheme}://{request.get_host()}"
     home_ld = {
