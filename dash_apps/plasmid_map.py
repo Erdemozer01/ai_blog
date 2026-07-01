@@ -421,7 +421,7 @@ def ai_comment(n_clicks, store_data, lang, **kwargs):
         )
 
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         comment, _key = generate_with_pool(
             prompt, service_name='Google Gemini', model_name='gemini-3.5-flash'
         )

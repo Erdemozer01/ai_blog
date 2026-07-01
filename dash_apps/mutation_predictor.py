@@ -474,7 +474,7 @@ def master_results_callback(calc_clicks, ai_clicks, selected_mol_id, mutation_st
         Protein PDB ID: {selected_mol_id}
         """
         try:
-            from ai_engine.services import generate_with_pool
+            from ai_engine.services import generate_with_fallback as generate_with_pool
             safety_settings = [
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -526,7 +526,7 @@ def generate_interpretation_callback(n_clicks, analysis_data):
     {features_text}
     """
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},

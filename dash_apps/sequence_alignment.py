@@ -46,7 +46,7 @@ def get_alignment_interpretation(fasta_data, lang='en'):
         return t('sal_no_interaction', lang)
 
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
 
         if lang == 'tr':
             prompt = f"""

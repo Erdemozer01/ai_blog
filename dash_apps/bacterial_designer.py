@@ -155,7 +155,7 @@ def handle_design_and_sequence_generation(n_clicks, design_goals, target_organis
         return msg, dash.no_update, True, 'tab-design'
 
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         design_text, _key = generate_with_pool(
             generate_design_prompt(target_organism, design_goals),
             service_name='Google Gemini', model_name='gemini-3.5-flash')

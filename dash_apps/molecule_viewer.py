@@ -188,7 +188,7 @@ def get_ai_report(protein_name, organism, lang='en'):
             f"summarizing its known biological functions, cellular localization and important mutations if any. "
             f"Format your answer in Markdown using headings.")
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-3.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:
@@ -224,7 +224,7 @@ def get_ai_removal_analysis(pdb_content, removed_items):
     - Analizinin kısa bir özetini sun ve bu yapısal modifikasyonun genel olarak ne anlama geldiğini belirt.
     """
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         text, _key = generate_with_pool(prompt, service_name="Google Gemini", model_name="gemini-3.5-flash")
         return dcc.Markdown(text), None
     except Exception as e:

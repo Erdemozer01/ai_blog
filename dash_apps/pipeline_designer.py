@@ -195,7 +195,7 @@ def handle_pipeline_generation(n_clicks, pipeline_goal, lang=None, **kwargs):
         return msg
 
     try:
-        from ai_engine.services import generate_with_pool
+        from ai_engine.services import generate_with_fallback as generate_with_pool
         prompt = generate_pipeline_prompt(pipeline_goal)
         response_text, _key = generate_with_pool(prompt, service_name='Google Gemini', model_name='gemini-3.5-flash')
         mermaid_graph, steps_df, code_snippets = parse_pipeline_response(response_text)

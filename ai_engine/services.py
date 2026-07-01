@@ -170,6 +170,39 @@ def generate_with_pool(prompt, service_name="Google Gemini", model_name=None,
         f"Havuzdaki {len(keys)} anahtarın tümü başarısız oldu. Son hata: {last_error}")
 
 
+def generate_with_fallback(prompt, service_name="Google Gemini", model_name=None,
+                           system_prompt=None, max_tokens=DEFAULT_MAX_TOKENS,
+                           temperature=DEFAULT_TEMPERATURE, safety_settings=None,
+                           thinking_level=None, cross_provider=True):
+    """generate_with_pool'u MODEL FALLBACK zinciriyle calistirir.
+
+    Once tercih edilen (service_name, model_name) denenir; o modelin tum
+    anahtarlari basarisiz olursa (kota/erisim/model hatasi) DB'deki diger
+    aktif modellere ve cross_provider=True ise diger saglayicilara sirayla
+    gecer. Boylece bir model/saglayici duserse hizmet kesilmez.
+
+    Doner: (text, used_key) — generate_with_pool ile ayni sekil.
+    """
+    chain = get_fallback_models(preferred_service=service_name,
+                                preferred_model=model_name,
+                                cross_provider=cross_provider)
+    if not chain:
+        chain = [(service_name, model_name)]
+    last_error = None
+    for svc, mdl in chain:
+        try:
+            return generate_with_pool(
+                prompt, service_name=svc, model_name=mdl,
+                system_prompt=system_prompt, max_tokens=max_tokens,
+                temperature=temperature, safety_settings=safety_settings,
+                thinking_level=thinking_level)
+        except Exception as e:
+            last_error = e
+            continue
+    raise RuntimeError(
+        f"Tum modeller/saglayicilar basarisiz oldu. Son hata: {last_error}")
+
+
 def _parse_json(text):
     """```json fence'lerini temizleyip ilk geçerli JSON nesnesini döndürür."""
     cleaned = text.strip()

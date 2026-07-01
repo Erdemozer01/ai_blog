@@ -172,7 +172,7 @@ def _parse_json(text):
 
 
 def _research(query, lang='en'):
-    from ai_engine.services import generate_with_pool
+    from ai_engine.services import generate_with_fallback as generate_with_pool
 
     safety = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
