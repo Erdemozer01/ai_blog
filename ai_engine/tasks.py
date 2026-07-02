@@ -414,6 +414,18 @@ def generate_article_task(
                 is_published=bool(user.is_superuser),
             )
 
+            # --- 0) SARKAN ATIF NUMARALARINI DOĞRU KAYNAĞA BAĞLA ---
+            # Kaynakçada karşılığı olmayan [N] atıflarını, cümlenin gerçekten hangi
+            # kaynaktan geldiğini JSON'dan bulup doğru numarayla değiştirir; kaynak
+            # açıkça desteklemiyorsa numarayı düşürür (yanlış atıf yapmaz).
+            try:
+                if real_sources:
+                    from blog.citation_check import reattribute_citations
+                    reattribute_citations(new_article, real_sources)
+                    new_article.refresh_from_db()
+            except Exception as e:
+                logger.warning(f"Atıf yeniden bağlama hatası: {e}")
+
             # --- 1) DETERMİNİSTİK öksüz kaynak temizliği ---
             try:
                 remove_orphan_references(new_article)

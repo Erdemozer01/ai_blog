@@ -412,6 +412,112 @@ def verify_with_sources(article, real_sources, max_claims=MAX_CLAIMS,
 
 
 # --------------------------------------------------------------------------- #
+# Atıf numaralarını DOĞRU kaynağa bağlama (sarkan/karşılıksız numaraları düzelt)
+# --------------------------------------------------------------------------- #
+def reattribute_citations(article, real_sources, max_fix=MAX_CLAIMS):
+    """Metindeki KAYNAKÇA-DIŞI (karşılığı olmayan) atıf numaralarını düzeltir.
+
+    Model bazen kaynakça 6'da biterken cümleye [8] / [15] gibi karşılığı olmayan
+    bir numara yazıyor. Bu fonksiyon o cümleyi ELDEKİ kaynak JSON'larıyla
+    karşılaştırır, cümleyi gerçekten DESTEKLEYEN kaynağı bulup onun DOĞRU numarasını
+    koyar. Hiçbir kaynak açıkça desteklemiyorsa numarayı DÜŞÜRÜR (yanlış atıf yapmaz).
+
+    Döner: (duzeltilen, dusurulen).
+    """
+    if not real_sources:
+        return 0, 0
+    content = article.full_content or ""
+    if not content:
+        return 0, 0
+    biblio = _parse_bibliography(article.bibliography)   # num -> {'text','doi'}
+    valid = set(biblio.keys())
+    if not valid:
+        return 0, 0
+
+    by_doi, ordered = {}, []
+    for s in real_sources:
+        txt = "\n\n".join(t for t in (s.get('fulltext'), s.get('abstract')) if t)
+        ordered.append(txt)
+        d = _norm_doi(s.get('doi'))
+        if d:
+            by_doi[d] = txt
+
+    def _text_for(num):
+        e = biblio.get(num) or {}
+        d = _norm_doi(e.get('doi'))
+        if d and d in by_doi:
+            return by_doi[d]
+        if 1 <= num <= len(ordered):
+            return ordered[num - 1]
+        return None
+
+    candidates = [(n, _text_for(n)) for n in sorted(valid)]
+    candidates = [(n, t) for n, t in candidates if t]
+
+    cite_re = re.compile(r'\[([\d,\s]+)\]')
+    edits = []            # (start, end, replacement)
+    fixed = dropped = 0
+    checks_done = 0
+
+    for m in cite_re.finditer(content):
+        nums = [int(x) for x in re.findall(r'\d+', m.group(1))]
+        ghosts = [n for n in nums if n not in valid]
+        if not ghosts:
+            continue
+        goods = [n for n in nums if n in valid]
+
+        # Atfın geçtiği cümleyi (çevresel bağlam) çıkar
+        left = max(content.rfind('.', 0, m.start()),
+                   content.rfind('!', 0, m.start()),
+                   content.rfind('?', 0, m.start()),
+                   content.rfind('\n', 0, m.start()))
+        rights = [content.find(ch, m.end()) for ch in '.!?\n']
+        rights = [r for r in rights if r != -1]
+        right = min(rights) if rights else len(content)
+        sentence = content[left + 1:right]
+        claim = re.sub(r'\s*\[[\d\s,]+\]', '', sentence).strip()
+
+        found = None
+        if len(claim) >= 15 and checks_done < max_fix:
+            checks_done += 1
+            for num, txt in candidates:
+                if num in goods:
+                    continue
+                sup, _note = _ai_supported(claim, txt)
+                if sup is True:
+                    found = num
+                    break
+
+        new_nums = list(goods)
+        if found is not None:
+            if found not in new_nums:
+                new_nums.append(found)
+            fixed += 1
+        else:
+            dropped += 1
+        new_nums = sorted(set(new_nums))
+        rep = ('[' + ', '.join(str(n) for n in new_nums) + ']') if new_nums else ''
+        edits.append((m.start(), m.end(), rep))
+
+    if not edits:
+        return 0, 0
+
+    for start, end, rep in sorted(edits, key=lambda e: e[0], reverse=True):
+        content = content[:start] + rep + content[end:]
+    content = re.sub(r'[ \t]{2,}', ' ', content)
+    content = re.sub(r'[ \t]+([.,;:])', r'\1', content)
+
+    try:
+        article.full_content = content
+        article.save(update_fields=['full_content'])
+    except Exception as e:
+        logger.warning(f"Atıf yeniden bağlama kaydedilemedi "
+                       f"(article {getattr(article,'id','?')}): {e}")
+        return 0, 0
+    return fixed, dropped
+
+
+# --------------------------------------------------------------------------- #
 # Ana giriş noktası
 # --------------------------------------------------------------------------- #
 def verify_article_citations(article, max_claims=MAX_CLAIMS, auto_fix=True):
